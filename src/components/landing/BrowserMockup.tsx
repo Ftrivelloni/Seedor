@@ -27,8 +27,8 @@ export default function BrowserMockup() {
             {/* Top Bar */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#D9251C]/10 flex items-center justify-center">
-                  <div className="w-4 h-4 rounded bg-[#D9251C]/30"></div>
+                <div className="w-8 h-8 rounded-lg bg-[#73AC01]/10 flex items-center justify-center">
+                  <div className="w-4 h-4 rounded bg-[#73AC01]/30"></div>
                 </div>
                 <div className="h-3 w-24 bg-black/10 rounded-full"></div>
               </div>
@@ -43,7 +43,7 @@ export default function BrowserMockup() {
               {/* Sidebar */}
               <div className="col-span-1 bg-white rounded-xl p-3 shadow-sm hidden md:block">
                 <div className="space-y-3">
-                  <div className="h-8 w-full bg-[#D9251C]/10 rounded-lg"></div>
+                  <div className="h-8 w-full bg-[#73AC01]/10 rounded-lg"></div>
                   <div className="h-6 w-3/4 bg-black/5 rounded-lg"></div>
                   <div className="h-6 w-full bg-black/5 rounded-lg"></div>
                   <div className="h-6 w-2/3 bg-black/5 rounded-lg"></div>
@@ -57,15 +57,15 @@ export default function BrowserMockup() {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-white rounded-xl p-3 shadow-sm">
                     <div className="h-2 w-12 bg-black/10 rounded-full mb-2"></div>
-                    <div className="h-5 w-16 bg-[#D9251C]/20 rounded"></div>
+                    <div className="h-5 w-16 bg-[#73AC01]/20 rounded"></div>
                   </div>
                   <div className="bg-white rounded-xl p-3 shadow-sm">
                     <div className="h-2 w-10 bg-black/10 rounded-full mb-2"></div>
-                    <div className="h-5 w-14 bg-green-500/20 rounded"></div>
+                    <div className="h-5 w-14 bg-[#73AC01]/20 rounded"></div>
                   </div>
                   <div className="bg-white rounded-xl p-3 shadow-sm">
                     <div className="h-2 w-14 bg-black/10 rounded-full mb-2"></div>
-                    <div className="h-5 w-12 bg-blue-500/20 rounded"></div>
+                    <div className="h-5 w-12 bg-[#73AC01]/20 rounded"></div>
                   </div>
                 </div>
 
@@ -76,7 +76,7 @@ export default function BrowserMockup() {
                     {[40, 65, 45, 80, 55, 70, 90, 60, 75, 50, 85, 70].map((height, i) => (
                       <div
                         key={i}
-                        className="flex-1 bg-gradient-to-t from-[#D9251C]/30 to-[#D9251C]/10 rounded-t"
+                        className="flex-1 bg-gradient-to-t from-[#73AC01]/30 to-[#73AC01]/10 rounded-t"
                         style={{ height: `${height}%` }}
                       ></div>
                     ))}

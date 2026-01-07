@@ -63,14 +63,14 @@ export default function Stats() {
   const { ref: statsRef, isVisible: statsVisible } = useScrollAnimation({ threshold: 0.3 });
 
   return (
-    <section id="stats" className="py-16 md:py-20 lg:py-24 bg-[#F1F1F1] overflow-hidden">
+    <section id="stats" className="py-16 md:py-20 lg:py-24 bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div 
+        <div
           ref={headerRef}
           className={`text-center mb-12 md:mb-16 scroll-animate-up ${headerVisible ? 'visible' : ''}`}
         >
-          <span className="inline-block px-4 py-1.5 bg-[#D9251C]/10 text-[#D9251C] text-xs md:text-sm font-medium rounded-full mb-4">
+          <span className="inline-block px-4 py-1.5 bg-[#73AC01]/10 text-[#73AC01] text-xs md:text-sm font-medium rounded-full mb-4">
             Números que hablan
           </span>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#0A0908] mb-4">
@@ -79,21 +79,21 @@ export default function Stats() {
         </div>
 
         {/* Stats Grid */}
-        <div 
+        <div
           ref={statsRef}
           className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6"
         >
           {stats.map((stat, index) => (
             <div
               key={index}
-              className={`bg-white p-6 md:p-8 rounded-[20px] md:rounded-[28px] border border-black/5 shadow-sm text-center group hover:shadow-lg transition-all duration-500 scroll-animate-scale ${statsVisible ? 'visible' : ''}`}
+              className={`bg-[#F8F9FA] p-6 md:p-8 rounded-[20px] md:rounded-[28px] border border-black/5 shadow-sm text-center group hover:shadow-lg hover:shadow-[#73AC01]/5 transition-all duration-500 scroll-animate-scale ${statsVisible ? 'visible' : ''}`}
               style={{ transitionDelay: `${index * 100}ms` }}
             >
-              <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#D9251C] mb-2 group-hover:scale-105 transition-transform duration-300">
-                <AnimatedNumber 
-                  value={stat.value} 
-                  suffix={stat.suffix} 
-                  isVisible={statsVisible} 
+              <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#73AC01] mb-2 group-hover:scale-105 transition-transform duration-300">
+                <AnimatedNumber
+                  value={stat.value}
+                  suffix={stat.suffix}
+                  isVisible={statsVisible}
                 />
               </div>
               <div className="text-xs sm:text-sm md:text-base text-[#0A0908]/60 font-medium">

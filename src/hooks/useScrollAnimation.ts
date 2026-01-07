@@ -11,7 +11,7 @@ interface UseScrollAnimationOptions {
 export function useScrollAnimation<T extends HTMLElement = HTMLDivElement>(
   options: UseScrollAnimationOptions = {}
 ) {
-  const { threshold = 0.1, rootMargin = '0px 0px -50px 0px', triggerOnce = true } = options;
+  const { threshold = 0.1, rootMargin = '0px 0px -50px 0px', triggerOnce = false } = options;
   const ref = useRef<T>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -46,7 +46,7 @@ export function useStaggeredAnimation<T extends HTMLElement = HTMLDivElement>(
   itemCount: number,
   options: UseScrollAnimationOptions = {}
 ) {
-  const { threshold = 0.1, rootMargin = '0px 0px -50px 0px', triggerOnce = true } = options;
+  const { threshold = 0.1, rootMargin = '0px 0px -50px 0px', triggerOnce = false } = options;
   const containerRef = useRef<T>(null);
   const [visibleItems, setVisibleItems] = useState<boolean[]>(Array(itemCount).fill(false));
 

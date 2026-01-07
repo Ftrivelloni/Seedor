@@ -1,21 +1,23 @@
 import {
   Navbar,
   Hero,
+  Introduction,
   Features,
-  Stats,
-  Benefits,
+  WhySeedor,
+  HighlightedFeatures,
   CTA,
   Footer,
 } from '@/components/landing';
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#F1F1F1]">
+    <main className="min-h-screen bg-white">
       <Navbar />
       <Hero />
+      <Introduction />
       <Features />
-      <Stats />
-      <Benefits />
+      <WhySeedor />
+      <HighlightedFeatures />
       <CTA />
       <Footer />
     </main>

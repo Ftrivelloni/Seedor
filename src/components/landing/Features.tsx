@@ -10,8 +10,9 @@ const features = [
       </svg>
     ),
     title: 'Gestión de Campo',
-    description: 'Administrá lotes, tareas y seguimiento en tiempo real.',
-    color: 'bg-emerald-500/10 text-emerald-600',
+    description: 'Planificá, asigná y hacé seguimiento de todas las tareas de campo en tiempo real. Control total de cultivos, lotes y actividades diarias.',
+    points: ['Planificación de tareas', 'Seguimiento de cultivos', 'Gestión de lotes', 'Reportes automáticos'],
+    color: 'bg-[#73AC01]/10 text-[#73AC01]',
   },
   {
     icon: (
@@ -20,8 +21,9 @@ const features = [
       </svg>
     ),
     title: 'Inventario y Empaque',
-    description: 'Control de insumos, stock y registro de empaques.',
-    color: 'bg-blue-500/10 text-blue-600',
+    description: 'Controlá insumos, cosecha y empaque con visibilidad total. Optimizá tu cadena de suministro y maximizá la eficiencia.',
+    points: ['Control de stock', 'Trazabilidad completa', 'Gestión de pallets', 'Optimización de procesos'],
+    color: 'bg-[#5C8A01]/10 text-[#5C8A01]',
   },
   {
     icon: (
@@ -30,8 +32,9 @@ const features = [
       </svg>
     ),
     title: 'Finanzas Inteligentes',
-    description: 'Costos, presupuestos y reportes para decidir mejor.',
-    color: 'bg-amber-500/10 text-amber-600',
+    description: 'Costos, egresos e ingresos siempre a mano para tomar mejores decisiones. Análisis financiero detallado y proyecciones.',
+    points: ['Dashboard financiero', 'Análisis de costos', 'Proyecciones', 'Reportes detallados'],
+    color: 'bg-[#8BC34A]/10 text-[#8BC34A]',
   },
 ];
 
@@ -45,21 +48,18 @@ export default function Features() {
   const cardVisibility = [card1Visible, card2Visible, card3Visible];
 
   return (
-    <section id="features" className="py-16 md:py-20 lg:py-24 bg-white overflow-hidden">
+    <section id="features" className="py-16 md:py-20 lg:py-24 bg-[#F8F9FA] overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div 
+        <div
           ref={headerRef}
           className={`text-center mb-12 md:mb-16 scroll-animate-up ${headerVisible ? 'visible' : ''}`}
         >
-          <span className="inline-block px-4 py-1.5 bg-[#D9251C]/10 text-[#D9251C] text-xs md:text-sm font-medium rounded-full mb-4">
-            Módulos
-          </span>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#0A0908] mb-4">
-            Todo lo que necesitás
+            Todo lo que necesitás en un solo lugar
           </h2>
           <p className="text-sm md:text-base text-[#0A0908]/60 max-w-xl mx-auto">
-            Herramientas diseñadas para optimizar cada aspecto de tu operación agropecuaria.
+            Herramientas poderosas diseñadas específicamente para la gestión agropecuaria moderna
           </p>
         </div>
 
@@ -69,18 +69,29 @@ export default function Features() {
             <div
               key={index}
               ref={cardRefs[index]}
-              className={`group p-6 md:p-8 bg-[#F8F9FA] rounded-[20px] md:rounded-[28px] border border-black/5 hover:shadow-xl hover:shadow-black/5 transition-all duration-500 hover:-translate-y-1 scroll-animate-scale ${cardVisibility[index] ? 'visible' : ''}`}
+              className={`group p-6 md:p-8 bg-white rounded-[20px] md:rounded-[28px] border border-black/5 hover:shadow-xl hover:shadow-[#73AC01]/5 transition-all duration-500 hover:-translate-y-1 scroll-animate-scale ${cardVisibility[index] ? 'visible' : ''}`}
               style={{ transitionDelay: `${index * 150}ms` }}
             >
               <div className={`w-12 h-12 md:w-14 md:h-14 ${feature.color} rounded-2xl flex items-center justify-center mb-5 md:mb-6 group-hover:scale-110 transition-transform duration-300`}>
                 {feature.icon}
               </div>
-              <h3 className="text-xl md:text-2xl font-semibold text-[#0A0908] mb-2 md:mb-3">
+              <h3 className="text-xl md:text-2xl font-semibold text-[#0A0908] mb-3">
                 {feature.title}
               </h3>
-              <p className="text-sm md:text-base text-[#0A0908]/60 leading-relaxed">
+              <p className="text-sm md:text-base text-[#0A0908]/60 leading-relaxed mb-4">
                 {feature.description}
               </p>
+              {/* Feature Points */}
+              <ul className="space-y-2">
+                {feature.points.map((point, idx) => (
+                  <li key={idx} className="flex items-center gap-2 text-sm text-[#0A0908]/70">
+                    <svg className="w-4 h-4 text-[#73AC01] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    {point}
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
         </div>

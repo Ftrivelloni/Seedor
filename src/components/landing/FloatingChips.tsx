@@ -31,7 +31,7 @@ export default function FloatingChips() {
             key={index}
             className={`absolute ${chipPositions[chip.position]} ${animationDelays[chip.position]}`}
           >
-            <div className="bg-white px-4 py-2 rounded-full shadow-lg border border-black/5 text-sm font-medium text-[#0A0908]/80">
+            <div className="bg-white px-4 py-2 rounded-full shadow-lg border border-[#73AC01]/10 text-sm font-medium text-[#0A0908]/80">
               {chip.label}
             </div>
           </div>
@@ -45,12 +45,12 @@ export default function FloatingChips() {
       >
         <defs>
           <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#D9251C" stopOpacity="0.1" />
-            <stop offset="50%" stopColor="#D9251C" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#D9251C" stopOpacity="0.1" />
+            <stop offset="0%" stopColor="#73AC01" stopOpacity="0.1" />
+            <stop offset="50%" stopColor="#73AC01" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#73AC01" stopOpacity="0.1" />
           </linearGradient>
         </defs>
-        
+
         {/* Left lines */}
         <path
           d="M 0 25% Q 15% 25%, 25% 35%"
@@ -68,7 +68,7 @@ export default function FloatingChips() {
           strokeDasharray="4 4"
           className="opacity-40"
         />
-        
+
         {/* Right lines */}
         <path
           d="M 100% 25% Q 85% 25%, 75% 35%"

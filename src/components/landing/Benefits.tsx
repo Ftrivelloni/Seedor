@@ -43,14 +43,14 @@ export default function Benefits() {
   const animationTypes = ['scroll-animate-right', 'scroll-animate-up', 'scroll-animate-left'];
 
   return (
-    <section id="benefits" className="py-16 md:py-20 lg:py-24 bg-white overflow-hidden">
+    <section id="benefits" className="py-16 md:py-20 lg:py-24 bg-[#F8F9FA] overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div 
+        <div
           ref={headerRef}
           className={`text-center mb-12 md:mb-16 scroll-animate-up ${headerVisible ? 'visible' : ''}`}
         >
-          <span className="inline-block px-4 py-1.5 bg-[#D9251C]/10 text-[#D9251C] text-xs md:text-sm font-medium rounded-full mb-4">
+          <span className="inline-block px-4 py-1.5 bg-[#73AC01]/10 text-[#73AC01] text-xs md:text-sm font-medium rounded-full mb-4">
             Beneficios
           </span>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#0A0908] mb-4">
@@ -71,10 +71,10 @@ export default function Benefits() {
               style={{ transitionDelay: `${index * 150}ms` }}
             >
               {/* Decorative gradient */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#D9251C]/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-[#D9251C]/30 transition-all duration-500"></div>
-              
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#73AC01]/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-[#73AC01]/30 transition-all duration-500"></div>
+
               <div className="relative z-10">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-[#D9251C] rounded-xl flex items-center justify-center mb-5 md:mb-6 group-hover:scale-110 transition-transform duration-300">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-[#73AC01] rounded-xl flex items-center justify-center mb-5 md:mb-6 group-hover:scale-110 transition-transform duration-300">
                   {benefit.icon}
                 </div>
                 <div className="text-4xl sm:text-5xl md:text-6xl font-bold mb-2 text-white group-hover:scale-105 transition-transform duration-300 origin-left">

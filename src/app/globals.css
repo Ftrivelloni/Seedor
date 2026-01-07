@@ -348,26 +348,26 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - Updated to green */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #F1F1F1;
+  background: #F8F9FA;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D9251C40;
+  background: #73AC0140;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #D9251C60;
+  background: #73AC0160;
 }
 
-/* Selection color */
+/* Selection color - Updated to green */
 ::selection {
-  background-color: #D9251C20;
+  background-color: #73AC0120;
   color: #0A0908;
 }
