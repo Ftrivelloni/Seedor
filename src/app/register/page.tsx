@@ -23,30 +23,29 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#F8F9FA]">
+    <div className="min-h-screen flex bg-white">
       {/* Left Side - Form */}
       <div className="w-full lg:w-[45%] flex flex-col p-6 sm:p-8 lg:p-12 overflow-y-auto">
-        {/* Header with Logo */}
-        <div
-          className={`flex items-center justify-between mb-8 lg:mb-12 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}
-        >
-          <Link href="/" className="flex items-center">
-            <Image
-              src="/images/logos/seedor-logo-no-bg.png"
-              alt="Seedor"
-              width={120}
-              height={32}
-              className="h-7 md:h-8 w-auto"
-              priority
-            />
-          </Link>
-        </div>
-
         {/* Form Container */}
-        <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
+        <div className="flex flex-col pt-4 sm:pt-8 lg:pt-12 max-w-lg mx-auto w-full">
+          {/* Logo */}
+          <div className={`mb-8 lg:mb-10 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+            <Link href="/" className="flex items-center">
+              <div className="relative h-11 sm:h-12 w-48 sm:w-56">
+                <Image
+                  src="/images/logos/seedor-logo-fondoblanco.png"
+                  alt="Seedor"
+                  fill
+                  priority
+                  className="object-contain object-left"
+                  sizes="(min-width:640px) 176px, 160px"
+                />
+              </div>
+            </Link>
+          </div>
           {/* Title */}
           <h1
-            className={`text-3xl sm:text-4xl font-bold text-[#0A0908] mb-8 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+            className={`text-2xl sm:text-3xl font-bold text-[#0A0908] mb-8 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             style={{ transitionDelay: '100ms' }}
           >
             Registrarse
@@ -68,7 +67,7 @@ export default function RegisterPage() {
                 <input
                   id="email"
                   type="email"
-                  className="w-full pl-12 pr-4 py-4 bg-white border border-black/10 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
+                  className="w-full pl-12 pr-4 py-5 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
                   placeholder="Email"
                 />
               </div>
@@ -88,7 +87,7 @@ export default function RegisterPage() {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  className="w-full pl-12 pr-12 py-4 bg-white border border-black/10 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
+                  className="w-full pl-12 pr-12 py-5 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
                   placeholder="Contraseña"
                 />
                 <button
@@ -124,7 +123,7 @@ export default function RegisterPage() {
                 <input
                   id="name"
                   type="text"
-                  className="w-full pl-12 pr-4 py-4 bg-white border border-black/10 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
+                  className="w-full pl-12 pr-4 py-5 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
                   placeholder="Nombre completo"
                 />
               </div>
@@ -144,7 +143,7 @@ export default function RegisterPage() {
                 <input
                   id="phone"
                   type="tel"
-                  className="w-full pl-12 pr-4 py-4 bg-white border border-black/10 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
+                  className="w-full pl-12 pr-4 py-5 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
                   placeholder="Teléfono"
                 />
               </div>
@@ -194,12 +193,15 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={!agreedToTerms}
-                className={`w-full py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${agreedToTerms
+                className={`w-full py-4 px-6 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${agreedToTerms
                   ? 'bg-[#73AC01] text-white hover:bg-[#5C8A01] shadow-[0_4px_14px_0_rgba(115,172,1,0.39)] hover:shadow-[0_6px_20px_rgba(115,172,1,0.5)] hover:scale-[1.02]'
                   : 'bg-[#73AC01]/30 text-white/70 cursor-not-allowed'
                   }`}
               >
-                Registrarse
+                Elegir plan
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
               </button>
             </div>
           </form>
@@ -234,6 +236,28 @@ export default function RegisterPage() {
             >
               <source src="/videos/animacionlogo3d.mp4" type="video/mp4" />
             </video>
+          </div>
+
+          {/* Text Overlay */}
+          <div className="absolute inset-0 flex flex-col pointer-events-none">
+            <div className="p-10 lg:p-12">
+              <h2
+                className={`text-2xl lg:text-3xl xl:text-4xl font-bold text-white mb-3 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+                style={{ transitionDelay: '400ms' }}
+              >
+                Todo lo que necesitás en un solo lugar
+              </h2>
+              <p
+                className={`text-base lg:text-lg text-white/80 mb-6 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+                style={{ transitionDelay: '500ms' }}
+              >
+                Herramientas avanzadas que transforman tu forma de trabajar
+              </p>
+              <div
+                className={`w-full h-px bg-white/30 transition-all duration-700 ${isLoaded ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'}`}
+                style={{ transitionDelay: '600ms', transformOrigin: 'left' }}
+              ></div>
+            </div>
           </div>
         </div>
       </div>

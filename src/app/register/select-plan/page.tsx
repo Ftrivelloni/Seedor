@@ -71,8 +71,8 @@ export default function SelectPlanPage() {
     }, []);
 
     const handleContinue = () => {
-        // Here you would save the selected plan and continue to dashboard/onboarding
-        router.push('/dashboard');
+        // Here you would save the selected plan and continue to success page
+        router.push('/register/success');
     };
 
     return (
@@ -145,14 +145,14 @@ export default function SelectPlanPage() {
                                 {/* Card */}
                                 <div
                                     className={`relative p-6 md:p-8 rounded-2xl border-2 transition-all duration-300 ${selectedPlan === plan.id
-                                            ? 'border-[#73AC01] bg-white shadow-[0_8px_30px_rgba(115,172,1,0.15)]'
-                                            : 'border-black/10 bg-white hover:border-[#73AC01]/50 hover:shadow-lg'
+                                        ? 'border-[#73AC01] bg-white shadow-[0_8px_30px_rgba(115,172,1,0.15)]'
+                                        : 'border-black/10 bg-white hover:border-[#73AC01]/50 hover:shadow-lg'
                                         } ${plan.popular ? 'md:scale-105' : ''}`}
                                 >
                                     {/* Selection Indicator */}
                                     <div className={`absolute top-4 right-4 w-6 h-6 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${selectedPlan === plan.id
-                                            ? 'border-[#73AC01] bg-[#73AC01]'
-                                            : 'border-black/20'
+                                        ? 'border-[#73AC01] bg-[#73AC01]'
+                                        : 'border-black/20'
                                         }`}>
                                         {selectedPlan === plan.id && (
                                             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">

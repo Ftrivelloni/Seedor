@@ -39,7 +39,7 @@ export default function Navbar() {
             style={{ transitionDelay: '100ms' }}
           >
             <Image
-              src="/images/logos/seedor-logo-no-bg.png"
+              src="/images/logos/seedor-logo-fondoblanco.png"
               alt="Seedor"
               width={120}
               height={32}
@@ -48,32 +48,24 @@ export default function Navbar() {
             />
           </Link>
 
-          {/* Desktop Navigation Links */}
-          <div className="hidden md:flex items-center gap-8">
-            {[
-              { label: 'FAQ', href: '#faq' },
-              { label: 'Contáctenos', href: '#contacto' },
-              { label: 'Iniciar sesión', href: '/login' },
-            ].map((item, index) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`text-sm text-[#0A0908]/70 hover:text-[#73AC01] transition-all duration-500 hover:scale-105 ${isLoaded ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'}`}
-                style={{ transitionDelay: `${200 + index * 100}ms` }}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* CTA Button */}
-          <Link
-            href="/register"
-            className={`px-4 py-2 md:px-6 md:py-2.5 bg-[#73AC01] text-white text-sm font-medium rounded-full hover:bg-[#5C8A01] transition-all duration-300 shadow-[0_4px_14px_0_rgba(115,172,1,0.39)] hover:shadow-[0_6px_20px_rgba(115,172,1,0.5)] hover:scale-105 ${isLoaded ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'}`}
-            style={{ transitionDelay: '400ms' }}
+          {/* CTA Buttons */}
+          <div
+            className={`hidden md:flex items-center gap-3 transition-all duration-500 ${isLoaded ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'}`}
+            style={{ transitionDelay: '300ms' }}
           >
-            Crear usuario
-          </Link>
+            <Link
+              href="/login"
+              className="px-6 py-2.5 bg-white text-[#73AC01] text-sm font-medium rounded-full border-2 border-[#73AC01] hover:bg-[#73AC01]/5 transition-all duration-300 hover:scale-105"
+            >
+              Iniciar sesión
+            </Link>
+            <Link
+              href="/register"
+              className="px-6 py-2.5 bg-[#73AC01] text-white text-sm font-medium rounded-full hover:bg-[#5C8A01] transition-all duration-300 shadow-[0_4px_14px_0_rgba(115,172,1,0.39)] hover:shadow-[0_6px_20px_rgba(115,172,1,0.5)] hover:scale-105"
+            >
+              Crear usuario
+            </Link>
+          </div>
 
           {/* Mobile menu button */}
           <button
@@ -93,10 +85,19 @@ export default function Navbar() {
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-black/5">
-            <div className="flex flex-col gap-4">
-              <Link href="#faq" className="text-sm text-[#0A0908]/70 hover:text-[#73AC01]">FAQ</Link>
-              <Link href="#contacto" className="text-sm text-[#0A0908]/70 hover:text-[#73AC01]">Contáctenos</Link>
-              <Link href="/login" className="text-sm text-[#0A0908]/70 hover:text-[#73AC01]">Iniciar sesión</Link>
+            <div className="flex flex-col gap-3">
+              <Link
+                href="/login"
+                className="text-sm text-[#0A0908]/70 hover:text-[#73AC01] py-2"
+              >
+                Iniciar sesión
+              </Link>
+              <Link
+                href="/register"
+                className="text-sm bg-[#73AC01] text-white text-center py-2 rounded-full"
+              >
+                Crear usuario
+              </Link>
             </div>
           </div>
         )}
