@@ -18,7 +18,7 @@ export default function Footer() {
             className={`flex items-center scroll-animate-right ${isVisible ? 'visible' : ''}`}
           >
             <Image
-              src="/brand/seedor-light.png"
+              src="/images/logos/seedor-logo-no-bg.png"
               alt="Seedor"
               width={100}
               height={28}

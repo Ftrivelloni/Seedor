@@ -66,7 +66,7 @@ export default function CTA() {
                 href="/register"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 md:px-8 md:py-4 bg-white text-[#73AC01] text-sm md:text-base font-semibold rounded-full hover:bg-white/90 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] group"
               >
-                Comenzar ahora
+                Crear usuario
                 <svg
                   className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform"
                   fill="none"

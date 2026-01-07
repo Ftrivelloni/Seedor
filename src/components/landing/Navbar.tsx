@@ -26,8 +26,8 @@ export default function Navbar() {
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled
-          ? 'bg-white/95 backdrop-blur-md shadow-sm'
-          : 'bg-white/80 backdrop-blur-md'
+        ? 'bg-white/95 backdrop-blur-md shadow-sm'
+        : 'bg-white/80 backdrop-blur-md'
         } ${isLoaded ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -39,7 +39,7 @@ export default function Navbar() {
             style={{ transitionDelay: '100ms' }}
           >
             <Image
-              src="/brand/seedor-dark.png"
+              src="/images/logos/seedor-logo-no-bg.png"
               alt="Seedor"
               width={120}
               height={32}
