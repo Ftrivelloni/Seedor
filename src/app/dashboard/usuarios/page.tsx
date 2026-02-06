@@ -1,13 +1,25 @@
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
+import { InviteUserModal } from './InviteUserModal';
+import { UsersTable } from './UsersTable';
+import { Search, Download, Settings } from 'lucide-react';
+import { Button } from '@/components/dashboard/ui/button';
+import { Input } from '@/components/dashboard/ui/input';
 import {
-  inviteUserAction,
-  updateUserRoleAction,
-  updateUserStatusAction,
-} from '@/app/dashboard/usuarios/actions';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/dashboard/ui/select';
 
-export default async function UsuariosPage() {
+export default async function UsuariosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; role?: string; status?: string }>;
+}) {
   const session = await requireRole(['ADMIN']);
+  const params = await searchParams;
 
   const users = await prisma.tenantUserMembership.findMany({
     where: {
@@ -21,137 +33,104 @@ export default async function UsuariosPage() {
     },
   });
 
+  // Filter users based on search params
+  let filteredUsers = users;
+
+  if (params.q) {
+    const query = params.q.toLowerCase();
+    filteredUsers = filteredUsers.filter(
+      (entry) =>
+        entry.user.firstName.toLowerCase().includes(query) ||
+        entry.user.lastName.toLowerCase().includes(query) ||
+        entry.user.email.toLowerCase().includes(query) ||
+        entry.user.phone.includes(query)
+    );
+  }
+
+  if (params.role && params.role !== 'ALL') {
+    filteredUsers = filteredUsers.filter(
+      (entry) => entry.user.role === params.role
+    );
+  }
+
+  if (params.status && params.status !== 'ALL') {
+    filteredUsers = filteredUsers.filter(
+      (entry) => entry.user.status === params.status
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold text-gray-900">Usuarios</h1>
-        <p className="text-sm text-gray-600">
-          Gestión de usuarios del tenant: invitación, roles y estado de acceso.
-        </p>
+      {/* Header */}
+      <header className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Usuarios</h1>
+          <p className="text-sm text-gray-600">
+            Administrá accesos y permisos de tu empresa
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="gap-2" disabled>
+            <Settings className="h-4 w-4" />
+            Roles y permisos
+          </Button>
+          <InviteUserModal />
+        </div>
       </header>
 
-      <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="text-lg font-semibold text-gray-900">Invitar usuario</h2>
-        <p className="mt-1 text-sm text-gray-600">
-          Se crea el usuario en estado invitado y queda listo para integración de envío externo.
-        </p>
-
-        <form action={inviteUserAction} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <input
-            name="firstName"
-            required
-            placeholder="Nombre"
-            className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
+      {/* Search and Filters */}
+      <div className="flex items-center gap-4">
+        <form className="relative flex-1" action="/dashboard/usuarios">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Input
+            name="q"
+            type="search"
+            placeholder="Buscar por nombre, email o teléfono..."
+            defaultValue={params.q || ''}
+            className="pl-10"
           />
-          <input
-            name="lastName"
-            required
-            placeholder="Apellido"
-            className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
-          />
-          <input
-            name="email"
-            type="email"
-            required
-            placeholder="Email"
-            className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
-          />
-          <input
-            name="phone"
-            required
-            placeholder="Teléfono"
-            className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
-          />
-          <div className="flex gap-2">
-            <select
-              name="role"
-              defaultValue="SUPERVISOR"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
-            >
-              <option value="SUPERVISOR">Supervisor operativo</option>
-              <option value="ADMIN">Administrador</option>
-            </select>
-            <button
-              type="submit"
-              className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700"
-            >
-              Invitar
-            </button>
-          </div>
+          <input type="hidden" name="role" value={params.role || 'ALL'} />
+          <input type="hidden" name="status" value={params.status || 'ALL'} />
         </form>
-      </section>
 
-      <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Nombre</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Email</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Teléfono</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Rol</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Último acceso</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
-              {users.map((entry) => (
-                <tr key={entry.id}>
-                  <td className="px-4 py-3 text-sm text-gray-800">
-                    {entry.user.firstName} {entry.user.lastName}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{entry.user.email}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{entry.user.phone}</td>
-                  <td className="px-4 py-3">
-                    <form action={updateUserRoleAction} className="flex items-center gap-2">
-                      <input type="hidden" name="userId" value={entry.user.id} />
-                      <select
-                        name="role"
-                        defaultValue={entry.user.role}
-                        className="rounded-md border border-gray-300 px-2 py-1.5 text-xs"
-                      >
-                        <option value="ADMIN">Administrador</option>
-                        <option value="SUPERVISOR">Supervisor</option>
-                      </select>
-                      <button
-                        type="submit"
-                        className="rounded-md border border-gray-300 px-2 py-1.5 text-xs hover:bg-gray-100"
-                      >
-                        Guardar
-                      </button>
-                    </form>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
-                    {entry.user.lastAccessAt
-                      ? entry.user.lastAccessAt.toLocaleString('es-AR')
-                      : 'Sin acceso'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <form action={updateUserStatusAction} className="flex items-center gap-2">
-                      <input type="hidden" name="userId" value={entry.user.id} />
-                      <select
-                        name="status"
-                        defaultValue={entry.user.status}
-                        className="rounded-md border border-gray-300 px-2 py-1.5 text-xs"
-                      >
-                        <option value="INVITED">Invitado</option>
-                        <option value="ACTIVE">Activo</option>
-                        <option value="INACTIVE">Inactivo</option>
-                      </select>
-                      <button
-                        type="submit"
-                        className="rounded-md border border-gray-300 px-2 py-1.5 text-xs hover:bg-gray-100"
-                      >
-                        Guardar
-                      </button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <form className="flex items-center gap-3" action="/dashboard/usuarios">
+          <input type="hidden" name="q" value={params.q || ''} />
+          <Select name="role" defaultValue={params.role || 'ALL'}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Todos los roles" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos los roles</SelectItem>
+              <SelectItem value="ADMIN">Administrador</SelectItem>
+              <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select name="status" defaultValue={params.status || 'ALL'}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos</SelectItem>
+              <SelectItem value="ACTIVE">Activo</SelectItem>
+              <SelectItem value="INACTIVE">Inactivo</SelectItem>
+              <SelectItem value="INVITED">Invitado</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button type="submit" variant="ghost" size="sm" className="hidden">
+            Filtrar
+          </Button>
+        </form>
+
+        <Button variant="outline" className="gap-2" disabled>
+          <Download className="h-4 w-4" />
+          Exportar
+        </Button>
+      </div>
+
+      {/* Users Table */}
+      <UsersTable users={filteredUsers} />
     </div>
   );
 }

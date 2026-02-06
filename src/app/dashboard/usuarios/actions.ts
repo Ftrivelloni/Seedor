@@ -13,14 +13,12 @@ const allowedStatuses: UserStatus[] = ['INVITED', 'ACTIVE', 'INACTIVE'];
 export async function inviteUserAction(formData: FormData) {
   const session = await requireRole(['ADMIN']);
 
-  const firstName = String(formData.get('firstName') || '').trim();
-  const lastName = String(formData.get('lastName') || '').trim();
   const email = String(formData.get('email') || '').trim().toLowerCase();
   const phone = String(formData.get('phone') || '').trim();
   const role = String(formData.get('role') || 'SUPERVISOR') as UserRole;
 
-  if (!firstName || !lastName || !email || !phone) {
-    throw new Error('Todos los campos son obligatorios para invitar un usuario.');
+  if (!email) {
+    throw new Error('El email es obligatorio para invitar un usuario.');
   }
 
   if (!allowedRoles.includes(role)) {
@@ -36,6 +34,11 @@ export async function inviteUserAction(formData: FormData) {
     throw new Error('Ya existe un usuario con ese email.');
   }
 
+  // Generate temporary name from email (part before @)
+  const emailPrefix = email.split('@')[0];
+  const firstName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+  const lastName = 'Invitado';
+
   const temporaryPassword = randomBytes(12).toString('hex');
 
   await prisma.$transaction(async (tx) => {
@@ -44,7 +47,7 @@ export async function inviteUserAction(formData: FormData) {
         firstName,
         lastName,
         email,
-        phone,
+        phone: phone || '',
         role,
         status: 'INVITED',
         invitedById: session.userId,
