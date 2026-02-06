@@ -83,10 +83,9 @@ Al registrar una nueva empresa en la aplicación, el usuario que creó este regi
 
 El proceso de registro en la aplicación permite la creación de un nuevo tenant junto con su usuario administrador. A través de este flujo, el usuario completa sus datos personales y los datos básicos de la organización, que serán utilizados para identificar y configurar el entorno de trabajo de la empresa dentro del sistema. 
 
-Durante el registro, el usuario selecciona un plan de pago, el cual determina tanto la cantidad máxima de usuarios como los módulos disponibles en la plataforma, diferenciando entre módulos obligatorios y módulos opcionales. Esta selección inicial define la estructura funcional del tenant desde el inicio, permitiendo adaptar la aplicación a las necesidades de cada empresa. 
+Durante el registro, el usuario selecciona que modulos extras quiere para su empresa. Los modulos campo, inventario, trabajadores, usuarios, dashboard son obligatorios los demas cuestan 20usd cada uno.
 
-![][image2]  
-![][image3]
+
 
 # **Módulos del sistema**  {#módulos-del-sistema}
 
