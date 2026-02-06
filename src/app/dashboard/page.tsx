@@ -17,23 +17,10 @@ import {
     LayoutGrid,
     GripVertical,
     X,
+    ChevronDown,
+    ChevronUp,
+    Plus,
 } from 'lucide-react';
-import { StateCard } from '@/components/dashboard/StateCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
-import { Badge } from '@/components/dashboard/ui/badge';
-import { Button } from '@/components/dashboard/ui/button';
-import { Switch } from '@/components/dashboard/ui/switch';
-import { Label } from '@/components/dashboard/ui/label';
-import { Separator } from '@/components/dashboard/ui/separator';
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from '@/components/dashboard/ui/sheet';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/dashboard/ui/tabs';
 import { useAppContext } from '@/context/AppContext';
 import {
     BarChart,
@@ -280,12 +267,87 @@ const STORAGE_KEY = 'seedor-dashboard-widgets';
 const LAYOUT_STORAGE_KEY = 'seedor-dashboard-layout';
 const PLACEMENT_STORAGE_KEY = 'seedor-dashboard-placement';
 
+// Simple Card Component
+function DashboardCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+    return (
+        <div className={`bg-white rounded-xl border border-gray-200 ${className}`}>
+            {children}
+        </div>
+    );
+}
+
+// Stat Card Component (like in the image)
+function StatCard({
+    title,
+    value,
+    icon: Icon,
+    trend,
+    iconColor = 'text-green-600',
+}: {
+    title: string;
+    value: string | number;
+    icon: React.ElementType;
+    trend?: { value: string; positive: boolean };
+    iconColor?: string;
+}) {
+    return (
+        <DashboardCard className="p-5 h-full">
+            <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                    <p className="text-sm text-gray-500">{title}</p>
+                    <div className="flex items-baseline gap-2">
+                        <p className="text-2xl font-semibold text-gray-900">{value}</p>
+                        {trend && (
+                            <span className={`text-xs flex items-center gap-0.5 ${trend.positive ? 'text-green-600' : 'text-red-500'}`}>
+                                {trend.positive ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                {trend.value}
+                            </span>
+                        )}
+                    </div>
+                </div>
+                <div className={`p-2.5 rounded-lg bg-gray-50 ${iconColor}`}>
+                    <Icon className="h-5 w-5" />
+                </div>
+            </div>
+        </DashboardCard>
+    );
+}
+
+// Badge Component
+function Badge({ children, variant = 'default' }: { children: React.ReactNode; variant?: 'default' | 'destructive' | 'secondary' }) {
+    const variants = {
+        default: 'bg-amber-100 text-amber-700',
+        destructive: 'bg-red-100 text-red-700',
+        secondary: 'bg-gray-100 text-gray-700',
+    };
+    return (
+        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${variants[variant]}`}>
+            {children}
+        </span>
+    );
+}
+
+// Toggle Switch Component
+function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+    return (
+        <button
+            onClick={onChange}
+            className={`relative w-10 h-5 rounded-full transition-colors ${checked ? 'bg-green-500' : 'bg-gray-300'}`}
+        >
+            <span
+                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`}
+            />
+        </button>
+    );
+}
+
 export default function Dashboard() {
     const { lotes, tareas, alertas, ordenes, maquinaria, insumos, clientes } = useAppContext();
     const [widgets, setWidgets] = useState<WidgetConfig[]>(defaultWidgetConfig);
     const [selectedTemplate, setSelectedTemplate] = useState<string>('balanced');
     const [widgetPlacements, setWidgetPlacements] = useState<Record<string, WidgetId | null>>({});
     const [isOpen, setIsOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<'templates' | 'widgets'>('templates');
     const [draggedWidget, setDraggedWidget] = useState<WidgetId | null>(null);
     const [draggedFromSlot, setDraggedFromSlot] = useState<string | null>(null);
     const [hoveredSlot, setHoveredSlot] = useState<string | null>(null);
@@ -547,7 +609,7 @@ export default function Dashboard() {
 
         const dragHandle = (
             <div
-                className="absolute top-2 right-8 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                className="absolute top-3 right-9 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-10"
                 draggable
                 onDragStart={(e) => handleDragStart(e, widgetId, slotId)}
                 onDragEnd={handleDragEnd}
@@ -559,7 +621,7 @@ export default function Dashboard() {
         const removeButton = (
             <button
                 onClick={() => removeWidgetFromSlot(slotId)}
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 p-1 hover:bg-gray-100 rounded"
+                className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity z-10 p-1 hover:bg-gray-100 rounded"
             >
                 <X className="h-3 w-3 text-gray-400" />
             </button>
@@ -571,12 +633,12 @@ export default function Dashboard() {
                     <div className={`relative group h-full ${draggedStyles}`}>
                         {dragHandle}
                         {removeButton}
-                        <StateCard
+                        <StatCard
                             title="Tareas activas"
                             value={tareasActivas}
                             icon={CalendarClock}
                             iconColor="text-blue-600"
-                            trend={{ value: '+12% vs mes anterior', positive: true }}
+                            trend={{ value: '2.5%', positive: true }}
                         />
                     </div>
                 );
@@ -585,11 +647,12 @@ export default function Dashboard() {
                     <div className={`relative group h-full ${draggedStyles}`}>
                         {dragHandle}
                         {removeButton}
-                        <StateCard
+                        <StatCard
                             title="Alertas de stock"
                             value={alertasActivas}
                             icon={AlertTriangle}
                             iconColor="text-orange-600"
+                            trend={{ value: '0.2%', positive: false }}
                         />
                     </div>
                 );
@@ -598,11 +661,12 @@ export default function Dashboard() {
                     <div className={`relative group h-full ${draggedStyles}`}>
                         {dragHandle}
                         {removeButton}
-                        <StateCard
+                        <StatCard
                             title="Órdenes activas"
                             value={ordenesActivas}
                             icon={Package}
                             iconColor="text-purple-600"
+                            trend={{ value: '0.12%', positive: true }}
                         />
                     </div>
                 );
@@ -611,165 +675,201 @@ export default function Dashboard() {
                     <div className={`relative group h-full ${draggedStyles}`}>
                         {dragHandle}
                         {removeButton}
-                        <StateCard
+                        <StatCard
                             title="Rendimiento promedio"
                             value={`${rendimientoPromedio}%`}
                             icon={TrendingUp}
                             iconColor="text-green-600"
-                            trend={{ value: '+5% vs campaña anterior', positive: true }}
+                            trend={{ value: '0.5%', positive: true }}
                         />
                     </div>
                 );
             case 'rendimientoPorLote':
                 return (
-                    <Card className={`relative group h-full ${draggedStyles}`}>
+                    <DashboardCard className={`relative group h-full ${draggedStyles}`}>
                         {dragHandle}
                         {removeButton}
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-base">Rendimiento por lote</CardTitle>
-                        </CardHeader>
-                        <CardContent>
+                        <div className="p-5 pb-2">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-base font-medium text-gray-900">Rendimiento por lote</h3>
+                                <div className="flex items-center gap-4 text-xs">
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                                        Rendimiento
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="px-2 pb-4">
                             <ResponsiveContainer width="100%" height={chartHeight}>
-                                <BarChart data={rendimientoPorLote}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="nombre" tick={{ fontSize: 11 }} />
-                                    <YAxis tick={{ fontSize: 11 }} />
-                                    <Tooltip />
-                                    <Bar dataKey="rendimiento" fill="#10b981" />
+                                <BarChart data={rendimientoPorLote} barSize={32}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                    <XAxis dataKey="nombre" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                                    <Tooltip 
+                                        contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    />
+                                    <Bar dataKey="rendimiento" fill="#22c55e" radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </DashboardCard>
                 );
             case 'ventasMensuales':
                 return (
-                    <Card className={`relative group h-full ${draggedStyles}`}>
+                    <DashboardCard className={`relative group h-full ${draggedStyles}`}>
                         {dragHandle}
                         {removeButton}
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-base">Ventas últimos 6 meses (millones)</CardTitle>
-                        </CardHeader>
-                        <CardContent>
+                        <div className="p-5 pb-2">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-base font-medium text-gray-900">Ventas últimos 6 meses</h3>
+                                <div className="flex items-center gap-4 text-xs">
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-orange-400"></span>
+                                        Ventas (millones)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="px-2 pb-4">
                             <ResponsiveContainer width="100%" height={chartHeight}>
-                                <LineChart data={ventasPorMes}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                                    <YAxis tick={{ fontSize: 11 }} />
-                                    <Tooltip />
-                                    <Line type="monotone" dataKey="ventas" stroke="#10b981" strokeWidth={2} />
-                                </LineChart>
+                                <BarChart data={ventasPorMes} barSize={32}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                    <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                                    <Tooltip 
+                                        contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    />
+                                    <Bar dataKey="ventas" fill="#fb923c" radius={[4, 4, 0, 0]} />
+                                </BarChart>
                             </ResponsiveContainer>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </DashboardCard>
                 );
             case 'costoPorHectarea':
                 return (
-                    <Card className={`relative group h-full ${draggedStyles}`}>
+                    <DashboardCard className={`relative group h-full ${draggedStyles}`}>
                         {dragHandle}
                         {removeButton}
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-base">Costo por Hectárea ($/ha)</CardTitle>
-                        </CardHeader>
-                        <CardContent>
+                        <div className="p-5 pb-2">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-base font-medium text-gray-900">Costo por Hectárea ($/ha)</h3>
+                            </div>
+                        </div>
+                        <div className="px-2 pb-4">
                             <ResponsiveContainer width="100%" height={chartHeight}>
-                                <BarChart data={costoPorHectarea}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="nombre" tick={{ fontSize: 11 }} />
-                                    <YAxis tick={{ fontSize: 11 }} />
-                                    <Tooltip />
-                                    <Bar dataKey="costo" fill="#3b82f6" />
+                                <BarChart data={costoPorHectarea} barSize={32}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                    <XAxis dataKey="nombre" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                                    <Tooltip 
+                                        contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    />
+                                    <Bar dataKey="costo" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </DashboardCard>
                 );
             case 'estadoMaquinaria':
                 return (
-                    <Card className={`relative group h-full ${draggedStyles}`}>
+                    <DashboardCard className={`relative group h-full ${draggedStyles}`}>
                         {dragHandle}
                         {removeButton}
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-base">Estado de Maquinaria</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ResponsiveContainer width="100%" height={chartHeight}>
-                                <PieChart>
-                                    <Pie
-                                        data={maquinariaEstado}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={slotSize === 'large' ? 70 : 50}
-                                        outerRadius={slotSize === 'large' ? 110 : 80}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                        label={({ name, value }) => `${name}: ${value}`}
-                                    >
-                                        {maquinariaEstado.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </CardContent>
-                    </Card>
+                        <div className="p-5 pb-2">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-base font-medium text-gray-900">Estado de Maquinaria</h3>
+                            </div>
+                        </div>
+                        <div className="px-2 pb-4 flex items-center">
+                            <div className="flex-1">
+                                <ResponsiveContainer width="100%" height={chartHeight}>
+                                    <PieChart>
+                                        <Pie
+                                            data={maquinariaEstado}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={slotSize === 'large' ? 70 : 50}
+                                            outerRadius={slotSize === 'large' ? 110 : 80}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                        >
+                                            {maquinariaEstado.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="space-y-2 pr-4">
+                                {maquinariaEstado.map((item) => (
+                                    <div key={item.name} className="flex items-center gap-2">
+                                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
+                                        <span className="text-sm text-gray-600">{item.name}</span>
+                                        <span className="text-sm font-medium ml-auto">{item.value}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </DashboardCard>
                 );
             case 'tareasProximas':
                 return (
-                    <Card className={`relative group h-full overflow-hidden ${draggedStyles}`}>
+                    <DashboardCard className={`relative group h-full overflow-hidden ${draggedStyles}`}>
                         {dragHandle}
                         {removeButton}
-                        <CardHeader className="pb-2">
+                        <div className="p-5 pb-3">
                             <div className="flex items-center justify-between">
-                                <CardTitle className="text-base">Tareas próximas</CardTitle>
-                                <Link href="/dashboard/campo/calendario" className="text-xs text-green-600 hover:underline">
+                                <h3 className="text-base font-medium text-gray-900">Tareas próximas</h3>
+                                <Link href="/dashboard/campo/calendario" className="text-xs text-green-600 hover:text-green-700">
                                     Ver todas
                                 </Link>
                             </div>
-                        </CardHeader>
-                        <CardContent className="overflow-auto max-h-[300px]">
-                            <div className="space-y-3">
+                        </div>
+                        <div className="px-5 pb-5 overflow-auto max-h-[280px]">
+                            <div className="space-y-2">
                                 {tareasPendientes.length === 0 ? (
                                     <p className="text-center text-sm text-gray-500 py-4">No hay tareas pendientes</p>
                                 ) : (
                                     tareasPendientes.map((tarea) => (
                                         <div
                                             key={tarea.id}
-                                            className={`flex items-start justify-between border-b pb-3 last:border-0 last:pb-0 rounded-lg p-2 -mx-2 ${tarea.prioridad === 'alta' ? 'bg-red-50' : tarea.prioridad === 'media' ? 'bg-amber-50' : ''}`}
+                                            className={`flex items-start justify-between rounded-lg p-3 ${tarea.prioridad === 'alta' ? 'bg-red-50' : tarea.prioridad === 'media' ? 'bg-amber-50' : 'bg-gray-50'}`}
                                         >
-                                            <div className="space-y-1 flex-1 min-w-0">
+                                            <div className="space-y-0.5 flex-1 min-w-0">
                                                 <p className="font-medium text-gray-900 text-sm truncate">{tarea.descripcion}</p>
                                                 <p className="text-xs text-gray-500">{tarea.lotes.length} lote(s)</p>
                                             </div>
-                                            <Badge variant={tarea.prioridad === 'alta' ? 'destructive' : tarea.prioridad === 'media' ? 'default' : 'secondary'} className="ml-2 text-xs">
+                                            <Badge variant={tarea.prioridad === 'alta' ? 'destructive' : tarea.prioridad === 'media' ? 'default' : 'secondary'}>
                                                 {tarea.prioridad}
                                             </Badge>
                                         </div>
                                     ))
                                 )}
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </DashboardCard>
                 );
             case 'alertasRecientes':
                 return (
-                    <Card className={`relative group h-full overflow-hidden ${draggedStyles}`}>
+                    <DashboardCard className={`relative group h-full overflow-hidden ${draggedStyles}`}>
                         {dragHandle}
                         {removeButton}
-                        <CardHeader className="pb-2">
+                        <div className="p-5 pb-3">
                             <div className="flex items-center justify-between">
-                                <CardTitle className="text-base">Alertas recientes</CardTitle>
-                                <Link href="/dashboard/inventario/alertas" className="text-xs text-green-600 hover:underline">
+                                <h3 className="text-base font-medium text-gray-900">Alertas recientes</h3>
+                                <Link href="/dashboard/inventario/alertas" className="text-xs text-green-600 hover:text-green-700">
                                     Ver todas
                                 </Link>
                             </div>
-                        </CardHeader>
-                        <CardContent className="overflow-auto max-h-[300px]">
-                            <div className="space-y-3">
+                        </div>
+                        <div className="px-5 pb-5 overflow-auto max-h-[280px]">
+                            <div className="space-y-2">
                                 {alertas.slice(0, 5).map((alerta) => (
-                                    <div key={alerta.id} className={`flex items-start gap-2 border-b pb-3 last:border-0 last:pb-0 rounded-lg p-2 -mx-2 ${alerta.tipo === 'Sin stock' ? 'bg-red-50' : 'bg-amber-50'}`}>
-                                        <div className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full ${alerta.tipo === 'Sin stock' ? 'bg-red-100' : 'bg-amber-100'}`}>
-                                            <AlertTriangle className={`h-3 w-3 ${alerta.tipo === 'Sin stock' ? 'text-red-600' : 'text-amber-600'}`} />
+                                    <div key={alerta.id} className={`flex items-start gap-3 rounded-lg p-3 ${alerta.tipo === 'Sin stock' ? 'bg-red-50' : 'bg-amber-50'}`}>
+                                        <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${alerta.tipo === 'Sin stock' ? 'bg-red-100' : 'bg-amber-100'}`}>
+                                            <AlertTriangle className={`h-3.5 w-3.5 ${alerta.tipo === 'Sin stock' ? 'text-red-600' : 'text-amber-600'}`} />
                                         </div>
                                         <div className="flex-1 space-y-0.5 min-w-0">
                                             <p className="font-medium text-gray-900 text-sm">{alerta.tipo}</p>
@@ -778,34 +878,34 @@ export default function Dashboard() {
                                     </div>
                                 ))}
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </DashboardCard>
                 );
             case 'stockInsumos':
                 return (
-                    <Card className={`relative group h-full overflow-hidden ${draggedStyles}`}>
+                    <DashboardCard className={`relative group h-full overflow-hidden ${draggedStyles}`}>
                         {dragHandle}
                         {removeButton}
-                        <CardHeader className="pb-2">
+                        <div className="p-5 pb-3">
                             <div className="flex items-center justify-between">
-                                <CardTitle className="text-base">Insumos con Stock Bajo</CardTitle>
-                                <Link href="/dashboard/inventario" className="text-xs text-green-600 hover:underline">
+                                <h3 className="text-base font-medium text-gray-900">Insumos con Stock Bajo</h3>
+                                <Link href="/dashboard/inventario" className="text-xs text-green-600 hover:text-green-700">
                                     Ver todos
                                 </Link>
                             </div>
-                        </CardHeader>
-                        <CardContent className="overflow-auto max-h-[300px]">
-                            <div className="space-y-3">
+                        </div>
+                        <div className="px-5 pb-5 overflow-auto max-h-[280px]">
+                            <div className="space-y-2">
                                 {insumosBajoStock.length === 0 ? (
                                     <p className="text-center text-sm text-gray-500 py-4">Stock suficiente</p>
                                 ) : (
                                     insumosBajoStock.map((insumo) => (
-                                        <div key={insumo.id} className={`flex items-center justify-between border-b pb-2 last:border-0 last:pb-0 rounded-lg p-2 -mx-2 ${insumo.estado === 'critico' ? 'bg-red-50' : 'bg-amber-50'}`}>
+                                        <div key={insumo.id} className={`flex items-center justify-between rounded-lg p-3 ${insumo.estado === 'critico' ? 'bg-red-50' : 'bg-amber-50'}`}>
                                             <div className="space-y-0.5 min-w-0 flex-1">
                                                 <p className="font-medium text-gray-900 text-sm truncate">{insumo.nombre}</p>
                                                 <p className="text-xs text-gray-500">{insumo.categoria}</p>
                                             </div>
-                                            <div className="text-right ml-2">
+                                            <div className="text-right ml-3">
                                                 <p className={`font-semibold text-sm ${insumo.estado === 'critico' ? 'text-red-600' : 'text-amber-600'}`}>
                                                     {insumo.stockTotal} {insumo.unidad}
                                                 </p>
@@ -814,42 +914,42 @@ export default function Dashboard() {
                                     ))
                                 )}
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </DashboardCard>
                 );
             case 'clientesActivos':
                 return (
-                    <Card className={`relative group h-full overflow-hidden ${draggedStyles}`}>
+                    <DashboardCard className={`relative group h-full overflow-hidden ${draggedStyles}`}>
                         {dragHandle}
                         {removeButton}
-                        <CardHeader className="pb-2">
+                        <div className="p-5 pb-3">
                             <div className="flex items-center justify-between">
-                                <CardTitle className="text-base">Clientes con Saldo</CardTitle>
-                                <Link href="/dashboard/ventas" className="text-xs text-green-600 hover:underline">
+                                <h3 className="text-base font-medium text-gray-900">Clientes con Saldo</h3>
+                                <Link href="/dashboard/ventas" className="text-xs text-green-600 hover:text-green-700">
                                     Ver todos
                                 </Link>
                             </div>
-                        </CardHeader>
-                        <CardContent className="overflow-auto max-h-[300px]">
-                            <div className="space-y-3">
+                        </div>
+                        <div className="px-5 pb-5 overflow-auto max-h-[280px]">
+                            <div className="space-y-2">
                                 {clientesConSaldo.length === 0 ? (
                                     <p className="text-center text-sm text-gray-500 py-4">Sin saldos pendientes</p>
                                 ) : (
                                     clientesConSaldo.map((cliente) => (
-                                        <div key={cliente.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+                                        <div key={cliente.id} className="flex items-center justify-between rounded-lg p-3 bg-gray-50">
                                             <div className="space-y-0.5 min-w-0 flex-1">
                                                 <p className="font-medium text-gray-900 text-sm truncate">{cliente.nombre}</p>
                                                 <p className="text-xs text-gray-500">{cliente.tipo}</p>
                                             </div>
-                                            <p className="font-semibold text-red-600 text-sm ml-2">
+                                            <p className="font-semibold text-red-600 text-sm ml-3">
                                                 ${cliente.saldoPendiente.toLocaleString()}
                                             </p>
                                         </div>
                                     ))
                                 )}
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </DashboardCard>
                 );
             default:
                 return null;
@@ -866,126 +966,153 @@ export default function Dashboard() {
 
     return (
         <div className="space-y-6">
+            {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-semibold text-gray-900">Dashboard</h1>
-                    <p className="mt-1 text-sm text-gray-600">
+                    <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+                    <p className="mt-0.5 text-sm text-gray-500">
                         Resumen general de tu operación agrícola
                     </p>
                 </div>
-                <Sheet open={isOpen} onOpenChange={setIsOpen}>
-                    <SheetTrigger asChild>
-                        <Button variant="outline" size="sm" className="gap-2">
-                            <Settings2 className="h-4 w-4" />
-                            Personalizar
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent className="overflow-y-auto w-full sm:max-w-lg">
-                        <SheetHeader>
-                            <SheetTitle className="flex items-center gap-2">
-                                <BarChart3 className="h-5 w-5" />
-                                Personalizar Dashboard
-                            </SheetTitle>
-                            <SheetDescription>
-                                Elige una plantilla y arrastra los widgets a los espacios disponibles.
-                            </SheetDescription>
-                        </SheetHeader>
-
-                        <Tabs defaultValue="templates" className="mt-4">
-                            <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="templates">
-                                    <LayoutGrid className="h-4 w-4 mr-2" />
-                                    Plantillas
-                                </TabsTrigger>
-                                <TabsTrigger value="widgets">
-                                    <BarChart3 className="h-4 w-4 mr-2" />
-                                    Widgets
-                                </TabsTrigger>
-                            </TabsList>
-
-                            <TabsContent value="templates" className="mt-4 space-y-4">
-                                <p className="text-sm text-gray-600">Selecciona cómo organizar tu dashboard:</p>
-                                <div className="grid gap-3">
-                                    {layoutTemplates.map((template) => (
-                                        <div
-                                            key={template.id}
-                                            onClick={() => saveLayout(template.id)}
-                                            className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedTemplate === template.id
-                                                ? 'border-green-500 bg-green-50'
-                                                : 'border-gray-200 hover:border-gray-300'
-                                                }`}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <h4 className="font-medium text-gray-900">{template.name}</h4>
-                                                    <p className="text-xs text-gray-500 mt-1">{template.description}</p>
-                                                </div>
-                                                {selectedTemplate === template.id && (
-                                                    <Badge variant="default" className="bg-green-500">Activo</Badge>
-                                                )}
-                                            </div>
-                                            {/* Mini preview */}
-                                            <div className={`mt-3 grid ${template.gridClass} gap-1 h-16`}>
-                                                {template.slots.slice(0, 8).map((slot) => (
-                                                    <div
-                                                        key={slot.id}
-                                                        className={`${slot.gridClass} bg-gray-200 rounded ${selectedTemplate === template.id ? 'bg-green-200' : ''}`}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </TabsContent>
-
-                            <TabsContent value="widgets" className="mt-4 space-y-4">
-                                <p className="text-sm text-gray-600">Activa o desactiva widgets:</p>
-                                {(Object.keys(categoryInfo) as WidgetCategory[]).map((category) => {
-                                    const info = categoryInfo[category];
-                                    const categoryWidgets = widgetsByCategory(category);
-                                    if (categoryWidgets.length === 0) return null;
-
-                                    return (
-                                        <div key={category}>
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <info.icon className={`h-4 w-4 ${info.color}`} />
-                                                <h3 className="font-medium text-sm text-gray-900">{info.name}</h3>
-                                                <Badge variant="secondary" className="ml-auto text-xs">
-                                                    {categoryWidgets.filter(w => w.enabled).length}/{categoryWidgets.length}
-                                                </Badge>
-                                            </div>
-                                            <div className="space-y-2">
-                                                {categoryWidgets.map((widget) => (
-                                                    <div
-                                                        key={widget.id}
-                                                        className="flex items-center justify-between gap-3 p-2 rounded-lg border bg-gray-50/50 hover:bg-gray-50 transition-colors"
-                                                    >
-                                                        <div className="min-w-0 flex-1">
-                                                            <Label htmlFor={widget.id} className="text-sm font-medium cursor-pointer">
-                                                                {widget.name}
-                                                            </Label>
-                                                        </div>
-                                                        <Switch
-                                                            id={widget.id}
-                                                            checked={widget.enabled}
-                                                            onCheckedChange={() => toggleWidget(widget.id)}
-                                                        />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <Separator className="mt-3" />
-                                        </div>
-                                    );
-                                })}
-                            </TabsContent>
-                        </Tabs>
-                    </SheetContent>
-                </Sheet>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                        <Settings2 className="h-4 w-4" />
+                        Personalizar
+                    </button>
+                    <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors">
+                        <Plus className="h-4 w-4" />
+                        Agregar datos
+                    </button>
+                </div>
             </div>
+
+            {/* Customization Panel (Sheet) */}
+            {isOpen && (
+                <>
+                    <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setIsOpen(false)} />
+                    <div className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-white shadow-xl z-50 overflow-y-auto">
+                        <div className="p-6 border-b border-gray-200">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <BarChart3 className="h-5 w-5 text-gray-700" />
+                                    <h2 className="text-lg font-semibold text-gray-900">Personalizar Dashboard</h2>
+                                </div>
+                                <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                                    <X className="h-5 w-5 text-gray-500" />
+                                </button>
+                            </div>
+                            <p className="text-sm text-gray-500 mt-1">
+                                Elige una plantilla y arrastra los widgets a los espacios disponibles.
+                            </p>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="border-b border-gray-200">
+                            <div className="flex">
+                                <button
+                                    onClick={() => setActiveTab('templates')}
+                                    className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'templates' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    <LayoutGrid className="h-4 w-4 inline mr-2" />
+                                    Plantillas
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('widgets')}
+                                    className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'widgets' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    <BarChart3 className="h-4 w-4 inline mr-2" />
+                                    Widgets
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6">
+                            {activeTab === 'templates' && (
+                                <div className="space-y-4">
+                                    <p className="text-sm text-gray-600">Selecciona cómo organizar tu dashboard:</p>
+                                    <div className="grid gap-3">
+                                        {layoutTemplates.map((template) => (
+                                            <div
+                                                key={template.id}
+                                                onClick={() => saveLayout(template.id)}
+                                                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedTemplate === template.id
+                                                    ? 'border-green-500 bg-green-50'
+                                                    : 'border-gray-200 hover:border-gray-300'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <h4 className="font-medium text-gray-900">{template.name}</h4>
+                                                        <p className="text-xs text-gray-500 mt-1">{template.description}</p>
+                                                    </div>
+                                                    {selectedTemplate === template.id && (
+                                                        <span className="px-2 py-1 text-xs font-medium bg-green-500 text-white rounded-full">Activo</span>
+                                                    )}
+                                                </div>
+                                                <div className={`mt-3 grid ${template.gridClass} gap-1 h-16`}>
+                                                    {template.slots.slice(0, 8).map((slot) => (
+                                                        <div
+                                                            key={slot.id}
+                                                            className={`${slot.gridClass} rounded ${selectedTemplate === template.id ? 'bg-green-200' : 'bg-gray-200'}`}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'widgets' && (
+                                <div className="space-y-6">
+                                    <p className="text-sm text-gray-600">Activa o desactiva widgets:</p>
+                                    {(Object.keys(categoryInfo) as WidgetCategory[]).map((category) => {
+                                        const info = categoryInfo[category];
+                                        const categoryWidgets = widgetsByCategory(category);
+                                        if (categoryWidgets.length === 0) return null;
+
+                                        return (
+                                            <div key={category}>
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <info.icon className={`h-4 w-4 ${info.color}`} />
+                                                    <h3 className="font-medium text-sm text-gray-900">{info.name}</h3>
+                                                    <span className="ml-auto text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                        {categoryWidgets.filter(w => w.enabled).length}/{categoryWidgets.length}
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {categoryWidgets.map((widget) => (
+                                                        <div
+                                                            key={widget.id}
+                                                            className="flex items-center justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-colors"
+                                                        >
+                                                            <label htmlFor={widget.id} className="text-sm font-medium text-gray-700 cursor-pointer">
+                                                                {widget.name}
+                                                            </label>
+                                                            <Toggle
+                                                                checked={widget.enabled}
+                                                                onChange={() => toggleWidget(widget.id)}
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <div className="border-b border-gray-200 mt-4" />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
 
             {/* Unplaced widgets tray */}
             {unplacedWidgets.length > 0 && (
-                <Card className="p-4">
+                <DashboardCard className="p-4">
                     <div className="flex items-center gap-2 mb-3">
                         <GripVertical className="h-4 w-4 text-gray-400" />
                         <span className="text-sm font-medium text-gray-700">Widgets disponibles</span>
@@ -1009,11 +1136,11 @@ export default function Dashboard() {
                             );
                         })}
                     </div>
-                </Card>
+                </DashboardCard>
             )}
 
             {/* Dashboard grid */}
-            <div className={`grid ${currentTemplate.gridClass} gap-4 auto-rows-[minmax(120px,auto)]`}>
+            <div className={`grid ${currentTemplate.gridClass} gap-5 auto-rows-[minmax(120px,auto)]`}>
                 {currentTemplate.slots.map((slot) => {
                     const widgetId = widgetPlacements[slot.id];
                     const hasWidget = widgetId && widgets.find(w => w.id === widgetId)?.enabled;
@@ -1029,13 +1156,12 @@ export default function Dashboard() {
                             onDrop={(e) => handleDrop(e, slot.id)}
                         >
                             {showGhostPreview ? (
-                                // Show ghost preview of the dragged widget
                                 renderGhostPreview(draggedWidget, slot.size)
                             ) : hasWidget ? (
                                 renderWidget(widgetId, slot.size, slot.id)
                             ) : (
                                 <div
-                                    className={`h-full border-2 border-dashed rounded-lg flex items-center justify-center transition-all duration-200 ${draggedWidget
+                                    className={`h-full border-2 border-dashed rounded-xl flex items-center justify-center transition-all duration-200 ${draggedWidget
                                         ? 'border-green-400 bg-green-50/50'
                                         : 'border-gray-200 bg-gray-50/50'
                                         }`}
@@ -1055,17 +1181,20 @@ export default function Dashboard() {
 
             {/* Empty state */}
             {!widgets.some(w => w.enabled) && (
-                <Card className="p-12">
+                <DashboardCard className="p-12">
                     <div className="text-center">
                         <Settings2 className="mx-auto h-12 w-12 text-gray-400" />
                         <h3 className="mt-4 text-lg font-semibold text-gray-900">No hay widgets activos</h3>
                         <p className="mt-2 text-sm text-gray-500">Personaliza tu dashboard activando los widgets que quieres ver.</p>
-                        <Button variant="outline" className="mt-4" onClick={() => setIsOpen(true)}>
-                            <Settings2 className="mr-2 h-4 w-4" />
+                        <button
+                            onClick={() => setIsOpen(true)}
+                            className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
+                        >
+                            <Settings2 className="h-4 w-4" />
                             Personalizar Dashboard
-                        </Button>
+                        </button>
                     </div>
-                </Card>
+                </DashboardCard>
             )}
         </div>
     );
