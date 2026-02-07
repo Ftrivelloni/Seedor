@@ -22,6 +22,7 @@ model Tenant {
   inventoryMovements        InventoryMovement[]
   lots                      Lot[]
   tasks                     Task[]
+  taskTypes                 TaskType[]
   moduleSettings            TenantModuleSetting[]
   memberships               TenantUserMembership[]
   warehouses                Warehouse[]
@@ -139,6 +140,19 @@ model TaskLot {
 
   @@unique([taskId, lotId])
   @@index([lotId])
+}
+
+model TaskType {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  color     String   @default("#6B7280")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
 }
 
 model Worker {

@@ -8,6 +8,47 @@ import { createInventoryMovement } from '@/lib/domain/inventory';
 
 const allowedTaskStatuses: TaskStatus[] = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'LATE'];
 
+/* ══════════════ Field CRUD ══════════════ */
+
+export async function createFieldAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const name = String(formData.get('name') || '').trim();
+  const location = String(formData.get('location') || '').trim();
+  const description = String(formData.get('description') || '').trim();
+
+  if (!name) {
+    throw new Error('El nombre del campo es obligatorio.');
+  }
+
+  await prisma.field.create({
+    data: {
+      tenantId: session.tenantId,
+      name,
+      location: location || null,
+      description: description || null,
+    },
+  });
+
+  revalidatePath('/dashboard/campo');
+}
+
+export async function deleteFieldAction(fieldId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const field = await prisma.field.findFirst({
+    where: { id: fieldId, tenantId: session.tenantId },
+    select: { id: true },
+  });
+
+  if (!field) throw new Error('Campo no encontrado.');
+
+  await prisma.field.delete({ where: { id: field.id } });
+  revalidatePath('/dashboard/campo');
+}
+
+/* ══════════════ Lot CRUD ══════════════ */
+
 export async function createLotAction(formData: FormData) {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
@@ -22,10 +63,7 @@ export async function createLotAction(formData: FormData) {
   }
 
   const field = await prisma.field.findFirst({
-    where: {
-      id: fieldId,
-      tenantId: session.tenantId,
-    },
+    where: { id: fieldId, tenantId: session.tenantId },
     select: { id: true },
   });
 
@@ -45,8 +83,30 @@ export async function createLotAction(formData: FormData) {
   });
 
   revalidatePath('/dashboard/campo');
+  revalidatePath(`/dashboard/campo/${fieldId}`);
 }
 
+export async function deleteLotAction(lotId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const lot = await prisma.lot.findFirst({
+    where: { id: lotId, tenantId: session.tenantId },
+    select: { id: true, fieldId: true },
+  });
+
+  if (!lot) throw new Error('Lote no encontrado.');
+
+  await prisma.lot.delete({ where: { id: lot.id } });
+  revalidatePath('/dashboard/campo');
+  revalidatePath(`/dashboard/campo/${lot.fieldId}`);
+}
+
+/* ══════════════ Task CRUD ══════════════ */
+
+/**
+ * Creates ONE independent Task record PER selected lot.
+ * Each task is fully independent (own status, own lifecycle).
+ */
 export async function createTaskAction(formData: FormData) {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
@@ -84,12 +144,8 @@ export async function createTaskAction(formData: FormData) {
   }
 
   const usageItemIds = formData.getAll('usageItemId').map((entry) => String(entry));
-  const usageWarehouseIds = formData
-    .getAll('usageWarehouseId')
-    .map((entry) => String(entry));
-  const usageQuantities = formData
-    .getAll('usageQuantity')
-    .map((entry) => Number(entry));
+  const usageWarehouseIds = formData.getAll('usageWarehouseId').map((entry) => String(entry));
+  const usageQuantities = formData.getAll('usageQuantity').map((entry) => Number(entry));
   const usageUnits = formData.getAll('usageUnit').map((entry) => String(entry));
 
   const usages = usageItemIds
@@ -103,13 +159,8 @@ export async function createTaskAction(formData: FormData) {
 
   await prisma.$transaction(async (tx) => {
     const lots = await tx.lot.findMany({
-      where: {
-        tenantId: session.tenantId,
-        id: {
-          in: lotIds,
-        },
-      },
-      select: { id: true },
+      where: { tenantId: session.tenantId, id: { in: lotIds } },
+      select: { id: true, fieldId: true },
     });
 
     if (lots.length !== lotIds.length) {
@@ -118,12 +169,7 @@ export async function createTaskAction(formData: FormData) {
 
     const workers = workerIds.length
       ? await tx.worker.findMany({
-          where: {
-            tenantId: session.tenantId,
-            id: {
-              in: workerIds,
-            },
-          },
+          where: { tenantId: session.tenantId, id: { in: workerIds } },
           select: { id: true },
         })
       : [];
@@ -132,69 +178,64 @@ export async function createTaskAction(formData: FormData) {
       throw new Error('Uno o más trabajadores no pertenecen al tenant activo.');
     }
 
-    const task = await tx.task.create({
-      data: {
-        tenantId: session.tenantId,
-        description,
-        taskType,
-        status: 'PENDING',
-        startDate,
-        dueDate,
-        costValue: costValueRaw > 0 ? costValueRaw : null,
-        costUnit: costUnit || null,
-        isComposite,
-        createdById: session.userId,
-      },
-    });
-
-    await tx.taskLot.createMany({
-      data: lotIds.map((lotId) => ({ taskId: task.id, lotId })),
-    });
-
-    if (workerIds.length > 0) {
-      await tx.taskAssignment.createMany({
-        data: workerIds.map((workerId) => ({ taskId: task.id, workerId })),
+    // Create one independent task per lot
+    for (const lotId of lotIds) {
+      const task = await tx.task.create({
+        data: {
+          tenantId: session.tenantId,
+          description,
+          taskType,
+          status: 'PENDING',
+          startDate,
+          dueDate,
+          costValue: costValueRaw > 0 ? costValueRaw : null,
+          costUnit: costUnit || null,
+          isComposite,
+          createdById: session.userId,
+          lotLinks: { create: { lotId } },
+        },
       });
-    }
 
-    if (usages.length > 0) {
-      for (const usage of usages) {
-        const movement = await createInventoryMovement(
-          {
-            tenantId: session.tenantId,
-            type: 'CONSUMPTION',
-            itemId: usage.itemId,
-            quantity: usage.quantity,
-            sourceWarehouseId: usage.warehouseId,
-            referenceTaskId: task.id,
-            notes: `Consumo automático por tarea ${task.description}`,
-            createdByUserId: session.userId,
-          },
-          tx
-        );
-
-        await tx.taskInventoryUsage.create({
-          data: {
-            taskId: task.id,
-            inventoryItemId: usage.itemId,
-            warehouseId: usage.warehouseId,
-            quantity: usage.quantity,
-            unit: usage.unit,
-            movementId: movement.id,
-          },
+      if (workerIds.length > 0) {
+        await tx.taskAssignment.createMany({
+          data: workerIds.map((workerId) => ({ taskId: task.id, workerId })),
         });
+      }
+
+      // Each lot-task gets its own inventory usage recording
+      if (usages.length > 0) {
+        for (const usage of usages) {
+          const movement = await createInventoryMovement(
+            {
+              tenantId: session.tenantId,
+              type: 'CONSUMPTION',
+              itemId: usage.itemId,
+              quantity: usage.quantity,
+              sourceWarehouseId: usage.warehouseId,
+              referenceTaskId: task.id,
+              notes: `Consumo automático por tarea ${task.description}`,
+              createdByUserId: session.userId,
+            },
+            tx
+          );
+
+          await tx.taskInventoryUsage.create({
+            data: {
+              taskId: task.id,
+              inventoryItemId: usage.itemId,
+              warehouseId: usage.warehouseId,
+              quantity: usage.quantity,
+              unit: usage.unit,
+              movementId: movement.id,
+            },
+          });
+        }
       }
     }
 
     await tx.lot.updateMany({
-      where: {
-        id: {
-          in: lotIds,
-        },
-      },
-      data: {
-        lastTaskAt: new Date(),
-      },
+      where: { id: { in: lotIds } },
+      data: { lastTaskAt: new Date() },
     });
   });
 
@@ -202,6 +243,146 @@ export async function createTaskAction(formData: FormData) {
   revalidatePath('/dashboard/inventario');
   revalidatePath('/dashboard');
 }
+
+/**
+ * Update an existing task's editable fields.
+ */
+export async function updateTaskAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const taskId = String(formData.get('taskId') || '').trim();
+  const description = String(formData.get('description') || '').trim();
+  const taskType = String(formData.get('taskType') || '').trim();
+  const costValueRaw = Number(formData.get('costValue') || 0);
+  const costUnit = String(formData.get('costUnit') || '').trim();
+  const startDateRaw = String(formData.get('startDate') || '').trim();
+  const dueDateRaw = String(formData.get('dueDate') || '').trim();
+
+  if (!taskId || !description || !taskType) {
+    throw new Error('Datos incompletos para actualizar la tarea.');
+  }
+
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, tenantId: session.tenantId },
+    select: { id: true, lotLinks: { select: { lot: { select: { fieldId: true } } } } },
+  });
+
+  if (!task) throw new Error('Tarea no encontrada.');
+
+  const startDate = startDateRaw ? new Date(startDateRaw) : undefined;
+  const dueDate = dueDateRaw ? new Date(dueDateRaw) : undefined;
+
+  await prisma.task.update({
+    where: { id: task.id },
+    data: {
+      description,
+      taskType,
+      costValue: costValueRaw > 0 ? costValueRaw : null,
+      costUnit: costUnit || null,
+      ...(startDate && !Number.isNaN(startDate.getTime()) ? { startDate } : {}),
+      ...(dueDate && !Number.isNaN(dueDate.getTime()) ? { dueDate } : {}),
+    },
+  });
+
+  revalidatePath('/dashboard/campo');
+  revalidatePath('/dashboard');
+}
+
+/**
+ * Create a subtask under a parent task. Inherits lot and tenant from parent.
+ */
+export async function createSubtaskAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const parentTaskId = String(formData.get('parentTaskId') || '').trim();
+  const description = String(formData.get('description') || '').trim();
+  const taskType = String(formData.get('taskType') || '').trim();
+  const dueDateRaw = String(formData.get('dueDate') || '').trim();
+  const costValueRaw = Number(formData.get('costValue') || 0);
+  const costUnit = String(formData.get('costUnit') || '').trim();
+
+  if (!parentTaskId || !description) {
+    throw new Error('Completa los datos obligatorios de la subtarea.');
+  }
+
+  const parent = await prisma.task.findFirst({
+    where: { id: parentTaskId, tenantId: session.tenantId },
+    include: { lotLinks: { select: { lotId: true } } },
+  });
+
+  if (!parent) throw new Error('Tarea padre no encontrada.');
+
+  const dueDate = dueDateRaw ? new Date(dueDateRaw) : parent.dueDate;
+
+  await prisma.$transaction(async (tx) => {
+    // Mark parent as composite if it isn't already
+    if (!parent.isComposite) {
+      await tx.task.update({
+        where: { id: parent.id },
+        data: { isComposite: true },
+      });
+    }
+
+    const subtask = await tx.task.create({
+      data: {
+        tenantId: session.tenantId,
+        parentTaskId: parent.id,
+        description,
+        taskType: taskType || parent.taskType,
+        status: 'PENDING',
+        startDate: new Date(),
+        dueDate,
+        costValue: costValueRaw > 0 ? costValueRaw : null,
+        costUnit: costUnit || null,
+        isComposite: false,
+        createdById: session.userId,
+      },
+    });
+
+    // Link subtask to the same lots as the parent
+    if (parent.lotLinks.length > 0) {
+      await tx.taskLot.createMany({
+        data: parent.lotLinks.map((link) => ({
+          taskId: subtask.id,
+          lotId: link.lotId,
+        })),
+      });
+    }
+  });
+
+  revalidatePath('/dashboard/campo');
+  revalidatePath('/dashboard');
+}
+
+/* ══════════════ Task Status ══════════════ */
+
+export async function updateTaskStatusAction(taskId: string, status: TaskStatus) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  if (!allowedTaskStatuses.includes(status)) {
+    throw new Error('Estado de tarea inválido.');
+  }
+
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, tenantId: session.tenantId },
+    select: { id: true, status: true },
+  });
+
+  if (!task) throw new Error('Tarea no encontrada.');
+
+  await prisma.task.update({
+    where: { id: task.id },
+    data: {
+      status,
+      completedAt: status === 'COMPLETED' ? new Date() : null,
+    },
+  });
+
+  revalidatePath('/dashboard/campo');
+  revalidatePath('/dashboard');
+}
+
+/* ══════════════ HarvestRecord ══════════════ */
 
 export async function createHarvestRecordAction(formData: FormData) {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
@@ -216,16 +397,11 @@ export async function createHarvestRecordAction(formData: FormData) {
   }
 
   const lot = await prisma.lot.findFirst({
-    where: {
-      id: lotId,
-      tenantId: session.tenantId,
-    },
-    select: { id: true },
+    where: { id: lotId, tenantId: session.tenantId },
+    select: { id: true, fieldId: true },
   });
 
-  if (!lot) {
-    throw new Error('El lote no pertenece al tenant activo.');
-  }
+  if (!lot) throw new Error('El lote no pertenece al tenant activo.');
 
   const harvestDate = harvestDateRaw ? new Date(harvestDateRaw) : new Date();
 
@@ -240,39 +416,57 @@ export async function createHarvestRecordAction(formData: FormData) {
   });
 
   revalidatePath('/dashboard/campo');
+  revalidatePath(`/dashboard/campo/${lot.fieldId}`);
+  revalidatePath(`/dashboard/campo/${lot.fieldId}/${lotId}`);
   revalidatePath('/dashboard');
 }
 
-export async function updateTaskStatusAction(taskId: string, status: TaskStatus) {
+export async function deleteHarvestRecordAction(harvestId: string) {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
-  if (!allowedTaskStatuses.includes(status)) {
-    throw new Error('Estado de tarea inválido.');
-  }
-
-  const task = await prisma.task.findFirst({
-    where: {
-      id: taskId,
-      tenantId: session.tenantId,
-    },
-    select: {
-      id: true,
-      status: true,
-    },
+  const harvest = await prisma.harvestRecord.findFirst({
+    where: { id: harvestId, tenantId: session.tenantId },
+    include: { lot: { select: { fieldId: true } } },
   });
 
-  if (!task) {
-    throw new Error('Tarea no encontrada.');
-  }
+  if (!harvest) throw new Error('Registro de cosecha no encontrado.');
 
-  await prisma.task.update({
-    where: { id: task.id },
+  await prisma.harvestRecord.delete({ where: { id: harvest.id } });
+  revalidatePath('/dashboard/campo');
+  revalidatePath(`/dashboard/campo/${harvest.lot.fieldId}`);
+  revalidatePath(`/dashboard/campo/${harvest.lot.fieldId}/${harvest.lotId}`);
+}
+
+/* ══════════════ TaskType CRUD ══════════════ */
+
+export async function createTaskTypeAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const name = String(formData.get('name') || '').trim();
+  const color = String(formData.get('color') || '#6B7280').trim();
+
+  if (!name) throw new Error('El nombre del tipo de tarea es obligatorio.');
+
+  await prisma.taskType.create({
     data: {
-      status,
-      completedAt: status === 'COMPLETED' ? new Date() : null,
+      tenantId: session.tenantId,
+      name,
+      color,
     },
   });
 
   revalidatePath('/dashboard/campo');
-  revalidatePath('/dashboard');
+}
+
+export async function deleteTaskTypeAction(taskTypeId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const tt = await prisma.taskType.findFirst({
+    where: { id: taskTypeId, tenantId: session.tenantId },
+  });
+
+  if (!tt) throw new Error('Tipo de tarea no encontrado.');
+
+  await prisma.taskType.delete({ where: { id: tt.id } });
+  revalidatePath('/dashboard/campo');
 }
