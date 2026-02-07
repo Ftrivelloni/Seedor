@@ -26,11 +26,7 @@ export async function getAuthSession(): Promise<AuthSession | null> {
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
     include: {
-      memberships: {
-        select: {
-          tenantId: true,
-        },
-      },
+      memberships: true,
     },
   });
 
@@ -38,8 +34,9 @@ export async function getAuthSession(): Promise<AuthSession | null> {
     return null;
   }
 
-  const membership = user.memberships.find((entry) => entry.tenantId === payload.tenantId);
-  if (!membership) {
+  // memberships is singular because userId is unique in TenantUserMembership
+  const membership = user.memberships;
+  if (!membership || membership.tenantId !== payload.tenantId) {
     return null;
   }
 

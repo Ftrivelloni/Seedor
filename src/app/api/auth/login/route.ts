@@ -20,11 +20,7 @@ export async function POST(request: Request) {
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
-        memberships: {
-          select: {
-            tenantId: true,
-          },
-        },
+        memberships: true,
       },
     });
 
@@ -42,7 +38,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const membership = user.memberships[0];
+    // memberships is singular because userId is unique in TenantUserMembership
+    const membership = user.memberships;
     if (!membership) {
       return NextResponse.json(
         { error: 'Tu usuario no tiene empresa asociada.' },

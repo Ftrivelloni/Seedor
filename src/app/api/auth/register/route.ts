@@ -3,7 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth/password';
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from '@/lib/auth/constants';
 import { createSessionToken } from '@/lib/auth/session-token';
-import type { ModuleKey } from '@prisma/client';
+
+// Define ModuleKey type based on your schema
+type ModuleKey = 'DASHBOARD' | 'USERS' | 'WORKERS' | 'FIELD' | 'INVENTORY' | 'MACHINERY' | 'PACKAGING' | 'SALES';
 
 // Mandatory modules that are always enabled
 const MANDATORY_MODULES: ModuleKey[] = [
@@ -102,7 +104,7 @@ export async function POST(request: Request) {
         }
 
         // Create tenant, user, membership, and module settings in a transaction
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx: any) => {
             // Create tenant
             const tenant = await tx.tenant.create({
                 data: {
