@@ -109,3 +109,60 @@ export async function updateWorkerActiveStatusAction(formData: FormData) {
 
   revalidatePath('/dashboard/trabajadores');
 }
+
+export async function registerPaymentAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const workerId = String(formData.get('workerId') || '').trim();
+  const amount = Number(formData.get('amount') || 0);
+  const hoursWorked = Number(formData.get('hoursWorked') || 0);
+  const paymentStatus = String(
+    formData.get('paymentStatus') || 'PAID'
+  ) as WorkerPaymentStatus;
+
+  if (!workerId || amount <= 0) {
+    throw new Error('Debe indicar un trabajador y un monto válido.');
+  }
+
+  const worker = await prisma.worker.findFirst({
+    where: { id: workerId, tenantId: session.tenantId },
+    select: { id: true },
+  });
+
+  if (!worker) {
+    throw new Error('Trabajador no encontrado en el tenant activo.');
+  }
+
+  if (!allowedPaymentStatuses.includes(paymentStatus)) {
+    throw new Error('Estado de pago inválido.');
+  }
+
+  // find a task to associate with (the most recent assigned task)
+  const latestAssignment = await prisma.taskAssignment.findFirst({
+    where: { workerId },
+    orderBy: { createdAt: 'desc' },
+    select: { taskId: true },
+  });
+
+  await prisma.$transaction(async (tx) => {
+    // Only create a work-log entry if there is an assigned task (taskId is required by FK)
+    if (latestAssignment?.taskId) {
+      await tx.taskWorkLog.create({
+        data: {
+          taskId: latestAssignment.taskId,
+          workerId,
+          hoursWorked: hoursWorked > 0 ? hoursWorked : null,
+          paymentAmount: amount,
+          paymentStatus,
+        },
+      });
+    }
+
+    await tx.worker.update({
+      where: { id: workerId },
+      data: { paymentStatus },
+    });
+  });
+
+  revalidatePath('/dashboard/trabajadores');
+}
