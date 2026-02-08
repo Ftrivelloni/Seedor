@@ -4,16 +4,27 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireAuthSession } from '@/lib/auth/auth';
 
-const ALLOWED_TEMPLATES = new Set(['balanced', 'operations', 'analytics']);
+const ALLOWED_TEMPLATES = new Set([
+  'balanced',
+  'panel-left',
+  'panel-right',
+  'sidebar-left',
+  'sidebar-right',
+]);
 
 export async function updateDashboardPreferenceAction(formData: FormData) {
   const session = await requireAuthSession();
 
   const templateKey = String(formData.get('templateKey') || 'balanced');
-  const widgets = formData
-    .getAll('widgets')
-    .map((entry) => String(entry))
-    .filter(Boolean);
+  const widgetsRaw = String(formData.get('widgetsJson') || '[]');
+
+  let widgets: string[];
+  try {
+    widgets = JSON.parse(widgetsRaw);
+    if (!Array.isArray(widgets)) widgets = [];
+  } catch {
+    widgets = [];
+  }
 
   await prisma.dashboardPreference.upsert({
     where: {

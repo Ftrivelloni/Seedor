@@ -34,6 +34,7 @@ export default async function LotPage({ params }: LotPageProps) {
                 },
               },
               harvestRecords: { select: { kilos: true } },
+              lotCrops: { include: { cropType: { select: { name: true } } } },
             },
             orderBy: { name: 'asc' },
           },
@@ -48,6 +49,7 @@ export default async function LotPage({ params }: LotPageProps) {
             },
           },
           harvestRecords: { select: { kilos: true } },
+          lotCrops: { include: { cropType: { select: { name: true } } } },
         },
       }),
       prisma.task.findMany({
@@ -60,7 +62,7 @@ export default async function LotPage({ params }: LotPageProps) {
           workerAssignments: {
             include: { worker: { select: { firstName: true, lastName: true } } },
           },
-          subtasks: { select: { status: true } },
+          subtasks: { select: { id: true, description: true, status: true } },
         },
         orderBy: { dueDate: 'asc' },
       }),
@@ -106,6 +108,7 @@ export default async function LotPage({ params }: LotPageProps) {
       areaHectares: l.areaHectares,
       productionType: l.productionType,
       plantedFruitsDescription: l.plantedFruitsDescription,
+      crops: (l as any).lotCrops?.map((lc: { cropType: { name: string } }) => lc.cropType.name) ?? [],
       lastTaskAt: l.lastTaskAt?.toISOString() ?? null,
       taskCost: l.taskLinks.reduce(
         (acc, link) => acc + Number(link.task.costValue || 0),
@@ -125,6 +128,7 @@ export default async function LotPage({ params }: LotPageProps) {
     areaHectares: lot.areaHectares,
     productionType: lot.productionType,
     plantedFruitsDescription: lot.plantedFruitsDescription,
+    crops: (lot as any).lotCrops?.map((lc: { cropType: { name: string } }) => lc.cropType.name) ?? [],
     lastTaskAt: lot.lastTaskAt?.toISOString() ?? null,
     taskCost: lot.taskLinks.reduce(
       (acc, link) => acc + Number(link.task.costValue || 0),
@@ -161,6 +165,11 @@ export default async function LotPage({ params }: LotPageProps) {
       isComposite: t.isComposite,
       parentTaskId: t.parentTaskId ?? null,
       subtaskProgress,
+      subtasks: t.subtasks.map((s) => ({
+        id: s.id,
+        description: s.description,
+        status: s.status,
+      })),
       lots: t.lotLinks.map((l) => l.lot.name),
       workers: t.workerAssignments.map(
         (a) => `${a.worker.firstName} ${a.worker.lastName}`

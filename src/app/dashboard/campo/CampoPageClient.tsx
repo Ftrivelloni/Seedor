@@ -13,17 +13,16 @@ import {
   Wheat,
   MapPin,
 } from 'lucide-react';
-import { Input } from '@/components/dashboard/ui/input';
-import { Button } from '@/components/dashboard/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/dashboard/ui/tabs';
 import { StateCard } from '@/components/dashboard/StateCard';
 import { CreateFieldModal } from './CreateFieldModal';
 import { CreateHarvestModal } from './CreateHarvestModal';
 import { ManageTaskTypesModal } from './ManageTaskTypesModal';
+import { ManageCropTypesModal } from './ManageCropTypesModal';
 import type {
   SerializedField,
   SerializedHarvest,
   SerializedTaskType,
+  SerializedCropType,
   LotViewMode,
 } from './types';
 
@@ -31,15 +30,18 @@ interface CampoPageClientProps {
   fields: SerializedField[];
   recentHarvests: SerializedHarvest[];
   taskTypes: SerializedTaskType[];
+  cropTypes: SerializedCropType[];
 }
 
 export function CampoPageClient({
   fields,
   recentHarvests,
   taskTypes,
+  cropTypes,
 }: CampoPageClientProps) {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<LotViewMode>('grid-large');
+  const [activeTab, setActiveTab] = useState<'campos' | 'cosecha'>('campos');
 
   const totalLots = fields.reduce((acc, f) => acc + f.lots.length, 0);
   const totalHarvestKilos = recentHarvests.reduce((acc, h) => acc + h.kilos, 0);
@@ -79,6 +81,7 @@ export function CampoPageClient({
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <ManageCropTypesModal cropTypes={cropTypes} />
           <ManageTaskTypesModal taskTypes={taskTypes} />
           <CreateHarvestModal fields={fields} />
           <CreateFieldModal />
@@ -104,35 +107,50 @@ export function CampoPageClient({
       </section>
 
       {/* Tabs */}
-      <Tabs defaultValue="campos" className="w-full">
+      <div>
         <div className="flex items-center justify-between gap-4">
-          <TabsList>
-            <TabsTrigger value="campos" className="gap-1.5">
+          <div className="flex items-center gap-1 border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('campos')}
+              className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'campos'
+                  ? 'border-green-600 text-green-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
               <MapPin className="h-4 w-4" />
               Campos y lotes
-            </TabsTrigger>
-            <TabsTrigger value="cosecha" className="gap-1.5">
+            </button>
+            <button
+              onClick={() => setActiveTab('cosecha')}
+              className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'cosecha'
+                  ? 'border-green-600 text-green-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
               <Wheat className="h-4 w-4" />
               Cosecha
-            </TabsTrigger>
-          </TabsList>
+            </button>
+          </div>
 
           <div className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input
+              <input
                 type="search"
                 placeholder="Buscar..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 w-64"
+                className="w-64 rounded-lg border border-gray-300 pl-10 pr-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-shadow"
               />
             </div>
           </div>
         </div>
 
         {/* TAB: Campos y lotes */}
-        <TabsContent value="campos" className="mt-4 space-y-4">
+        {activeTab === 'campos' && (
+          <div className="mt-4 space-y-4">
           {/* View mode toggles */}
           <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1 w-fit">
             <button
@@ -177,10 +195,10 @@ export function CampoPageClient({
               />
             ))
           )}
-        </TabsContent>
+        </div>)}
 
         {/* TAB: Cosecha */}
-        <TabsContent value="cosecha" className="mt-4 space-y-3">
+        {activeTab === 'cosecha' && (<div className="mt-4 space-y-3">
           {recentHarvests.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-12">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
@@ -221,8 +239,8 @@ export function CampoPageClient({
               </table>
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>)}
+      </div>
     </div>
   );
 }
@@ -250,11 +268,12 @@ function FieldCard({
             {field.location || 'Sin ubicación'} · {field.lots.length} lote(s)
           </p>
         </div>
-        <Link href={`/dashboard/campo/${field.id}`}>
-          <Button variant="ghost" size="sm" className="gap-1 text-gray-500">
-            Ver campo
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+        <Link
+          href={`/dashboard/campo/${field.id}`}
+          className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 transition-colors"
+        >
+          Ver campo
+          <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
 

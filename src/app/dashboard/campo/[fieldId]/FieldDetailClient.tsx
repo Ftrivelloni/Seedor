@@ -15,16 +15,15 @@ import {
   Calculator,
   Filter,
 } from 'lucide-react';
-import { Input } from '@/components/dashboard/ui/input';
-import { Button } from '@/components/dashboard/ui/button';
 import { StateCard } from '@/components/dashboard/StateCard';
 import { CreateLotModal } from '../CreateLotModal';
 import { ManageTaskTypesModal } from '../ManageTaskTypesModal';
-import type { SerializedField, SerializedLot, SerializedTaskType, LotViewMode } from '../types';
+import type { SerializedField, SerializedLot, SerializedTaskType, SerializedCropType, LotViewMode } from '../types';
 
 interface FieldDetailClientProps {
   field: SerializedField;
   taskTypes: SerializedTaskType[];
+  cropTypes: SerializedCropType[];
 }
 
 /**
@@ -57,7 +56,7 @@ function getRecencyDot(lot: SerializedLot, taskTypeName: string | null): string 
   return 'bg-red-500';
 }
 
-export function FieldDetailClient({ field, taskTypes }: FieldDetailClientProps) {
+export function FieldDetailClient({ field, taskTypes, cropTypes }: FieldDetailClientProps) {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<LotViewMode>('grid-large');
   const [selectedTaskType, setSelectedTaskType] = useState<string | null>(null);
@@ -99,14 +98,15 @@ export function FieldDetailClient({ field, taskTypes }: FieldDetailClientProps) 
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/dashboard/campo">
-              <Button variant="outline" className="gap-2">
-                <ChevronLeft className="h-4 w-4" />
-                Volver
-              </Button>
+            <Link
+              href="/dashboard/campo"
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Volver
             </Link>
             <ManageTaskTypesModal taskTypes={taskTypes} />
-            <CreateLotModal fieldId={field.id} fieldName={field.name} />
+            <CreateLotModal fieldId={field.id} fieldName={field.name} cropTypes={cropTypes} />
           </div>
         </div>
       </header>
@@ -199,12 +199,12 @@ export function FieldDetailClient({ field, taskTypes }: FieldDetailClientProps) 
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <Input
+          <input
             type="search"
             placeholder="Buscar lote..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 w-64"
+            className="w-64 rounded-lg border border-gray-300 pl-10 pr-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-shadow"
           />
         </div>
       </div>
@@ -278,10 +278,11 @@ export function FieldDetailClient({ field, taskTypes }: FieldDetailClientProps) 
                         : '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/dashboard/campo/${field.id}/${lot.id}`}>
-                        <Button variant="ghost" size="sm">
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
+                      <Link
+                        href={`/dashboard/campo/${field.id}/${lot.id}`}
+                        className="rounded p-1.5 text-gray-400 hover:text-green-700 transition-colors"
+                      >
+                        <ChevronRight className="h-4 w-4" />
                       </Link>
                     </td>
                   </tr>

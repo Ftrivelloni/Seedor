@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { FieldDetailClient } from './FieldDetailClient';
-import type { SerializedField, SerializedTaskType } from '../types';
+import type { SerializedField, SerializedTaskType, SerializedCropType } from '../types';
 
 interface FieldPageProps {
   params: Promise<{ fieldId: string }>;
@@ -12,7 +12,7 @@ export default async function FieldPage({ params }: FieldPageProps) {
   const { fieldId } = await params;
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
-  const [field, taskTypes] = await Promise.all([
+  const [field, taskTypes, cropTypes] = await Promise.all([
     prisma.field.findFirst({
       where: {
         id: fieldId,
@@ -37,12 +37,17 @@ export default async function FieldPage({ params }: FieldPageProps) {
               },
             },
             harvestRecords: { select: { kilos: true } },
+            lotCrops: { include: { cropType: { select: { name: true } } } },
           },
           orderBy: { name: 'asc' },
         },
       },
     }),
     prisma.taskType.findMany({
+      where: { tenantId: session.tenantId },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.cropType.findMany({
       where: { tenantId: session.tenantId },
       orderBy: { name: 'asc' },
     }),
@@ -75,6 +80,7 @@ export default async function FieldPage({ params }: FieldPageProps) {
         areaHectares: l.areaHectares,
         productionType: l.productionType,
         plantedFruitsDescription: l.plantedFruitsDescription,
+        crops: l.lotCrops.map((lc: { cropType: { name: string } }) => lc.cropType.name),
         lastTaskAt: l.lastTaskAt?.toISOString() ?? null,
         taskCost: l.taskLinks.reduce(
           (acc, link) => acc + Number(link.task.costValue || 0),
@@ -96,7 +102,13 @@ export default async function FieldPage({ params }: FieldPageProps) {
     color: tt.color,
   }));
 
+  const serializedCropTypes: SerializedCropType[] = cropTypes.map((ct) => ({
+    id: ct.id,
+    name: ct.name,
+    color: ct.color,
+  }));
+
   return (
-    <FieldDetailClient field={serializedField} taskTypes={serializedTaskTypes} />
+    <FieldDetailClient field={serializedField} taskTypes={serializedTaskTypes} cropTypes={serializedCropTypes} />
   );
 }

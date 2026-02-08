@@ -23,6 +23,7 @@ model Tenant {
   lots                      Lot[]
   tasks                     Task[]
   taskTypes                 TaskType[]
+  cropTypes                 CropType[]
   moduleSettings            TenantModuleSetting[]
   memberships               TenantUserMembership[]
   warehouses                Warehouse[]
@@ -91,6 +92,7 @@ model Lot {
   createdAt                DateTime        @default(now())
   updatedAt                DateTime        @updatedAt
   harvestRecords           HarvestRecord[]
+  lotCrops                 LotCrop[]
   field                    Field           @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   tenant                   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   taskLinks                TaskLot[]
@@ -153,6 +155,33 @@ model TaskType {
 
   @@unique([tenantId, name])
   @@index([tenantId])
+}
+
+model CropType {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  color     String    @default("#16a34a")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lotCrops  LotCrop[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model LotCrop {
+  id         String   @id @default(cuid())
+  lotId      String
+  cropTypeId String
+  createdAt  DateTime @default(now())
+  cropType   CropType @relation(fields: [cropTypeId], references: [id], onDelete: Cascade)
+  lot        Lot      @relation(fields: [lotId], references: [id], onDelete: Cascade)
+
+  @@unique([lotId, cropTypeId])
+  @@index([lotId])
+  @@index([cropTypeId])
 }
 
 model Worker {

@@ -57,6 +57,7 @@ export async function createLotAction(formData: FormData) {
   const areaHectares = Number(formData.get('areaHectares') || 0);
   const productionType = String(formData.get('productionType') || '').trim();
   const plantedFruitsDescription = String(formData.get('plantedFruitsDescription') || '').trim();
+  const cropTypeIds = formData.getAll('cropTypeIds').map((v) => String(v)).filter(Boolean);
 
   if (!fieldId || !name || !productionType || areaHectares <= 0) {
     throw new Error('Completa los datos obligatorios del lote.');
@@ -71,7 +72,7 @@ export async function createLotAction(formData: FormData) {
     throw new Error('Campo inválido para el tenant actual.');
   }
 
-  await prisma.lot.create({
+  const lot = await prisma.lot.create({
     data: {
       tenantId: session.tenantId,
       fieldId,
@@ -81,6 +82,17 @@ export async function createLotAction(formData: FormData) {
       plantedFruitsDescription: plantedFruitsDescription || null,
     },
   });
+
+  // Create LotCrop relations
+  if (cropTypeIds.length > 0) {
+    await prisma.lotCrop.createMany({
+      data: cropTypeIds.map((cropTypeId) => ({
+        lotId: lot.id,
+        cropTypeId,
+      })),
+      skipDuplicates: true,
+    });
+  }
 
   revalidatePath('/dashboard/campo');
   revalidatePath(`/dashboard/campo/${fieldId}`);
@@ -354,6 +366,86 @@ export async function createSubtaskAction(formData: FormData) {
   revalidatePath('/dashboard');
 }
 
+/**
+ * Quick inline subtask creation from Kanban card (description only).
+ */
+export async function createInlineSubtaskAction(parentTaskId: string, description: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  if (!parentTaskId || !description.trim()) {
+    throw new Error('Descripción requerida.');
+  }
+
+  const parent = await prisma.task.findFirst({
+    where: { id: parentTaskId, tenantId: session.tenantId },
+    include: { lotLinks: { select: { lotId: true } } },
+  });
+
+  if (!parent) throw new Error('Tarea padre no encontrada.');
+
+  await prisma.$transaction(async (tx) => {
+    if (!parent.isComposite) {
+      await tx.task.update({
+        where: { id: parent.id },
+        data: { isComposite: true },
+      });
+    }
+
+    const subtask = await tx.task.create({
+      data: {
+        tenantId: session.tenantId,
+        parentTaskId: parent.id,
+        description: description.trim(),
+        taskType: parent.taskType,
+        status: 'PENDING',
+        startDate: new Date(),
+        dueDate: parent.dueDate,
+        isComposite: false,
+        createdById: session.userId,
+      },
+    });
+
+    if (parent.lotLinks.length > 0) {
+      await tx.taskLot.createMany({
+        data: parent.lotLinks.map((link) => ({
+          taskId: subtask.id,
+          lotId: link.lotId,
+        })),
+      });
+    }
+  });
+
+  revalidatePath('/dashboard/campo');
+  revalidatePath('/dashboard');
+}
+
+/**
+ * Toggle subtask status between PENDING and COMPLETED.
+ */
+export async function toggleSubtaskStatusAction(subtaskId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const subtask = await prisma.task.findFirst({
+    where: { id: subtaskId, tenantId: session.tenantId, parentTaskId: { not: null } },
+    select: { id: true, status: true },
+  });
+
+  if (!subtask) throw new Error('Subtarea no encontrada.');
+
+  const newStatus = subtask.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
+
+  await prisma.task.update({
+    where: { id: subtask.id },
+    data: {
+      status: newStatus,
+      completedAt: newStatus === 'COMPLETED' ? new Date() : null,
+    },
+  });
+
+  revalidatePath('/dashboard/campo');
+  revalidatePath('/dashboard');
+}
+
 /* ══════════════ Task Status ══════════════ */
 
 export async function updateTaskStatusAction(taskId: string, status: TaskStatus) {
@@ -469,4 +561,70 @@ export async function deleteTaskTypeAction(taskTypeId: string) {
 
   await prisma.taskType.delete({ where: { id: tt.id } });
   revalidatePath('/dashboard/campo');
+}
+
+/* ══════════════ CropType CRUD ══════════════ */
+
+export async function createCropTypeAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const name = String(formData.get('name') || '').trim();
+  const color = String(formData.get('color') || '#16a34a').trim();
+
+  if (!name) throw new Error('El nombre del tipo de cultivo es obligatorio.');
+
+  await prisma.cropType.create({
+    data: {
+      tenantId: session.tenantId,
+      name,
+      color,
+    },
+  });
+
+  revalidatePath('/dashboard/campo');
+}
+
+export async function deleteCropTypeAction(cropTypeId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const ct = await prisma.cropType.findFirst({
+    where: { id: cropTypeId, tenantId: session.tenantId },
+  });
+
+  if (!ct) throw new Error('Tipo de cultivo no encontrado.');
+
+  await prisma.cropType.delete({ where: { id: ct.id } });
+  revalidatePath('/dashboard/campo');
+}
+
+/* ══════════════ Lot Crop Management ══════════════ */
+
+export async function updateLotCropsAction(lotId: string, cropTypeIds: string[]) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const lot = await prisma.lot.findFirst({
+    where: { id: lotId, tenantId: session.tenantId },
+    select: { id: true, fieldId: true },
+  });
+
+  if (!lot) throw new Error('Lote no encontrado.');
+
+  await prisma.$transaction(async (tx) => {
+    // Remove all existing crops for this lot
+    await tx.lotCrop.deleteMany({ where: { lotId } });
+
+    // Add new crops
+    if (cropTypeIds.length > 0) {
+      await tx.lotCrop.createMany({
+        data: cropTypeIds.map((cropTypeId) => ({
+          lotId,
+          cropTypeId,
+        })),
+      });
+    }
+  });
+
+  revalidatePath('/dashboard/campo');
+  revalidatePath(`/dashboard/campo/${lot.fieldId}`);
+  revalidatePath(`/dashboard/campo/${lot.fieldId}/${lotId}`);
 }

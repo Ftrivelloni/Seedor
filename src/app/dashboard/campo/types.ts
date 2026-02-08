@@ -7,6 +7,7 @@ export interface SerializedLot {
   areaHectares: number;
   productionType: string;
   plantedFruitsDescription: string | null;
+  crops: string[];
   lastTaskAt: string | null;
   taskCost: number;
   totalHarvestKilos: number;
@@ -43,9 +44,16 @@ export interface SerializedTask {
   isComposite: boolean;
   subtaskProgress: number;
   parentTaskId: string | null;
+  subtasks: SerializedSubtask[];
   lots: string[];
   workers: string[];
   createdAt: string;
+}
+
+export interface SerializedSubtask {
+  id: string;
+  description: string;
+  status: string;
 }
 
 export interface SerializedHarvest {
@@ -71,6 +79,12 @@ export interface SerializedWarehouse {
 }
 
 export interface SerializedTaskType {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface SerializedCropType {
   id: string;
   name: string;
   color: string;

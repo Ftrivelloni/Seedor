@@ -5,12 +5,13 @@ import type {
   SerializedField,
   SerializedHarvest,
   SerializedTaskType,
+  SerializedCropType,
 } from './types';
 
 export default async function CampoPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
-  const [fields, recentHarvests, taskTypes] = await Promise.all([
+  const [fields, recentHarvests, taskTypes, cropTypes] = await Promise.all([
     prisma.field.findMany({
       where: { tenantId: session.tenantId },
       include: {
@@ -22,6 +23,7 @@ export default async function CampoPage() {
               },
             },
             harvestRecords: { select: { kilos: true } },
+            lotCrops: { include: { cropType: { select: { name: true } } } },
           },
           orderBy: { name: 'asc' },
         },
@@ -42,6 +44,10 @@ export default async function CampoPage() {
       where: { tenantId: session.tenantId },
       orderBy: { name: 'asc' },
     }),
+    prisma.cropType.findMany({
+      where: { tenantId: session.tenantId },
+      orderBy: { name: 'asc' },
+    }),
   ]);
 
   /* ── Serialize fields ── */
@@ -57,6 +63,7 @@ export default async function CampoPage() {
       areaHectares: l.areaHectares,
       productionType: l.productionType,
       plantedFruitsDescription: l.plantedFruitsDescription,
+      crops: l.lotCrops.map((lc) => lc.cropType.name),
       lastTaskAt: l.lastTaskAt?.toISOString() ?? null,
       taskCost: l.taskLinks.reduce((acc, link) => acc + Number(link.task.costValue || 0), 0),
       totalHarvestKilos: l.harvestRecords.reduce((acc, h) => acc + h.kilos, 0),
@@ -83,11 +90,19 @@ export default async function CampoPage() {
     color: tt.color,
   }));
 
+  /* ── Serialize crop types ── */
+  const serializedCropTypes: SerializedCropType[] = cropTypes.map((ct) => ({
+    id: ct.id,
+    name: ct.name,
+    color: ct.color,
+  }));
+
   return (
     <CampoPageClient
       fields={serializedFields}
       recentHarvests={serializedHarvests}
       taskTypes={serializedTaskTypes}
+      cropTypes={serializedCropTypes}
     />
   );
 }
