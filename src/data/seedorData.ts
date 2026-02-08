@@ -1,4 +1,19 @@
-// Datos mock completos para Seedor
+// Empty data exports - ready for real data
+// These will be replaced with actual API calls to the database
+
+export const mockCampos: any[] = [];
+export const mockLotes: any[] = [];
+export const mockTareas: any[] = [];
+export const mockDepositos: any[] = [];
+export const mockInsumos: any[] = [];
+export const mockMovimientos: any[] = [];
+export const mockAlertas: any[] = [];
+export const mockMaquinaria: any[] = [];
+export const mockServicios: any[] = [];
+export const mockClientes: any[] = [];
+export const mockOrdenes: any[] = [];
+export const mockFacturas: any[] = [];
+
 
 export const mockCampos = [
   { id: '1', nombre: 'Campo Norte', ubicacion: 'Córdoba', hectareasTotales: 120 },

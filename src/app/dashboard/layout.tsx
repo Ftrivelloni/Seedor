@@ -1,16 +1,22 @@
-'use client';
-
 import { AppLayout } from '@/components/dashboard/AppLayout';
-import { AppProvider } from '@/context/AppContext';
+import { requireAuthSession } from '@/lib/auth/auth';
 
-export default function DashboardLayout({
-    children,
+export default async function DashboardLayout({
+  children,
 }: {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }) {
-    return (
-        <AppProvider>
-            <AppLayout>{children}</AppLayout>
-        </AppProvider>
-    );
+  const session = await requireAuthSession();
+
+  return (
+    <AppLayout
+      user={{
+        firstName: session.firstName,
+        lastName: session.lastName,
+        role: session.role,
+      }}
+    >
+      {children}
+    </AppLayout>
+  );
 }

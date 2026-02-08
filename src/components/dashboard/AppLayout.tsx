@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -19,19 +19,40 @@ import {
   LogOut,
   UserCircle,
   ChevronDown,
+  Users,
+  Briefcase,
 } from 'lucide-react';
+import type { UserRole } from '@prisma/client';
 
-const menuItems = [
+type MenuItem = {
+  icon: React.ElementType;
+  label: string;
+  path: string;
+  adminOnly?: boolean;
+};
+
+const baseMenuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+  { icon: Users, label: 'Usuarios', path: '/dashboard/usuarios', adminOnly: true },
   { icon: Map, label: 'Campo', path: '/dashboard/campo' },
   { icon: Package, label: 'Inventario', path: '/dashboard/inventario' },
+  { icon: Briefcase, label: 'Trabajadores', path: '/dashboard/trabajadores' },
   { icon: Truck, label: 'Maquinaria', path: '/dashboard/maquinaria' },
-  { icon: ShoppingCart, label: 'Ventas', path: '/dashboard/ventas' },
+  { icon: ShoppingCart, label: 'Ventas', path: '/dashboard/ventas', adminOnly: true },
   { icon: Settings, label: 'Configuración', path: '/dashboard/configuracion' },
   { icon: Zap, label: 'Integraciones', path: '/dashboard/integraciones' },
 ];
 
-export function AppLayout({ children }: { children: React.ReactNode }) {
+interface AppLayoutProps {
+  children: React.ReactNode;
+  user: {
+    firstName: string;
+    lastName: string;
+    role: UserRole;
+  };
+}
+
+export function AppLayout({ children, user }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -39,19 +60,27 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [headerUserMenuOpen, setHeaderUserMenuOpen] = useState(false);
 
-  const handleLogout = () => {
-    router.push('/');
+  const menuItems = useMemo(
+    () => baseMenuItems.filter((item) => !(item.adminOnly && user.role !== 'ADMIN')),
+    [user.role]
+  );
+
+  const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+  const roleLabel = user.role === 'ADMIN' ? 'Administrador' : 'Supervisor Operativo';
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/login');
+    router.refresh();
   };
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
       <aside
         className={`${
           sidebarCollapsed ? 'w-16' : 'w-64'
         } flex flex-col bg-white border-r border-gray-200 transition-all duration-300 ease-in-out`}
       >
-        {/* Logo Header */}
         <div className="flex items-center h-16 px-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <Image
@@ -67,12 +96,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </span>
             )}
           </div>
-          {/* Collapse Button */}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className={`${
-              sidebarCollapsed ? 'ml-auto' : 'ml-auto'
-            } p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors`}
+            className="ml-auto p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
             title={sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}
           >
             {sidebarCollapsed ? (
@@ -83,7 +109,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
           {menuItems.map((item) => {
             const isActive =
@@ -109,7 +134,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* User Section */}
         <div className="border-t border-gray-200 p-3">
           <div className="relative">
             <button
@@ -119,20 +143,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               }`}
             >
               <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-medium text-green-700">JP</span>
+                <span className="text-sm font-medium text-green-700">{initials}</span>
               </div>
               {!sidebarCollapsed && (
                 <>
                   <div className="flex-1 text-left">
-                    <p className="text-sm font-medium text-gray-900">Juan Pérez</p>
-                    <p className="text-xs text-gray-500">Encargado</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {user.firstName} {user.lastName}
+                    </p>
+                    <p className="text-xs text-gray-500">{roleLabel}</p>
                   </div>
                   <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                 </>
               )}
             </button>
 
-            {/* User Dropdown */}
             {userMenuOpen && (
               <div className={`absolute ${sidebarCollapsed ? 'left-full ml-2' : 'left-0 right-0'} bottom-full mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50`}>
                 <div className="px-3 py-2 border-b border-gray-100">
@@ -161,11 +186,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-          {/* Search */}
           <div className="flex-1 max-w-md">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -177,9 +199,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Right side */}
           <div className="flex items-center gap-3">
-            {/* Notifications */}
             <div className="relative">
               <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
@@ -191,7 +211,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </span>
               </button>
 
-              {/* Notifications Dropdown */}
               {notificationsOpen && (
                 <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                   <div className="px-4 py-3 border-b border-gray-100">
@@ -200,51 +219,41 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   <div className="py-1">
                     <button className="w-full px-4 py-3 hover:bg-gray-50 text-left">
                       <p className="text-sm font-medium text-gray-900">Stock bajo</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Fertilizante NPK por debajo del mínimo
-                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">Fertilizante NPK por debajo del mínimo</p>
                     </button>
                     <button className="w-full px-4 py-3 hover:bg-gray-50 text-left">
                       <p className="text-sm font-medium text-gray-900">Service próximo</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Tractor John Deere necesita service
-                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">Control programado próximamente</p>
                     </button>
                     <button className="w-full px-4 py-3 hover:bg-gray-50 text-left">
                       <p className="text-sm font-medium text-gray-900">Tarea pendiente</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Aplicación de herbicida programada para mañana
-                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">Hay tareas para reasignar</p>
                     </button>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* User Menu */}
             <div className="relative">
               <button
                 onClick={() => setHeaderUserMenuOpen(!headerUserMenuOpen)}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                  <span className="text-sm font-medium text-green-700">JP</span>
+                  <span className="text-sm font-medium text-green-700">{initials}</span>
                 </div>
-                <span className="text-sm font-medium text-gray-700 hidden sm:block">Juan Pérez</span>
+                <span className="text-sm font-medium text-gray-700 hidden sm:block">
+                  {user.firstName} {user.lastName}
+                </span>
               </button>
 
-              {/* User Dropdown */}
               {headerUserMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                   <div className="px-3 py-2 border-b border-gray-100">
                     <p className="text-sm font-medium text-gray-900">Mi cuenta</p>
                   </div>
-                  <button className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left">
-                    Perfil
-                  </button>
-                  <button className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left">
-                    Configuración
-                  </button>
+                  <button className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left">Perfil</button>
+                  <button className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left">Configuración</button>
                   <div className="border-t border-gray-100 mt-1 pt-1">
                     <button
                       onClick={handleLogout}
@@ -259,13 +268,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-auto p-6">
-          {children}
-        </main>
+        <main className="flex-1 overflow-auto p-6">{children}</main>
       </div>
 
-      {/* Click outside to close dropdowns */}
       {(userMenuOpen || notificationsOpen || headerUserMenuOpen) && (
         <div
           className="fixed inset-0 z-40"

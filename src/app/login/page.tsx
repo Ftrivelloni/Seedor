@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -10,25 +10,50 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [email, setEmail] = useState('admin@seedor.app');
+  const [password, setPassword] = useState('admin123');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoaded(true), 100);
     return () => clearTimeout(timer);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    // Redirect to dashboard after login
-    router.push('/dashboard');
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        setError(data.error || 'No se pudo iniciar sesión.');
+        return;
+      }
+
+      router.push('/dashboard');
+      router.refresh();
+    } catch {
+      setError('No se pudo iniciar sesión.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="min-h-screen flex bg-white">
-      {/* Left Side - Form */}
       <div className="w-full lg:w-[45%] flex flex-col p-6 sm:p-8 lg:p-12 overflow-y-auto">
-        {/* Form Container */}
         <div className="flex flex-col pt-4 sm:pt-8 lg:pt-12 max-w-lg mx-auto w-full">
-          {/* Logo */}
           <div className={`mb-8 lg:mb-10 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
             <Link href="/" className="flex items-center">
               <div className="relative h-11 sm:h-12 w-48 sm:w-56">
@@ -44,7 +69,6 @@ export default function LoginPage() {
             </Link>
           </div>
 
-          {/* Title */}
           <h1
             className={`text-2xl sm:text-3xl font-bold text-[#0A0908] mb-2 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             style={{ transitionDelay: '100ms' }}
@@ -55,12 +79,10 @@ export default function LoginPage() {
             className={`text-[#0A0908]/60 mb-8 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             style={{ transitionDelay: '150ms' }}
           >
-            Ingresá a tu cuenta para continuar
+            Accedé con tus credenciales para ingresar al panel de gestión.
           </p>
 
-          {/* Form */}
           <form className="space-y-5" onSubmit={handleSubmit}>
-            {/* Email Field */}
             <div
               className={`transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: '200ms' }}
@@ -71,12 +93,14 @@ export default function LoginPage() {
               <input
                 id="email"
                 type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
                 className="w-full px-4 py-4 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
                 placeholder="tu@email.com"
+                required
               />
             </div>
 
-            {/* Password Field */}
             <div
               className={`transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: '250ms' }}
@@ -88,8 +112,11 @@ export default function LoginPage() {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
                   className="w-full px-4 py-4 pr-12 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
                   placeholder="••••••••"
+                  required
                 />
                 <button
                   type="button"
@@ -110,12 +137,10 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember Me & Forgot Password Row */}
             <div
               className={`flex items-center justify-between transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: '300ms' }}
             >
-              {/* Remember Me Checkbox */}
               <label className="flex items-center gap-2 cursor-pointer group">
                 <div className="relative">
                   <input
@@ -137,7 +162,6 @@ export default function LoginPage() {
                 <span className="text-sm text-[#0A0908]/60">Recordarme</span>
               </label>
 
-              {/* Forgot Password Link */}
               <Link
                 href="/forgot-password"
                 className="text-sm text-[#73AC01] hover:underline"
@@ -146,21 +170,32 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            {/* Submit Button */}
+            {error ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 text-sm">
+                {error}
+              </div>
+            ) : null}
+
             <div
               className={`pt-2 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: '350ms' }}
             >
               <button
                 type="submit"
-                className="w-full py-4 px-6 rounded-xl font-semibold bg-[#73AC01] text-white hover:bg-[#5C8A01] shadow-[0_4px_14px_0_rgba(115,172,1,0.39)] hover:shadow-[0_6px_20px_rgba(115,172,1,0.5)] hover:scale-[1.02] transition-all duration-300"
+                disabled={isSubmitting}
+                className="w-full py-4 px-6 rounded-xl font-semibold bg-[#73AC01] text-white hover:bg-[#5C8A01] disabled:opacity-70 shadow-[0_4px_14px_0_rgba(115,172,1,0.39)] hover:shadow-[0_6px_20px_rgba(115,172,1,0.5)] hover:scale-[1.02] transition-all duration-300"
               >
-                Iniciar sesión
+                {isSubmitting ? 'Ingresando...' : 'Entrar'}
               </button>
             </div>
           </form>
 
-          {/* Register Link */}
+          <div className="mt-6 rounded-xl border border-[#73AC01]/20 bg-[#73AC01]/5 px-4 py-3 text-sm text-[#0A0908]/70">
+            <p className="font-medium text-[#0A0908]">Credenciales demo</p>
+            <p>Admin: admin@seedor.app / admin123</p>
+            <p>Supervisor: supervisor@seedor.app / super123</p>
+          </div>
+
           <p
             className={`text-center mt-8 text-sm text-[#0A0908]/60 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             style={{ transitionDelay: '400ms' }}
@@ -172,7 +207,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Footer */}
         <div className="mt-auto pt-8">
           <p className="text-xs text-[#0A0908]/40 text-center">
             © 2025 Seedor. Todos los derechos reservados.
@@ -180,13 +214,11 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right Side - Image Panel */}
       <div className="hidden lg:flex lg:w-[55%] p-6">
         <div
           className={`relative w-full h-full rounded-[32px] overflow-hidden transition-all duration-700 ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
           style={{ transitionDelay: '300ms' }}
         >
-          {/* Background Image */}
           <Image
             src="/images/campo_de_naranjas_ia.png"
             alt="Campo de naranjas"
@@ -196,10 +228,8 @@ export default function LoginPage() {
             priority
           />
 
-          {/* Dark Overlay for text readability */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-transparent"></div>
 
-          {/* Content */}
           <div className="relative z-10 p-10 lg:p-12">
             <h2
               className={`text-2xl lg:text-3xl xl:text-4xl font-bold text-white mb-3 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
@@ -223,4 +253,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

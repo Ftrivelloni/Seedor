@@ -5,22 +5,53 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+interface RegistrationData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  password: string;
+  companyName: string;
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [formData, setFormData] = useState<RegistrationData>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    password: '',
+    companyName: '',
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoaded(true), 100);
     return () => clearTimeout(timer);
   }, []);
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would save the form data
+    // Store form data in sessionStorage to pass to next step
+    sessionStorage.setItem('registrationData', JSON.stringify(formData));
     router.push('/register/select-plan');
   };
+
+  const isFormValid =
+    agreedToTerms &&
+    formData.firstName &&
+    formData.lastName &&
+    formData.email &&
+    formData.password &&
+    formData.companyName;
 
   return (
     <div className="min-h-screen flex bg-white">
@@ -53,10 +84,67 @@ export default function RegisterPage() {
 
           {/* Form */}
           <form className="space-y-4" onSubmit={handleSubmit}>
-            {/* Email Field */}
+            {/* Company Name Field */}
             <div
               className={`transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: '150ms' }}
+            >
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <svg className="w-5 h-5 text-[#0A0908]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <input
+                  id="companyName"
+                  type="text"
+                  value={formData.companyName}
+                  onChange={handleChange}
+                  className="w-full pl-12 pr-4 py-5 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
+                  placeholder="Nombre de tu empresa"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Name Fields Row */}
+            <div
+              className={`grid grid-cols-2 gap-3 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              style={{ transitionDelay: '200ms' }}
+            >
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <svg className="w-5 h-5 text-[#0A0908]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <input
+                  id="firstName"
+                  type="text"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  className="w-full pl-12 pr-4 py-5 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
+                  placeholder="Nombre"
+                  required
+                />
+              </div>
+              <div className="relative">
+                <input
+                  id="lastName"
+                  type="text"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  className="w-full px-4 py-5 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
+                  placeholder="Apellido"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Email Field */}
+            <div
+              className={`transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              style={{ transitionDelay: '250ms' }}
             >
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -67,8 +155,33 @@ export default function RegisterPage() {
                 <input
                   id="email"
                   type="email"
+                  value={formData.email}
+                  onChange={handleChange}
                   className="w-full pl-12 pr-4 py-5 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
                   placeholder="Email"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Phone Field */}
+            <div
+              className={`transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              style={{ transitionDelay: '300ms' }}
+            >
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <svg className="w-5 h-5 text-[#0A0908]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                </div>
+                <input
+                  id="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="w-full pl-12 pr-4 py-5 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
+                  placeholder="Teléfono (opcional)"
                 />
               </div>
             </div>
@@ -76,7 +189,7 @@ export default function RegisterPage() {
             {/* Password Field */}
             <div
               className={`transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-              style={{ transitionDelay: '200ms' }}
+              style={{ transitionDelay: '350ms' }}
             >
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -87,8 +200,12 @@ export default function RegisterPage() {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={handleChange}
                   className="w-full pl-12 pr-12 py-5 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
-                  placeholder="Contraseña"
+                  placeholder="Contraseña (mínimo 6 caracteres)"
+                  required
+                  minLength={6}
                 />
                 <button
                   type="button"
@@ -109,50 +226,10 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Name Field */}
-            <div
-              className={`transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-              style={{ transitionDelay: '250ms' }}
-            >
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-[#0A0908]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                <input
-                  id="name"
-                  type="text"
-                  className="w-full pl-12 pr-4 py-5 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
-                  placeholder="Nombre completo"
-                />
-              </div>
-            </div>
-
-            {/* Phone Field */}
-            <div
-              className={`transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-              style={{ transitionDelay: '300ms' }}
-            >
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-[#0A0908]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                </div>
-                <input
-                  id="phone"
-                  type="tel"
-                  className="w-full pl-12 pr-4 py-5 bg-[#73AC01]/5 border border-[#73AC01]/20 rounded-xl text-[#0A0908] placeholder-[#0A0908]/40 focus:outline-none focus:ring-2 focus:ring-[#73AC01]/50 focus:border-[#73AC01] transition-all duration-200"
-                  placeholder="Teléfono"
-                />
-              </div>
-            </div>
-
             {/* Terms Checkbox */}
             <div
               className={`transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-              style={{ transitionDelay: '350ms' }}
+              style={{ transitionDelay: '400ms' }}
             >
               <label className="flex items-start gap-3 cursor-pointer group">
                 <div className="relative mt-0.5">
@@ -188,17 +265,17 @@ export default function RegisterPage() {
             {/* Submit Button */}
             <div
               className={`pt-2 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-              style={{ transitionDelay: '400ms' }}
+              style={{ transitionDelay: '450ms' }}
             >
               <button
                 type="submit"
-                disabled={!agreedToTerms}
-                className={`w-full py-4 px-6 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${agreedToTerms
+                disabled={!isFormValid}
+                className={`w-full py-4 px-6 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${isFormValid
                   ? 'bg-[#73AC01] text-white hover:bg-[#5C8A01] shadow-[0_4px_14px_0_rgba(115,172,1,0.39)] hover:shadow-[0_6px_20px_rgba(115,172,1,0.5)] hover:scale-[1.02]'
                   : 'bg-[#73AC01]/30 text-white/70 cursor-not-allowed'
                   }`}
               >
-                Elegir plan
+                Elegir módulos
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
@@ -209,7 +286,7 @@ export default function RegisterPage() {
           {/* Login Link */}
           <p
             className={`text-center mt-6 text-sm text-[#0A0908]/60 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-            style={{ transitionDelay: '450ms' }}
+            style={{ transitionDelay: '500ms' }}
           >
             ¿Ya tenés cuenta?{' '}
             <Link href="/login" className="text-[#73AC01] font-medium hover:underline">

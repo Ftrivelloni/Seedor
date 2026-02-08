@@ -4,11 +4,31 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
+interface RegistrationSuccess {
+    companyName: string;
+    selectedModules: string[];
+}
+
+const MODULE_NAMES: Record<string, string> = {
+    MACHINERY: 'Maquinaria',
+    PACKAGING: 'Empaque',
+    SALES: 'Ventas',
+};
+
 export default function RegistrationSuccessPage() {
     const [isLoaded, setIsLoaded] = useState(false);
+    const [successData, setSuccessData] = useState<RegistrationSuccess | null>(null);
 
     useEffect(() => {
         const timer = setTimeout(() => setIsLoaded(true), 100);
+
+        // Load success data from sessionStorage
+        const storedData = sessionStorage.getItem('registrationSuccess');
+        if (storedData) {
+            setSuccessData(JSON.parse(storedData) as RegistrationSuccess);
+            sessionStorage.removeItem('registrationSuccess');
+        }
+
         return () => clearTimeout(timer);
     }, []);
 
@@ -53,27 +73,56 @@ export default function RegistrationSuccessPage() {
                         className={`text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0A0908] mb-4 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                         style={{ transitionDelay: '200ms' }}
                     >
-                        ¡Gracias por registrarte!
+                        ¡Bienvenido a Seedor!
                     </h1>
 
                     {/* Subtitle */}
                     <p
-                        className={`text-lg text-[#0A0908]/60 mb-8 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+                        className={`text-lg text-[#0A0908]/60 mb-6 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                         style={{ transitionDelay: '300ms' }}
                     >
-                        Tu cuenta ha sido creada exitosamente. Ya podés iniciar sesión y comenzar a gestionar tu campo.
+                        {successData?.companyName ? (
+                            <>
+                                Tu cuenta para <span className="font-semibold text-[#73AC01]">{successData.companyName}</span> ha sido creada exitosamente.
+                            </>
+                        ) : (
+                            'Tu cuenta ha sido creada exitosamente.'
+                        )}
                     </p>
 
-                    {/* Login Button */}
+                    {/* Selected Modules Summary */}
+                    {successData?.selectedModules && successData.selectedModules.length > 0 && (
+                        <div
+                            className={`mb-8 p-4 bg-white rounded-xl border border-[#73AC01]/20 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+                            style={{ transitionDelay: '350ms' }}
+                        >
+                            <p className="text-sm text-[#0A0908]/60 mb-2">Módulos opcionales activados:</p>
+                            <div className="flex flex-wrap justify-center gap-2">
+                                {successData.selectedModules.map((moduleKey) => (
+                                    <span
+                                        key={moduleKey}
+                                        className="inline-flex items-center gap-1 text-sm text-[#73AC01] bg-[#73AC01]/10 px-3 py-1 rounded-full"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        {MODULE_NAMES[moduleKey] || moduleKey}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Dashboard Button */}
                     <div
                         className={`transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                         style={{ transitionDelay: '400ms' }}
                     >
                         <Link
-                            href="/login"
+                            href="/dashboard"
                             className="inline-flex items-center gap-2 bg-[#73AC01] text-white font-semibold px-8 py-4 rounded-xl shadow-[0_4px_14px_0_rgba(115,172,1,0.39)] hover:bg-[#5C8A01] hover:shadow-[0_6px_20px_rgba(115,172,1,0.5)] hover:scale-[1.02] transition-all duration-300"
                         >
-                            Iniciar sesión
+                            Ir al Dashboard
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                             </svg>
