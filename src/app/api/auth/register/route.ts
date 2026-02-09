@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { stripe } from '@/lib/stripe';
 import { hashPassword } from '@/lib/auth/password';
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from '@/lib/auth/constants';
 import { createSessionToken } from '@/lib/auth/session-token';
@@ -27,6 +28,7 @@ interface RegisterRequest {
     password?: string;
     companyName?: string;
     selectedModules?: ModuleKey[];
+    stripeSessionId?: string;
 }
 
 function generateSlug(name: string): string {
@@ -50,6 +52,7 @@ export async function POST(request: Request) {
         const password = body.password?.trim();
         const companyName = body.companyName?.trim();
         const selectedModules = body.selectedModules || [];
+        const stripeSessionId = body.stripeSessionId;
 
         // Validate required fields
         if (!firstName || !lastName || !email || !password || !companyName) {
@@ -93,6 +96,40 @@ export async function POST(request: Request) {
             OPTIONAL_MODULES.includes(m)
         );
 
+        // ─── Stripe payment verification ───
+        // If optional modules are selected, payment via Stripe is required
+        let stripeCustomerId: string | null = null;
+        let stripeSubscriptionId: string | null = null;
+
+        if (validOptionalModules.length > 0) {
+            if (!stripeSessionId) {
+                return NextResponse.json(
+                    { error: 'Se requiere pago para activar módulos opcionales.' },
+                    { status: 400 }
+                );
+            }
+
+            try {
+                const session = await stripe.checkout.sessions.retrieve(stripeSessionId);
+
+                if (session.payment_status !== 'paid') {
+                    return NextResponse.json(
+                        { error: 'El pago no fue completado. Por favor, intentá de nuevo.' },
+                        { status: 400 }
+                    );
+                }
+
+                stripeCustomerId = (session.customer as string) || null;
+                stripeSubscriptionId = (session.subscription as string) || null;
+            } catch (stripeError) {
+                console.error('Stripe session verification error:', stripeError);
+                return NextResponse.json(
+                    { error: 'No se pudo verificar el pago. Por favor, contactá a soporte.' },
+                    { status: 400 }
+                );
+            }
+        }
+
         // Generate unique slug for tenant
         let baseSlug = generateSlug(companyName);
         let slug = baseSlug;
@@ -110,6 +147,8 @@ export async function POST(request: Request) {
                 data: {
                     name: companyName,
                     slug,
+                    stripeCustomerId,
+                    stripeSubscriptionId,
                 },
             });
 
