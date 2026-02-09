@@ -38,6 +38,7 @@ const baseMenuItems: MenuItem[] = [
   { icon: Package, label: 'Inventario', path: '/dashboard/inventario' },
   { icon: Briefcase, label: 'Trabajadores', path: '/dashboard/trabajadores' },
   { icon: Truck, label: 'Maquinaria', path: '/dashboard/maquinaria' },
+  { icon: Package, label: 'Empaque', path: '/dashboard/empaque' },
   { icon: ShoppingCart, label: 'Ventas', path: '/dashboard/ventas', adminOnly: true },
   { icon: Settings, label: 'Configuración', path: '/dashboard/configuracion' },
   { icon: Zap, label: 'Integraciones', path: '/dashboard/integraciones' },
