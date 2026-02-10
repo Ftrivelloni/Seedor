@@ -158,34 +158,59 @@ export default function SelectModulesPage() {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    ...registrationData,
+            if (selectedModules.length === 0) {
+                // Free registration — no optional modules, no payment needed
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...registrationData,
+                        selectedModules,
+                    }),
+                });
+
+                const data = (await response.json()) as { error?: string; tenantSlug?: string };
+
+                if (!response.ok) {
+                    setError(data.error || 'No se pudo completar el registro.');
+                    return;
+                }
+
+                // Clear session storage
+                sessionStorage.removeItem('registrationData');
+
+                // Store selected modules for success page
+                sessionStorage.setItem('registrationSuccess', JSON.stringify({
+                    companyName: registrationData.companyName,
                     selectedModules,
-                }),
-            });
+                }));
 
-            const data = (await response.json()) as { error?: string; tenantSlug?: string };
+                router.push('/register/success');
+            } else {
+                // Paid registration — redirect to Stripe Checkout
+                // Persist selected modules so the success page can read them after redirect
+                sessionStorage.setItem('pendingModules', JSON.stringify(selectedModules));
 
-            if (!response.ok) {
-                setError(data.error || 'No se pudo completar el registro.');
-                return;
+                const response = await fetch('/api/stripe/create-checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: registrationData.email,
+                        companyName: registrationData.companyName,
+                        selectedModules,
+                    }),
+                });
+
+                const data = (await response.json()) as { error?: string; url?: string };
+
+                if (!response.ok || !data.url) {
+                    setError(data.error || 'No se pudo crear la sesión de pago.');
+                    return;
+                }
+
+                // Redirect to Stripe hosted checkout
+                window.location.href = data.url;
             }
-
-            // Clear session storage
-            sessionStorage.removeItem('registrationData');
-
-            // Store selected modules for success page
-            sessionStorage.setItem('registrationSuccess', JSON.stringify({
-                companyName: registrationData.companyName,
-                selectedModules,
-            }));
-
-            router.push('/register/success');
         } catch {
             setError('No se pudo completar el registro. Intentá de nuevo.');
         } finally {
@@ -219,7 +244,7 @@ export default function SelectModulesPage() {
                         className={`text-sm text-[#0A0908]/60 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}
                         style={{ transitionDelay: '100ms' }}
                     >
-                        Paso 2 de 2
+                        Paso 2 de {selectedModules.length > 0 ? '3' : '2'}
                     </div>
                 </div>
             </header>
@@ -369,12 +394,21 @@ export default function SelectModulesPage() {
                                         Creando cuenta...
                                     </>
                                 ) : (
-                                    <>
-                                        Crear mi cuenta
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                                        </svg>
-                                    </>
+                                    selectedModules.length > 0 ? (
+                                        <>
+                                            Continuar al pago
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                            </svg>
+                                        </>
+                                    ) : (
+                                        <>
+                                            Crear mi cuenta
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                            </svg>
+                                        </>
+                                    )
                                 )}
                             </button>
                         </div>
