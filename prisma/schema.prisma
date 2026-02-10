@@ -13,7 +13,11 @@ model Tenant {
   name                      String
   slug                      String                     @unique
   stripeCustomerId          String?                    @unique
-  stripeSubscriptionId      String?
+  stripeSubscriptionId      String?                    @unique
+  subscriptionStatus        SubscriptionStatus         @default(INACTIVE)
+  planInterval              PlanInterval               @default(MONTHLY)
+  currentPeriodEnd          DateTime?
+  cancelAtPeriodEnd         Boolean                    @default(false)
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
   dashboardPreferences      DashboardPreference[]
@@ -388,15 +392,29 @@ model DashboardPreference {
 }
 
 model TenantModuleSetting {
-  id        String    @id @default(cuid())
-  tenantId  String
-  module    ModuleKey
-  enabled   Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                      String    @id @default(cuid())
+  tenantId                String
+  module                  ModuleKey
+  enabled                 Boolean   @default(true)
+  stripePriceId           String?
+  stripeSubscriptionItemId String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  tenant                  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, module])
+}
+
+// ═══════════════════════════════════════════════════════
+// STRIPE IDEMPOTENCY — prevents duplicate webhook processing
+// ═══════════════════════════════════════════════════════
+
+model StripeEvent {
+  id            String   @id // Stripe event ID (evt_xxx)
+  type          String
+  processedAt   DateTime @default(now())
+
+  @@index([type])
 }
 
 enum UserRole {
@@ -439,6 +457,20 @@ enum InventoryMovementType {
 enum ExtraordinaryItemStatus {
   PENDING
   DELIVERED
+}
+
+enum SubscriptionStatus {
+  INACTIVE       // No subscription yet
+  TRIALING       // In free trial
+  ACTIVE         // Paid and active
+  PAST_DUE       // Payment failed, grace period
+  CANCELED       // Subscription canceled
+  UNPAID         // Multiple payment failures
+}
+
+enum PlanInterval {
+  MONTHLY
+  ANNUAL
 }
 
 enum ModuleKey {
