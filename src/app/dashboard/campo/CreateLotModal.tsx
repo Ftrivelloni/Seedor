@@ -16,6 +16,7 @@ export function CreateLotModal({ fieldId, fieldName, cropTypes }: CreateLotModal
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [selectedCrops, setSelectedCrops] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   function toggleCrop(cropId: string) {
@@ -26,21 +27,31 @@ export function CreateLotModal({ fieldId, fieldName, cropTypes }: CreateLotModal
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setError(null);
     const formData = new FormData(e.currentTarget);
     // Append each selected crop type ID
     selectedCrops.forEach((id) => formData.append('cropTypeIds', id));
     startTransition(async () => {
-      await createLotAction(formData);
-      setOpen(false);
-      setSelectedCrops([]);
-      router.refresh();
+      try {
+        await createLotAction(formData);
+        setOpen(false);
+        setSelectedCrops([]);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al crear el lote.');
+      }
     });
+  }
+
+  function handleOpenChange(value: boolean) {
+    setOpen(value);
+    if (!value) setError(null);
   }
 
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => handleOpenChange(true)}
         className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-green-700 transition-colors"
       >
         <Plus className="h-4 w-4" />
@@ -49,12 +60,18 @@ export function CreateLotModal({ fieldId, fieldName, cropTypes }: CreateLotModal
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/40" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 bg-black/40" onClick={() => handleOpenChange(false)} />
           <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold text-gray-900">Crear lote</h2>
             <p className="mt-1 text-sm text-gray-500">
               Agregá un nuevo lote al campo &quot;{fieldName}&quot;.
             </p>
+
+            {error && (
+              <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {error}
+              </p>
+            )}
 
             <form onSubmit={handleSubmit} className="mt-5 space-y-4">
               <input type="hidden" name="fieldId" value={fieldId} />
@@ -67,6 +84,7 @@ export function CreateLotModal({ fieldId, fieldName, cropTypes }: CreateLotModal
                   id="lot-name"
                   name="name"
                   required
+                  maxLength={100}
                   placeholder="Ej: Lote A1"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
                 />
@@ -175,7 +193,7 @@ export function CreateLotModal({ fieldId, fieldName, cropTypes }: CreateLotModal
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setOpen(false)}
+                  onClick={() => handleOpenChange(false)}
                   className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Cancelar

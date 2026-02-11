@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import type { WorkerPaymentStatus, WorkerPaymentType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 
@@ -26,26 +27,50 @@ export async function createWorkerAction(formData: FormData) {
     throw new Error('Completa todos los campos obligatorios del trabajador.');
   }
 
+  if (firstName.length > 100 || lastName.length > 100) {
+    throw new Error('El nombre y apellido no pueden superar los 100 caracteres.');
+  }
+  if (dni.length > 20) {
+    throw new Error('El DNI no puede superar los 20 caracteres.');
+  }
+
   if (!allowedPaymentTypes.includes(paymentType)) {
     throw new Error('Tipo de pago inválido.');
   }
 
-  await prisma.worker.create({
-    data: {
-      tenantId: session.tenantId,
-      firstName,
-      lastName,
-      dni,
-      phone,
-      email: emailRaw || null,
-      paymentType,
-      functionType,
-      hourlyRate: paymentType === 'HOURLY' ? hourlyRate : null,
-      taskRate: paymentType === 'PER_TASK' ? taskRate : null,
-      fixedSalary: paymentType === 'FIXED_SALARY' ? fixedSalary : null,
-      paymentStatus: 'PENDING',
-    },
-  });
+  if (paymentType === 'HOURLY' && (!Number.isFinite(hourlyRate) || hourlyRate < 0)) {
+    throw new Error('El valor por hora debe ser un número válido mayor o igual a 0.');
+  }
+  if (paymentType === 'PER_TASK' && (!Number.isFinite(taskRate) || taskRate < 0)) {
+    throw new Error('El valor por tarea debe ser un número válido mayor o igual a 0.');
+  }
+  if (paymentType === 'FIXED_SALARY' && (!Number.isFinite(fixedSalary) || fixedSalary < 0)) {
+    throw new Error('El sueldo fijo debe ser un número válido mayor o igual a 0.');
+  }
+
+  try {
+    await prisma.worker.create({
+      data: {
+        tenantId: session.tenantId,
+        firstName,
+        lastName,
+        dni,
+        phone,
+        email: emailRaw || null,
+        paymentType,
+        functionType,
+        hourlyRate: paymentType === 'HOURLY' ? hourlyRate : null,
+        taskRate: paymentType === 'PER_TASK' ? taskRate : null,
+        fixedSalary: paymentType === 'FIXED_SALARY' ? fixedSalary : null,
+        paymentStatus: 'PENDING',
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new Error('Ya existe un trabajador con ese DNI.');
+    }
+    throw err;
+  }
 
   revalidatePath('/dashboard/trabajadores');
 }
@@ -120,7 +145,7 @@ export async function registerPaymentAction(formData: FormData) {
     formData.get('paymentStatus') || 'PAID'
   ) as WorkerPaymentStatus;
 
-  if (!workerId || amount <= 0) {
+  if (!workerId || !Number.isFinite(amount) || amount <= 0) {
     throw new Error('Debe indicar un trabajador y un monto válido.');
   }
 

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useFormStatus } from 'react-dom';
 import {
   Dialog,
   DialogContent,
@@ -25,27 +24,33 @@ import { Checkbox } from '@/components/dashboard/ui/checkbox';
 import { UserPlus } from 'lucide-react';
 import { createWorkerAction } from './actions';
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="bg-green-600 hover:bg-green-700">
-      {pending ? 'Guardando...' : 'Agregar'}
-    </Button>
-  );
-}
-
 export function AddWorkerModal() {
   const [open, setOpen] = useState(false);
   const [paymentType, setPaymentType] = useState('HOURLY');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(formData: FormData) {
-    await createWorkerAction(formData);
-    setOpen(false);
-    setPaymentType('HOURLY');
+    setSubmitting(true);
+    setError(null);
+    try {
+      await createWorkerAction(formData);
+      setOpen(false);
+      setPaymentType('HOURLY');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear el trabajador.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleOpenChange(value: boolean) {
+    setOpen(value);
+    if (!value) setError(null);
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="bg-green-600 hover:bg-green-700 gap-2">
           <UserPlus className="h-4 w-4" />
@@ -60,19 +65,25 @@ export function AddWorkerModal() {
           </DialogDescription>
         </DialogHeader>
         <form action={handleSubmit} className="space-y-4">
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+
           {/* Name row */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="worker-firstName">
                 Nombre <span className="text-red-500">*</span>
               </Label>
-              <Input id="worker-firstName" name="firstName" required placeholder="Nombre" />
+              <Input id="worker-firstName" name="firstName" required maxLength={100} placeholder="Nombre" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="worker-lastName">
                 Apellido <span className="text-red-500">*</span>
               </Label>
-              <Input id="worker-lastName" name="lastName" required placeholder="Apellido" />
+              <Input id="worker-lastName" name="lastName" required maxLength={100} placeholder="Apellido" />
             </div>
           </div>
 
@@ -82,7 +93,7 @@ export function AddWorkerModal() {
               <Label htmlFor="worker-dni">
                 DNI <span className="text-red-500">*</span>
               </Label>
-              <Input id="worker-dni" name="dni" required placeholder="12345678" />
+              <Input id="worker-dni" name="dni" required maxLength={20} placeholder="12345678" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="worker-phone">
@@ -203,10 +214,12 @@ export function AddWorkerModal() {
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Cancelar
             </Button>
-            <SubmitButton />
+            <Button type="submit" disabled={submitting} className="bg-green-600 hover:bg-green-700">
+              {submitting ? 'Guardando...' : 'Agregar'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

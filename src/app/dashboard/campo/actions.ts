@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import type { TaskStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { createInventoryMovement } from '@/lib/domain/inventory';
@@ -20,15 +21,31 @@ export async function createFieldAction(formData: FormData) {
   if (!name) {
     throw new Error('El nombre del campo es obligatorio.');
   }
+  if (name.length > 100) {
+    throw new Error('El nombre del campo no puede superar los 100 caracteres.');
+  }
+  if (location.length > 500) {
+    throw new Error('La ubicación no puede superar los 500 caracteres.');
+  }
+  if (description.length > 500) {
+    throw new Error('La descripción no puede superar los 500 caracteres.');
+  }
 
-  await prisma.field.create({
-    data: {
-      tenantId: session.tenantId,
-      name,
-      location: location || null,
-      description: description || null,
-    },
-  });
+  try {
+    await prisma.field.create({
+      data: {
+        tenantId: session.tenantId,
+        name,
+        location: location || null,
+        description: description || null,
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new Error('Ya existe un campo con ese nombre.');
+    }
+    throw err;
+  }
 
   revalidatePath('/dashboard/campo');
 }
@@ -54,13 +71,19 @@ export async function createLotAction(formData: FormData) {
 
   const fieldId = String(formData.get('fieldId') || '').trim();
   const name = String(formData.get('name') || '').trim();
-  const areaHectares = Number(formData.get('areaHectares') || 0);
+  const areaHectaresRaw = Number(formData.get('areaHectares') || 0);
   const productionType = String(formData.get('productionType') || '').trim();
   const plantedFruitsDescription = String(formData.get('plantedFruitsDescription') || '').trim();
   const cropTypeIds = formData.getAll('cropTypeIds').map((v) => String(v)).filter(Boolean);
 
-  if (!fieldId || !name || !productionType || areaHectares <= 0) {
+  if (!fieldId || !name || !productionType) {
     throw new Error('Completa los datos obligatorios del lote.');
+  }
+  if (name.length > 100) {
+    throw new Error('El nombre del lote no puede superar los 100 caracteres.');
+  }
+  if (!Number.isFinite(areaHectaresRaw) || areaHectaresRaw <= 0) {
+    throw new Error('La superficie debe ser un número mayor a 0.');
   }
 
   const field = await prisma.field.findFirst({
@@ -72,16 +95,24 @@ export async function createLotAction(formData: FormData) {
     throw new Error('Campo inválido para el tenant actual.');
   }
 
-  const lot = await prisma.lot.create({
-    data: {
-      tenantId: session.tenantId,
-      fieldId,
-      name,
-      areaHectares,
-      productionType,
-      plantedFruitsDescription: plantedFruitsDescription || null,
-    },
-  });
+  let lot;
+  try {
+    lot = await prisma.lot.create({
+      data: {
+        tenantId: session.tenantId,
+        fieldId,
+        name,
+        areaHectares: areaHectaresRaw,
+        productionType,
+        plantedFruitsDescription: plantedFruitsDescription || null,
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new Error('Ya existe un lote con ese nombre en este campo.');
+    }
+    throw err;
+  }
 
   // Create LotCrop relations
   if (cropTypeIds.length > 0) {
