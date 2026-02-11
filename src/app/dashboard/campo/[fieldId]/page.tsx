@@ -2,7 +2,14 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { FieldDetailClient } from './FieldDetailClient';
-import type { SerializedField, SerializedTaskType, SerializedCropType } from '../types';
+import type {
+  SerializedField,
+  SerializedTaskType,
+  SerializedCropType,
+  SerializedWorker,
+  SerializedInventoryItem,
+  SerializedWarehouse,
+} from '../types';
 
 interface FieldPageProps {
   params: Promise<{ fieldId: string }>;
@@ -12,7 +19,7 @@ export default async function FieldPage({ params }: FieldPageProps) {
   const { fieldId } = await params;
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
-  const [field, taskTypes, cropTypes] = await Promise.all([
+  const [field, taskTypes, cropTypes, allFields, workers, inventoryItems, warehouses] = await Promise.all([
     prisma.field.findFirst({
       where: {
         id: fieldId,
@@ -48,6 +55,36 @@ export default async function FieldPage({ params }: FieldPageProps) {
       orderBy: { name: 'asc' },
     }),
     prisma.cropType.findMany({
+      where: { tenantId: session.tenantId },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.field.findMany({
+      where: { tenantId: session.tenantId },
+      include: {
+        lots: {
+          include: {
+            taskLinks: {
+              include: {
+                task: { select: { id: true, costValue: true, status: true } },
+              },
+            },
+            harvestRecords: { select: { kilos: true } },
+            lotCrops: { include: { cropType: { select: { name: true } } } },
+          },
+          orderBy: { name: 'asc' },
+        },
+      },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.worker.findMany({
+      where: { tenantId: session.tenantId, active: true },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+    }),
+    prisma.inventoryItem.findMany({
+      where: { tenantId: session.tenantId },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.warehouse.findMany({
       where: { tenantId: session.tenantId },
       orderBy: { name: 'asc' },
     }),
@@ -108,7 +145,59 @@ export default async function FieldPage({ params }: FieldPageProps) {
     color: ct.color,
   }));
 
+  /* ── Serialize all fields for task modal ── */
+  const serializedAllFields: SerializedField[] = allFields.map((f) => ({
+    id: f.id,
+    name: f.name,
+    location: f.location,
+    description: f.description,
+    lots: f.lots.map((l) => ({
+      id: l.id,
+      fieldId: l.fieldId,
+      name: l.name,
+      areaHectares: l.areaHectares,
+      productionType: l.productionType,
+      plantedFruitsDescription: l.plantedFruitsDescription,
+      crops: l.lotCrops.map((lc: { cropType: { name: string } }) => lc.cropType.name),
+      lastTaskAt: l.lastTaskAt?.toISOString() ?? null,
+      taskCost: l.taskLinks.reduce((acc, link) => acc + Number(link.task.costValue || 0), 0),
+      totalHarvestKilos: l.harvestRecords.reduce((acc, h) => acc + h.kilos, 0),
+      taskCount: l.taskLinks.length,
+      taskRecency: {},
+    })),
+  }));
+
+  /* ── Serialize workers ── */
+  const serializedWorkers: SerializedWorker[] = workers.map((w) => ({
+    id: w.id,
+    firstName: w.firstName,
+    lastName: w.lastName,
+    functionType: w.functionType,
+  }));
+
+  /* ── Serialize inventory items ── */
+  const serializedItems: SerializedInventoryItem[] = inventoryItems.map((i) => ({
+    id: i.id,
+    code: i.code,
+    name: i.name,
+    unit: i.unit,
+  }));
+
+  /* ── Serialize warehouses ── */
+  const serializedWarehouses: SerializedWarehouse[] = warehouses.map((w) => ({
+    id: w.id,
+    name: w.name,
+  }));
+
   return (
-    <FieldDetailClient field={serializedField} taskTypes={serializedTaskTypes} cropTypes={serializedCropTypes} />
+    <FieldDetailClient
+      field={serializedField}
+      taskTypes={serializedTaskTypes}
+      cropTypes={serializedCropTypes}
+      allFields={serializedAllFields}
+      workers={serializedWorkers}
+      inventoryItems={serializedItems}
+      warehouses={serializedWarehouses}
+    />
   );
 }

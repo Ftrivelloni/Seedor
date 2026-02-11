@@ -169,87 +169,90 @@ export async function createTaskAction(formData: FormData) {
     }))
     .filter((usage) => usage.itemId && usage.warehouseId && usage.quantity > 0 && usage.unit);
 
-  await prisma.$transaction(async (tx) => {
-    const lots = await tx.lot.findMany({
-      where: { tenantId: session.tenantId, id: { in: lotIds } },
-      select: { id: true, fieldId: true },
-    });
+  await prisma.$transaction(
+    async (tx) => {
+      const lots = await tx.lot.findMany({
+        where: { tenantId: session.tenantId, id: { in: lotIds } },
+        select: { id: true, fieldId: true },
+      });
 
-    if (lots.length !== lotIds.length) {
-      throw new Error('Uno o más lotes no pertenecen al tenant activo.');
-    }
+      if (lots.length !== lotIds.length) {
+        throw new Error('Uno o más lotes no pertenecen al tenant activo.');
+      }
 
-    const workers = workerIds.length
-      ? await tx.worker.findMany({
+      const workers = workerIds.length
+        ? await tx.worker.findMany({
           where: { tenantId: session.tenantId, id: { in: workerIds } },
           select: { id: true },
         })
-      : [];
+        : [];
 
-    if (workers.length !== workerIds.length) {
-      throw new Error('Uno o más trabajadores no pertenecen al tenant activo.');
-    }
-
-    // Create one independent task per lot
-    for (const lotId of lotIds) {
-      const task = await tx.task.create({
-        data: {
-          tenantId: session.tenantId,
-          description,
-          taskType,
-          status: 'PENDING',
-          startDate,
-          dueDate,
-          costValue: costValueRaw > 0 ? costValueRaw : null,
-          costUnit: costUnit || null,
-          isComposite,
-          createdById: session.userId,
-          lotLinks: { create: { lotId } },
-        },
-      });
-
-      if (workerIds.length > 0) {
-        await tx.taskAssignment.createMany({
-          data: workerIds.map((workerId) => ({ taskId: task.id, workerId })),
-        });
+      if (workers.length !== workerIds.length) {
+        throw new Error('Uno o más trabajadores no pertenecen al tenant activo.');
       }
 
-      // Each lot-task gets its own inventory usage recording
-      if (usages.length > 0) {
-        for (const usage of usages) {
-          const movement = await createInventoryMovement(
-            {
-              tenantId: session.tenantId,
-              type: 'CONSUMPTION',
-              itemId: usage.itemId,
-              quantity: usage.quantity,
-              sourceWarehouseId: usage.warehouseId,
-              referenceTaskId: task.id,
-              notes: `Consumo automático por tarea ${task.description}`,
-              createdByUserId: session.userId,
-            },
-            tx
-          );
+      // Create one independent task per lot
+      for (const lotId of lotIds) {
+        const task = await tx.task.create({
+          data: {
+            tenantId: session.tenantId,
+            description,
+            taskType,
+            status: 'PENDING',
+            startDate,
+            dueDate,
+            costValue: costValueRaw > 0 ? costValueRaw : null,
+            costUnit: costUnit || null,
+            isComposite,
+            createdById: session.userId,
+            lotLinks: { create: { lotId } },
+          },
+        });
 
-          await tx.taskInventoryUsage.create({
-            data: {
-              taskId: task.id,
-              inventoryItemId: usage.itemId,
-              warehouseId: usage.warehouseId,
-              quantity: usage.quantity,
-              unit: usage.unit,
-              movementId: movement.id,
-            },
+        if (workerIds.length > 0) {
+          await tx.taskAssignment.createMany({
+            data: workerIds.map((workerId) => ({ taskId: task.id, workerId })),
           });
         }
-      }
-    }
 
-    await tx.lot.updateMany({
-      where: { id: { in: lotIds } },
-      data: { lastTaskAt: new Date() },
-    });
-  });
+        // Each lot-task gets its own inventory usage recording
+        if (usages.length > 0) {
+          for (const usage of usages) {
+            const movement = await createInventoryMovement(
+              {
+                tenantId: session.tenantId,
+                type: 'CONSUMPTION',
+                itemId: usage.itemId,
+                quantity: usage.quantity,
+                sourceWarehouseId: usage.warehouseId,
+                referenceTaskId: task.id,
+                notes: `Consumo automático por tarea ${task.description}`,
+                createdByUserId: session.userId,
+              },
+              tx
+            );
+
+            await tx.taskInventoryUsage.create({
+              data: {
+                taskId: task.id,
+                inventoryItemId: usage.itemId,
+                warehouseId: usage.warehouseId,
+                quantity: usage.quantity,
+                unit: usage.unit,
+                movementId: movement.id,
+              },
+            });
+          }
+        }
+      }
+
+      await tx.lot.updateMany({
+        where: { id: { in: lotIds } },
+        data: { lastTaskAt: new Date() },
+      });
+    },
+    { timeout: 15000 }
+  );
 
   revalidatePath('/dashboard/campo');
   revalidatePath('/dashboard/inventario');

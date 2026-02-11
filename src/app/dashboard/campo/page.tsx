@@ -6,12 +6,15 @@ import type {
   SerializedHarvest,
   SerializedTaskType,
   SerializedCropType,
+  SerializedWorker,
+  SerializedInventoryItem,
+  SerializedWarehouse,
 } from './types';
 
 export default async function CampoPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
-  const [fields, recentHarvests, taskTypes, cropTypes] = await Promise.all([
+  const [fields, recentHarvests, taskTypes, cropTypes, workers, inventoryItems, warehouses] = await Promise.all([
     prisma.field.findMany({
       where: { tenantId: session.tenantId },
       include: {
@@ -45,6 +48,18 @@ export default async function CampoPage() {
       orderBy: { name: 'asc' },
     }),
     prisma.cropType.findMany({
+      where: { tenantId: session.tenantId },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.worker.findMany({
+      where: { tenantId: session.tenantId, active: true },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+    }),
+    prisma.inventoryItem.findMany({
+      where: { tenantId: session.tenantId },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.warehouse.findMany({
       where: { tenantId: session.tenantId },
       orderBy: { name: 'asc' },
     }),
@@ -97,12 +112,37 @@ export default async function CampoPage() {
     color: ct.color,
   }));
 
+  /* ── Serialize workers ── */
+  const serializedWorkers: SerializedWorker[] = workers.map((w) => ({
+    id: w.id,
+    firstName: w.firstName,
+    lastName: w.lastName,
+    functionType: w.functionType,
+  }));
+
+  /* ── Serialize inventory items ── */
+  const serializedItems: SerializedInventoryItem[] = inventoryItems.map((i) => ({
+    id: i.id,
+    code: i.code,
+    name: i.name,
+    unit: i.unit,
+  }));
+
+  /* ── Serialize warehouses ── */
+  const serializedWarehouses: SerializedWarehouse[] = warehouses.map((w) => ({
+    id: w.id,
+    name: w.name,
+  }));
+
   return (
     <CampoPageClient
       fields={serializedFields}
       recentHarvests={serializedHarvests}
       taskTypes={serializedTaskTypes}
       cropTypes={serializedCropTypes}
+      workers={serializedWorkers}
+      inventoryItems={serializedItems}
+      warehouses={serializedWarehouses}
     />
   );
 }

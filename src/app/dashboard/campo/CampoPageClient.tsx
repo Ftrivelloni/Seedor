@@ -16,6 +16,7 @@ import {
 import { StateCard } from '@/components/dashboard/StateCard';
 import { CreateFieldModal } from './CreateFieldModal';
 import { CreateHarvestModal } from './CreateHarvestModal';
+import { CreateTaskModal } from './CreateTaskModal';
 import { ManageTaskTypesModal } from './ManageTaskTypesModal';
 import { ManageCropTypesModal } from './ManageCropTypesModal';
 import type {
@@ -23,6 +24,9 @@ import type {
   SerializedHarvest,
   SerializedTaskType,
   SerializedCropType,
+  SerializedWorker,
+  SerializedInventoryItem,
+  SerializedWarehouse,
   LotViewMode,
 } from './types';
 
@@ -31,6 +35,9 @@ interface CampoPageClientProps {
   recentHarvests: SerializedHarvest[];
   taskTypes: SerializedTaskType[];
   cropTypes: SerializedCropType[];
+  workers: SerializedWorker[];
+  inventoryItems: SerializedInventoryItem[];
+  warehouses: SerializedWarehouse[];
 }
 
 export function CampoPageClient({
@@ -38,6 +45,9 @@ export function CampoPageClient({
   recentHarvests,
   taskTypes,
   cropTypes,
+  workers,
+  inventoryItems,
+  warehouses,
 }: CampoPageClientProps) {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<LotViewMode>('grid-large');
@@ -84,6 +94,13 @@ export function CampoPageClient({
           <ManageCropTypesModal cropTypes={cropTypes} />
           <ManageTaskTypesModal taskTypes={taskTypes} />
           <CreateHarvestModal fields={fields} />
+          <CreateTaskModal
+            fields={fields}
+            workers={workers}
+            inventoryItems={inventoryItems}
+            warehouses={warehouses}
+            taskTypes={taskTypes}
+          />
           <CreateFieldModal />
         </div>
       </header>
@@ -112,22 +129,20 @@ export function CampoPageClient({
           <div className="flex items-center gap-1 border-b border-gray-200">
             <button
               onClick={() => setActiveTab('campos')}
-              className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'campos'
+              className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'campos'
                   ? 'border-green-600 text-green-700'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               <MapPin className="h-4 w-4" />
               Campos y lotes
             </button>
             <button
               onClick={() => setActiveTab('cosecha')}
-              className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'cosecha'
+              className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'cosecha'
                   ? 'border-green-600 text-green-700'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               <Wheat className="h-4 w-4" />
               Cosecha
@@ -151,51 +166,51 @@ export function CampoPageClient({
         {/* TAB: Campos y lotes */}
         {activeTab === 'campos' && (
           <div className="mt-4 space-y-4">
-          {/* View mode toggles */}
-          <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1 w-fit">
-            <button
-              onClick={() => setViewMode('grid-large')}
-              className={`p-1.5 rounded ${viewMode === 'grid-large' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-              title="Íconos grandes"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('grid-medium')}
-              className={`p-1.5 rounded ${viewMode === 'grid-medium' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-              title="Íconos medianos"
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-              title="Lista"
-            >
-              <List className="h-4 w-4" />
-            </button>
-          </div>
-
-          {filteredFields.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-12">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-                <Map className="h-8 w-8 text-gray-400" />
-              </div>
-              <h3 className="mt-4 text-lg font-medium text-gray-900">Sin campos</h3>
-              <p className="mt-2 text-center text-sm text-gray-500">
-                Creá tu primer campo para empezar a organizar la producción.
-              </p>
+            {/* View mode toggles */}
+            <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1 w-fit">
+              <button
+                onClick={() => setViewMode('grid-large')}
+                className={`p-1.5 rounded ${viewMode === 'grid-large' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                title="Íconos grandes"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('grid-medium')}
+                className={`p-1.5 rounded ${viewMode === 'grid-medium' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                title="Íconos medianos"
+              >
+                <Grid3X3 className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                title="Lista"
+              >
+                <List className="h-4 w-4" />
+              </button>
             </div>
-          ) : (
-            filteredFields.map((field) => (
-              <FieldCard
-                key={field.id}
-                field={field}
-                viewMode={viewMode}
-              />
-            ))
-          )}
-        </div>)}
+
+            {filteredFields.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-12">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+                  <Map className="h-8 w-8 text-gray-400" />
+                </div>
+                <h3 className="mt-4 text-lg font-medium text-gray-900">Sin campos</h3>
+                <p className="mt-2 text-center text-sm text-gray-500">
+                  Creá tu primer campo para empezar a organizar la producción.
+                </p>
+              </div>
+            ) : (
+              filteredFields.map((field) => (
+                <FieldCard
+                  key={field.id}
+                  field={field}
+                  viewMode={viewMode}
+                />
+              ))
+            )}
+          </div>)}
 
         {/* TAB: Cosecha */}
         {activeTab === 'cosecha' && (<div className="mt-4 space-y-3">
@@ -310,33 +325,29 @@ function FieldCard({
         </div>
       ) : (
         <div
-          className={`mt-3 grid gap-3 ${
-            viewMode === 'grid-large'
+          className={`mt-3 grid gap-3 ${viewMode === 'grid-large'
               ? 'sm:grid-cols-2 xl:grid-cols-3'
               : 'sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
-          }`}
+            }`}
         >
           {field.lots.map((lot) => (
             <Link
               key={lot.id}
               href={`/dashboard/campo/${field.id}/${lot.id}`}
-              className={`group rounded-lg border border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/50 transition-colors ${
-                viewMode === 'grid-large' ? 'p-4' : 'p-3'
-              }`}
+              className={`group rounded-lg border border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/50 transition-colors ${viewMode === 'grid-large' ? 'p-4' : 'p-3'
+                }`}
             >
               <div className="flex items-center gap-3">
                 <div
-                  className={`flex items-center justify-center rounded-lg bg-green-100 text-green-700 group-hover:bg-green-200 transition-colors ${
-                    viewMode === 'grid-large' ? 'h-10 w-10' : 'h-8 w-8'
-                  }`}
+                  className={`flex items-center justify-center rounded-lg bg-green-100 text-green-700 group-hover:bg-green-200 transition-colors ${viewMode === 'grid-large' ? 'h-10 w-10' : 'h-8 w-8'
+                    }`}
                 >
                   <Layers className={viewMode === 'grid-large' ? 'h-5 w-5' : 'h-4 w-4'} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p
-                    className={`font-medium text-gray-900 truncate ${
-                      viewMode === 'grid-large' ? 'text-sm' : 'text-xs'
-                    }`}
+                    className={`font-medium text-gray-900 truncate ${viewMode === 'grid-large' ? 'text-sm' : 'text-xs'
+                      }`}
                   >
                     {lot.name}
                   </p>

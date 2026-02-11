@@ -17,13 +17,18 @@ import {
 } from 'lucide-react';
 import { StateCard } from '@/components/dashboard/StateCard';
 import { CreateLotModal } from '../CreateLotModal';
+import { CreateTaskModal } from '../CreateTaskModal';
 import { ManageTaskTypesModal } from '../ManageTaskTypesModal';
-import type { SerializedField, SerializedLot, SerializedTaskType, SerializedCropType, LotViewMode } from '../types';
+import type { SerializedField, SerializedLot, SerializedTaskType, SerializedCropType, SerializedWorker, SerializedInventoryItem, SerializedWarehouse, LotViewMode } from '../types';
 
 interface FieldDetailClientProps {
   field: SerializedField;
   taskTypes: SerializedTaskType[];
   cropTypes: SerializedCropType[];
+  allFields: SerializedField[];
+  workers: SerializedWorker[];
+  inventoryItems: SerializedInventoryItem[];
+  warehouses: SerializedWarehouse[];
 }
 
 /**
@@ -56,7 +61,7 @@ function getRecencyDot(lot: SerializedLot, taskTypeName: string | null): string 
   return 'bg-red-500';
 }
 
-export function FieldDetailClient({ field, taskTypes, cropTypes }: FieldDetailClientProps) {
+export function FieldDetailClient({ field, taskTypes, cropTypes, allFields, workers, inventoryItems, warehouses }: FieldDetailClientProps) {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<LotViewMode>('grid-large');
   const [selectedTaskType, setSelectedTaskType] = useState<string | null>(null);
@@ -106,6 +111,13 @@ export function FieldDetailClient({ field, taskTypes, cropTypes }: FieldDetailCl
               Volver
             </Link>
             <ManageTaskTypesModal taskTypes={taskTypes} />
+            <CreateTaskModal
+              fields={allFields}
+              workers={workers}
+              inventoryItems={inventoryItems}
+              warehouses={warehouses}
+              taskTypes={taskTypes}
+            />
             <CreateLotModal fieldId={field.id} fieldName={field.name} cropTypes={cropTypes} />
           </div>
         </div>
@@ -293,11 +305,10 @@ export function FieldDetailClient({ field, taskTypes, cropTypes }: FieldDetailCl
         </div>
       ) : (
         <div
-          className={`grid gap-3 ${
-            viewMode === 'grid-large'
+          className={`grid gap-3 ${viewMode === 'grid-large'
               ? 'sm:grid-cols-2 xl:grid-cols-3'
               : 'sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
-          }`}
+            }`}
         >
           {filteredLots.map((lot) => (
             <LotCard
@@ -335,23 +346,20 @@ function LotCard({
   return (
     <Link
       href={`/dashboard/campo/${fieldId}/${lot.id}`}
-      className={`group rounded-xl border-2 bg-white hover:shadow-sm transition-all ${
-        recencyBorder ?? 'border-gray-200 hover:border-green-300'
-      } ${size === 'large' ? 'p-5' : 'p-3'}`}
+      className={`group rounded-xl border-2 bg-white hover:shadow-sm transition-all ${recencyBorder ?? 'border-gray-200 hover:border-green-300'
+        } ${size === 'large' ? 'p-5' : 'p-3'}`}
     >
       <div className="flex items-center gap-3">
         <div
-          className={`flex items-center justify-center rounded-lg bg-green-100 text-green-700 group-hover:bg-green-200 transition-colors ${
-            size === 'large' ? 'h-12 w-12' : 'h-9 w-9'
-          }`}
+          className={`flex items-center justify-center rounded-lg bg-green-100 text-green-700 group-hover:bg-green-200 transition-colors ${size === 'large' ? 'h-12 w-12' : 'h-9 w-9'
+            }`}
         >
           <Layers className={size === 'large' ? 'h-6 w-6' : 'h-4 w-4'} />
         </div>
         <div className="min-w-0 flex-1">
           <p
-            className={`font-semibold text-gray-900 truncate ${
-              size === 'large' ? 'text-base' : 'text-sm'
-            }`}
+            className={`font-semibold text-gray-900 truncate ${size === 'large' ? 'text-base' : 'text-sm'
+              }`}
           >
             {lot.name}
           </p>
@@ -381,11 +389,11 @@ function LotCard({
               <p className="font-semibold text-gray-900">
                 {selectedTaskType
                   ? (lot.taskRecency[selectedTaskType]
-                      ? new Date(lot.taskRecency[selectedTaskType]).toLocaleDateString('es-AR')
-                      : 'Nunca')
+                    ? new Date(lot.taskRecency[selectedTaskType]).toLocaleDateString('es-AR')
+                    : 'Nunca')
                   : (lot.lastTaskAt
-                      ? new Date(lot.lastTaskAt).toLocaleDateString('es-AR')
-                      : '—')}
+                    ? new Date(lot.lastTaskAt).toLocaleDateString('es-AR')
+                    : '—')}
               </p>
             </div>
             <div className="rounded-lg bg-gray-50 p-2.5">

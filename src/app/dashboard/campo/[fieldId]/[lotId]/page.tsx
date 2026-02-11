@@ -21,7 +21,7 @@ export default async function LotPage({ params }: LotPageProps) {
   const { fieldId, lotId } = await params;
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
-  const [field, lot, tasks, harvests, workers, inventoryItems, warehouses, taskTypes] =
+  const [field, lot, tasks, harvests, workers, inventoryItems, warehouses, taskTypes, allFields] =
     await Promise.all([
       prisma.field.findFirst({
         where: { id: fieldId, tenantId: session.tenantId },
@@ -89,6 +89,24 @@ export default async function LotPage({ params }: LotPageProps) {
       }),
       prisma.taskType.findMany({
         where: { tenantId: session.tenantId },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.field.findMany({
+        where: { tenantId: session.tenantId },
+        include: {
+          lots: {
+            include: {
+              taskLinks: {
+                include: {
+                  task: { select: { id: true, costValue: true, status: true } },
+                },
+              },
+              harvestRecords: { select: { kilos: true } },
+              lotCrops: { include: { cropType: { select: { name: true } } } },
+            },
+            orderBy: { name: 'asc' },
+          },
+        },
         orderBy: { name: 'asc' },
       }),
     ]);
@@ -218,9 +236,32 @@ export default async function LotPage({ params }: LotPageProps) {
     color: tt.color,
   }));
 
+  /* ── Serialize all fields for task modal ── */
+  const serializedAllFields: SerializedField[] = allFields.map((f) => ({
+    id: f.id,
+    name: f.name,
+    location: f.location,
+    description: f.description,
+    lots: f.lots.map((l) => ({
+      id: l.id,
+      fieldId: l.fieldId,
+      name: l.name,
+      areaHectares: l.areaHectares,
+      productionType: l.productionType,
+      plantedFruitsDescription: l.plantedFruitsDescription,
+      crops: l.lotCrops.map((lc: { cropType: { name: string } }) => lc.cropType.name),
+      lastTaskAt: l.lastTaskAt?.toISOString() ?? null,
+      taskCost: l.taskLinks.reduce((acc, link) => acc + Number(link.task.costValue || 0), 0),
+      totalHarvestKilos: l.harvestRecords.reduce((acc, h) => acc + h.kilos, 0),
+      taskCount: l.taskLinks.length,
+      taskRecency: {},
+    })),
+  }));
+
   return (
     <LotDetailClient
       field={serializedField}
+      allFields={serializedAllFields}
       lot={serializedLot}
       tasks={serializedTasks}
       harvests={serializedHarvests}

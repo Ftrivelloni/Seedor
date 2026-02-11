@@ -32,6 +32,7 @@ import { taskStatusColors, taskStatusLabels } from '../../types';
 
 interface LotDetailClientProps {
   field: SerializedField;
+  allFields: SerializedField[];
   lot: SerializedLot;
   tasks: SerializedTask[];
   harvests: SerializedHarvest[];
@@ -43,6 +44,7 @@ interface LotDetailClientProps {
 
 export function LotDetailClient({
   field,
+  allFields,
   lot,
   tasks,
   harvests,
@@ -162,7 +164,7 @@ export function LotDetailClient({
               preselectedLotId={lot.id}
             />
             <CreateTaskModal
-              fields={[{ ...field, lots: [lot] }]}
+              fields={allFields}
               workers={workers}
               inventoryItems={inventoryItems}
               warehouses={warehouses}
@@ -198,8 +200,8 @@ export function LotDetailClient({
           value={
             lot.areaHectares > 0
               ? `${(totalHarvestKilos / lot.areaHectares).toLocaleString('es-AR', {
-                  maximumFractionDigits: 0,
-                })} kg/ha`
+                maximumFractionDigits: 0,
+              })} kg/ha`
               : '—'
           }
           icon={TrendingUp}
@@ -218,11 +220,10 @@ export function LotDetailClient({
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                  isActive
+                className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${isActive
                     ? 'border-green-600 text-green-700'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <Icon className="h-4 w-4" />
                 {tab.label}
@@ -457,8 +458,8 @@ export function LotDetailClient({
                     <p className="mt-1 text-xl font-semibold text-gray-900">
                       {totalHarvestKilos > 0
                         ? `$ ${(totalTaskCost / totalHarvestKilos).toLocaleString('es-AR', {
-                            maximumFractionDigits: 2,
-                          })}`
+                          maximumFractionDigits: 2,
+                        })}`
                         : '—'}
                     </p>
                   </div>
@@ -501,10 +502,9 @@ export function LotDetailClient({
                             <td className="px-4 py-2.5 text-gray-600">{t.taskType}</td>
                             <td className="px-4 py-2.5">
                               <span
-                                className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium border ${
-                                  taskStatusColors[t.status] ||
+                                className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium border ${taskStatusColors[t.status] ||
                                   'bg-gray-100 text-gray-700'
-                                }`}
+                                  }`}
                               >
                                 {taskStatusLabels[t.status] || t.status}
                               </span>
