@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useCallback } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { X, LayoutGrid, ToggleRight, Check } from 'lucide-react';
 import {
   TEMPLATE_OPTIONS,
@@ -81,10 +81,12 @@ export default function CustomizeSidebar({
   const [isPending, startTransition] = useTransition();
 
   /* Reset local state when opening */
-  const handleOpen = useCallback(() => {
-    setSelectedTemplate(templateKey);
-    setSelectedWidgets(enabledWidgets);
-  }, [templateKey, enabledWidgets]);
+  useEffect(() => {
+    if (open) {
+      setSelectedTemplate(templateKey);
+      setSelectedWidgets(enabledWidgets);
+    }
+  }, [open, templateKey, enabledWidgets]);
 
   /* Save */
   const handleSave = () => {
@@ -118,12 +120,8 @@ export default function CustomizeSidebar({
 
       {/* Sidebar */}
       <div
-        className={`fixed top-0 right-0 h-full w-[380px] max-w-[90vw] bg-white shadow-xl z-50 flex flex-col transform transition-transform duration-300 ${
-          open ? 'translate-x-0' : 'translate-x-full'
-        }`}
-        onTransitionEnd={() => {
-          if (open) handleOpen();
-        }}
+        className={`fixed top-0 right-0 h-full w-[380px] max-w-[90vw] bg-white shadow-xl z-50 flex flex-col transform transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'
+          }`}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b">
@@ -137,22 +135,20 @@ export default function CustomizeSidebar({
         <div className="flex border-b">
           <button
             onClick={() => setActiveTab('plantillas')}
-            className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
-              activeTab === 'plantillas'
-                ? 'border-green-600 text-green-700'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-1.5 border-b-2 transition-colors ${activeTab === 'plantillas'
+              ? 'border-green-600 text-green-700'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             <LayoutGrid className="h-4 w-4" />
             Plantillas
           </button>
           <button
             onClick={() => setActiveTab('widgets')}
-            className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
-              activeTab === 'widgets'
-                ? 'border-green-600 text-green-700'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-1.5 border-b-2 transition-colors ${activeTab === 'widgets'
+              ? 'border-green-600 text-green-700'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             <ToggleRight className="h-4 w-4" />
             Widgets
@@ -217,17 +213,15 @@ function TemplateTab({
           <button
             key={t.key}
             onClick={() => onSelect(t.key)}
-            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
-              isActive
-                ? 'border-green-600 bg-green-50'
-                : 'border-gray-200 hover:border-gray-300 bg-white'
-            }`}
+            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${isActive
+              ? 'border-green-600 bg-green-50'
+              : 'border-gray-200 hover:border-gray-300 bg-white'
+              }`}
           >
             {/* Mini preview */}
             <div
-              className={`w-16 h-12 flex-shrink-0 rounded-md p-1 ${
-                isActive ? 'bg-green-100' : 'bg-gray-100'
-              }`}
+              className={`w-16 h-12 flex-shrink-0 rounded-md p-1 ${isActive ? 'bg-green-100' : 'bg-gray-100'
+                }`}
             >
               {TEMPLATE_PREVIEWS[t.key]}
             </div>
@@ -281,23 +275,23 @@ function WidgetsTab({
                   <button
                     key={w.id}
                     onClick={() => onToggle(w.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors text-left ${
-                      enabled ? 'bg-green-50' : 'bg-gray-50 hover:bg-gray-100'
-                    }`}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors text-left ${enabled ? 'bg-green-50' : 'bg-gray-50 hover:bg-gray-100'
+                      }`}
                   >
                     <span className={`text-sm ${enabled ? 'text-gray-900' : 'text-gray-500'}`}>
                       {w.label}
+                      {w.notImplemented && (
+                        <span className="ml-1.5 text-[10px] rounded bg-gray-200 text-gray-500 px-1.5 py-0.5">Próximamente</span>
+                      )}
                     </span>
                     {/* Toggle switch */}
                     <div
-                      className={`relative w-9 h-5 rounded-full transition-colors ${
-                        enabled ? 'bg-green-600' : 'bg-gray-300'
-                      }`}
+                      className={`relative w-9 h-5 rounded-full transition-colors ${enabled ? 'bg-green-600' : 'bg-gray-300'
+                        }`}
                     >
                       <div
-                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                          enabled ? 'translate-x-[18px]' : 'translate-x-0.5'
-                        }`}
+                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${enabled ? 'translate-x-[18px]' : 'translate-x-0.5'
+                          }`}
                       />
                     </div>
                   </button>

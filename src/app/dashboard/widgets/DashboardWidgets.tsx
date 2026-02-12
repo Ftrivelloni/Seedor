@@ -189,11 +189,11 @@ export function ActiveOrdersWidget({ data }: { data: DashboardData }) {
     <div className="flex items-start justify-between h-full">
       <div className="space-y-2">
         <p className="text-sm text-gray-600">Órdenes activas</p>
-        <p className="text-3xl font-semibold text-gray-900">{data.activeOrders}</p>
-        <TrendBadge value={data.activeOrdersTrend} />
+        <p className="text-3xl font-semibold text-gray-300">—</p>
+        <span className="text-[10px] text-gray-400 italic">Módulo no implementado</span>
       </div>
-      <div className="rounded-lg bg-purple-50 p-3">
-        <ShoppingCart className="h-6 w-6 text-purple-600" />
+      <div className="rounded-lg bg-gray-100 p-3">
+        <ShoppingCart className="h-6 w-6 text-gray-400" />
       </div>
     </div>
   );
@@ -288,11 +288,10 @@ export function RecentAlertsWidget({ data }: { data: DashboardData }) {
           {data.recentAlerts.map((alert) => (
             <li
               key={alert.id}
-              className={`rounded-lg p-3 text-sm ${
-                alert.level === 'Sin stock'
+              className={`rounded-lg p-3 text-sm ${alert.level === 'Sin stock'
                   ? 'bg-red-50 border border-red-100'
                   : 'bg-amber-50 border border-amber-100'
-              }`}
+                }`}
             >
               <div className="flex items-center gap-2">
                 <AlertTriangle className={`h-4 w-4 flex-shrink-0 ${alert.level === 'Sin stock' ? 'text-red-500' : 'text-amber-500'}`} />
@@ -347,25 +346,14 @@ export function StockOverviewWidget({ data }: { data: DashboardData }) {
 }
 
 export function MachineryStatusWidget({ data }: { data: DashboardData }) {
-  const { ok, maintenance, broken } = data.machineryStatus;
-  const total = ok + maintenance + broken;
-
   return (
     <div className="flex flex-col h-full">
       <h3 className="font-semibold text-gray-900 mb-4">Estado de Maquinaria</h3>
-      {total === 0 ? (
-        <p className="text-sm text-gray-400 italic">Sin maquinaria registrada.</p>
-      ) : (
-        <DonutChart
-          segments={[
-            { value: ok, color: '#16a34a', label: 'OK' },
-            { value: maintenance, color: '#eab308', label: 'Mantenimiento' },
-            { value: broken, color: '#ef4444', label: 'Averiada' },
-          ]}
-          centerLabel="Total"
-          centerValue={total}
-        />
-      )}
+      <div className="flex-1 flex flex-col items-center justify-center text-center">
+        <Truck className="h-10 w-10 text-gray-300 mb-3" />
+        <p className="text-sm text-gray-400">Módulo no implementado</p>
+        <p className="text-xs text-gray-300 mt-1">Próximamente</p>
+      </div>
     </div>
   );
 }
@@ -373,23 +361,11 @@ export function MachineryStatusWidget({ data }: { data: DashboardData }) {
 export function MonthlySalesWidget({ data }: { data: DashboardData }) {
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-gray-900">Ventas últimos 6 meses</h3>
-        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-          <span className="h-2 w-2 rounded-full bg-orange-400" />
-          Ventas (millones)
-        </div>
-      </div>
-      <div className="flex-1 min-h-[120px]">
-        {data.monthlySales.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">Sin datos de ventas.</p>
-        ) : (
-          <BarChart
-            data={data.monthlySales.map((s) => ({ label: s.month, value: s.amount }))}
-            color="#f97316"
-            maxHeight={100}
-          />
-        )}
+      <h3 className="font-semibold text-gray-900 mb-4">Ventas últimos 6 meses</h3>
+      <div className="flex-1 flex flex-col items-center justify-center text-center">
+        <Package className="h-10 w-10 text-gray-300 mb-3" />
+        <p className="text-sm text-gray-400">Módulo no implementado</p>
+        <p className="text-xs text-gray-300 mt-1">Próximamente</p>
       </div>
     </div>
   );
@@ -400,10 +376,11 @@ export function ClientsBalanceWidget({ data }: { data: DashboardData }) {
     <div className="flex items-start justify-between h-full">
       <div className="space-y-2">
         <p className="text-sm text-gray-600">Clientes con Saldo</p>
-        <p className="text-3xl font-semibold text-gray-900">{data.clientsWithBalance}</p>
+        <p className="text-3xl font-semibold text-gray-300">—</p>
+        <span className="text-[10px] text-gray-400 italic">Módulo no implementado</span>
       </div>
-      <div className="rounded-lg bg-blue-50 p-3">
-        <Package className="h-6 w-6 text-blue-600" />
+      <div className="rounded-lg bg-gray-100 p-3">
+        <Package className="h-6 w-6 text-gray-400" />
       </div>
     </div>
   );

@@ -32,6 +32,7 @@ export interface WidgetDefinition {
   size: WidgetSize;
   icon: string; // lucide icon name
   adminOnly?: boolean;
+  notImplemented?: boolean;
 }
 
 export const MODULE_LABELS: Record<ModuleKey, string> = {
@@ -62,12 +63,12 @@ export const WIDGET_CATALOG: WidgetDefinition[] = [
   { id: 'stock_overview', label: 'Stock de Insumos', module: 'inventario', size: 'medium', icon: 'Package' },
 
   // Maquinaria
-  { id: 'machinery_status', label: 'Estado de Maquinaria', module: 'maquinaria', size: 'medium', icon: 'Truck' },
+  { id: 'machinery_status', label: 'Estado de Maquinaria', module: 'maquinaria', size: 'medium', icon: 'Truck', notImplemented: true },
 
   // Ventas
-  { id: 'active_orders', label: 'Órdenes Activas', module: 'ventas', size: 'kpi', icon: 'ShoppingCart', adminOnly: true },
-  { id: 'monthly_sales', label: 'Ventas Mensuales', module: 'ventas', size: 'medium', icon: 'DollarSign', adminOnly: true },
-  { id: 'clients_balance', label: 'Clientes con Saldo', module: 'ventas', size: 'medium', icon: 'Users', adminOnly: true },
+  { id: 'active_orders', label: 'Órdenes Activas', module: 'ventas', size: 'kpi', icon: 'ShoppingCart', adminOnly: true, notImplemented: true },
+  { id: 'monthly_sales', label: 'Ventas Mensuales', module: 'ventas', size: 'medium', icon: 'DollarSign', adminOnly: true, notImplemented: true },
+  { id: 'clients_balance', label: 'Clientes con Saldo', module: 'ventas', size: 'medium', icon: 'Users', adminOnly: true, notImplemented: true },
 ];
 
 export const DEFAULT_WIDGETS = [

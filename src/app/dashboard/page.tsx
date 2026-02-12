@@ -79,8 +79,8 @@ export default async function DashboardPage() {
         warehouse: { select: { name: true } },
       },
     }),
-    // Previous stock alert count (approximation — count items with low stock now as proxy)
-    0, // We'll just calculate trend from current data
+    // Previous stock alert count — not easily computable without historical snapshots
+    0,
     // All lots with cost and harvest data
     prisma.lot.findMany({
       where: { tenantId: session.tenantId },
@@ -166,8 +166,8 @@ export default async function DashboardPage() {
   const lotsWithHarvest = lots.filter((l) => l.harvestRecords.some((h) => h.kilos > 0));
   const avgYield = lotsWithHarvest.length > 0
     ? Math.round((lotsWithHarvest.filter((l) =>
-        l.harvestRecords.reduce((s, h) => s + h.kilos, 0) > 0
-      ).length / lots.length) * 100)
+      l.harvestRecords.reduce((s, h) => s + h.kilos, 0) > 0
+    ).length / lots.length) * 100)
     : 0;
 
   /* ── Trends ── */
@@ -192,9 +192,9 @@ export default async function DashboardPage() {
     avgYield,
     avgYieldTrend,
     stockAlertCount: stockAlerts.length,
-    stockAlertTrend: -0.2,
-    activeOrders: 2, // placeholder — sales module not yet implemented
-    activeOrdersTrend: 0.12,
+    stockAlertTrend: 0, // no historical snapshot to compare against
+    activeOrders: 0, // ventas module not yet implemented
+    activeOrdersTrend: 0,
     upcomingTasks: upcomingTasksRaw.map((t) => ({
       id: t.id,
       description: t.description,
@@ -211,16 +211,9 @@ export default async function DashboardPage() {
     yieldPerLot,
     costPerHectare,
     stockOverview,
-    machineryStatus: { ok: 2, maintenance: 0, broken: 0 }, // placeholder
-    monthlySales: [ // placeholder — sales module not yet
-      { month: 'Ago', amount: 45 },
-      { month: 'Sep', amount: 52 },
-      { month: 'Oct', amount: 60 },
-      { month: 'Nov', amount: 55 },
-      { month: 'Dic', amount: 48 },
-      { month: 'Ene', amount: 63 },
-    ],
-    clientsWithBalance: 0,
+    machineryStatus: { ok: 0, maintenance: 0, broken: 0 }, // no machinery model in DB
+    monthlySales: [], // no sales model in DB
+    clientsWithBalance: 0, // no client model in DB
   };
 
   return (
