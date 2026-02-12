@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     // SIEMPRE incluir el pack base. Es obligatorio.
     const lineItems: { price: string; quantity: number }[] = [
       {
-        price: getBasePriceId(interval),
+        price: await getBasePriceId(interval),
         quantity: 1,
       },
     ];
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     // Agregar módulos opcionales seleccionados
     for (const moduleKey of validModules) {
       lineItems.push({
-        price: getModulePriceId(moduleKey, interval),
+        price: await getModulePriceId(moduleKey, interval),
         quantity: 1,
       });
     }

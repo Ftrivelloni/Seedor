@@ -445,9 +445,9 @@ async function syncModulesFromSubscription(
     const priceId = typeof item.price === 'string' ? item.price : item.price.id;
 
     // Ignorar el pack base
-    if (isBasePriceId(priceId)) continue;
+    if (await isBasePriceId(priceId)) continue;
 
-    const moduleKey = getModuleKeyByPriceId(priceId);
+    const moduleKey = await getModuleKeyByPriceId(priceId);
     if (moduleKey) {
       activeModuleItems.set(moduleKey, {
         priceId,

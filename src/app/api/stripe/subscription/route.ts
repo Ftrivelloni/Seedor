@@ -68,18 +68,18 @@ export async function GET() {
           cancelAt: subscription.cancel_at
             ? new Date(subscription.cancel_at * 1000)
             : null,
-          items: subscription.items.data.map((item) => {
+          items: await Promise.all(subscription.items.data.map(async (item) => {
             const priceId = item.price.id;
             return {
               id: item.id,
               priceId,
-              isBasePack: isBasePriceId(priceId),
-              moduleKey: getModuleKeyByPriceId(priceId),
+              isBasePack: await isBasePriceId(priceId),
+              moduleKey: await getModuleKeyByPriceId(priceId),
               amount: item.price.unit_amount,
               currency: item.price.currency,
               interval: item.price.recurring?.interval,
             };
-          }),
+          })),
         };
       } catch (err) {
         // Si falla la consulta a Stripe, retornamos solo datos de DB

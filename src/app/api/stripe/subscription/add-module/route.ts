@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
     // ─── Determinar intervalo y priceId ───────────────────
     const interval = tenant.planInterval === 'ANNUAL' ? 'annual' : 'monthly';
-    const priceId = getModulePriceId(moduleKey, interval);
+    const priceId = await getModulePriceId(moduleKey, interval);
 
     // ─── Verificar que el módulo no esté ya suscrito ──────
     const subscription = await getSubscriptionWithItems(tenant.stripeSubscriptionId);
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     // ─── Actualizar DB (activación optimista) ─────────────
     // La fuente de verdad final es el webhook, pero actualizamos
     // de forma optimista para UX inmediata.
-    const moduleKeyEnum = getModuleKeyByPriceId(priceId);
+    const moduleKeyEnum = await getModuleKeyByPriceId(priceId);
     if (moduleKeyEnum) {
       await prisma.tenantModuleSetting.upsert({
         where: {

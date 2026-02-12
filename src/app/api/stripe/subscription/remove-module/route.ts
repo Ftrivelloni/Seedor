@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
     // Buscar por priceId del módulo en el intervalo actual
     const interval = tenant.planInterval === 'ANNUAL' ? 'annual' : 'monthly';
-    const priceId = getModulePriceId(moduleKey, interval);
+    const priceId = await getModulePriceId(moduleKey, interval);
 
     const targetItem = subscription.items.data.find(
       (item) => item.price.id === priceId
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     }
 
     // ─── Protección: no permitir eliminar el pack base ────
-    if (isBasePriceId(targetItem.price.id)) {
+    if (await isBasePriceId(targetItem.price.id)) {
       return NextResponse.json(
         { error: 'No se puede eliminar el pack base de la suscripción.' },
         { status: 400 }
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     });
 
     // ─── Actualizar DB (desactivación optimista) ──────────
-    const moduleKeyEnum = getModuleKeyByPriceId(priceId);
+    const moduleKeyEnum = await getModuleKeyByPriceId(priceId);
     if (moduleKeyEnum) {
       await prisma.tenantModuleSetting.updateMany({
         where: {
