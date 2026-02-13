@@ -22,13 +22,22 @@ export default async function UsuariosPage({
   const session = await requireRole(['ADMIN']);
   const params = await searchParams;
 
-  const [users, pendingInvitations] = await Promise.all([
-    prisma.tenantUserMembership.findMany({
-      where: { tenantId: session.tenantId },
-      include: { user: true },
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.invitation.findMany({
+  const users = await prisma.tenantUserMembership.findMany({
+    where: { tenantId: session.tenantId },
+    include: { user: true },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  // Wrapped in try/catch so the page still works if the Invitation table
+  // has not been migrated yet (avoids 500 on first deploy).
+  type InvitationWithInviter = Awaited<
+    ReturnType<typeof prisma.invitation.findMany<{
+      include: { inviter: { select: { firstName: true; lastName: true } } };
+    }>>
+  >;
+  let pendingInvitations: InvitationWithInviter = [];
+  try {
+    pendingInvitations = await prisma.invitation.findMany({
       where: {
         tenantId: session.tenantId,
         status: 'PENDING',
@@ -37,8 +46,10 @@ export default async function UsuariosPage({
         inviter: { select: { firstName: true, lastName: true } },
       },
       orderBy: { createdAt: 'desc' },
-    }),
-  ]);
+    });
+  } catch {
+    // Table may not exist yet — silently ignore
+  }
 
   // Filter users based on search params
   let filteredUsers = users;
