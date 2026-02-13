@@ -16,6 +16,8 @@ const allowedStatuses: UserStatus[] = ['INVITED', 'ACTIVE', 'INACTIVE'];
 
 const INVITATION_EXPIRY_DAYS = 7;
 
+export type ActionResult = { success: true } | { success: false; error: string };
+
 function getBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL)
@@ -23,250 +25,298 @@ function getBaseUrl(): string {
   return 'http://localhost:3000';
 }
 
-export async function inviteUserAction(formData: FormData) {
-  const session = await requireRole(['ADMIN']);
+export async function inviteUserAction(formData: FormData): Promise<ActionResult> {
+  try {
+    const session = await requireRole(['ADMIN']);
 
-  const email = String(formData.get('email') || '').trim().toLowerCase();
-  const phone = String(formData.get('phone') || '').trim();
-  const role = String(formData.get('role') || 'SUPERVISOR') as UserRole;
+    const email = String(formData.get('email') || '').trim().toLowerCase();
+    const phone = String(formData.get('phone') || '').trim();
+    const role = String(formData.get('role') || 'SUPERVISOR') as UserRole;
 
-  if (!email) {
-    throw new Error('El email es obligatorio para invitar un usuario.');
-  }
+    if (!email) {
+      return { success: false, error: 'El email es obligatorio para invitar un usuario.' };
+    }
 
-  if (!allowedRoles.includes(role)) {
-    throw new Error('Rol inválido.');
-  }
+    if (!allowedRoles.includes(role)) {
+      return { success: false, error: 'Rol inválido.' };
+    }
 
-  // Check if user already exists in the tenant
-  const existing = await prisma.user.findUnique({
-    where: { email },
-    include: { memberships: true },
-  });
+    // Check if user already exists in the tenant
+    const existing = await prisma.user.findUnique({
+      where: { email },
+      include: { memberships: true },
+    });
 
-  if (existing?.memberships?.tenantId === session.tenantId) {
-    throw new Error('Este usuario ya pertenece a tu organización.');
-  }
+    if (existing?.memberships?.tenantId === session.tenantId) {
+      return { success: false, error: 'Este usuario ya pertenece a tu organización.' };
+    }
 
-  if (existing) {
-    throw new Error('Ya existe un usuario con ese email.');
-  }
+    if (existing) {
+      return { success: false, error: 'Ya existe un usuario con ese email.' };
+    }
 
-  // Check for pending invitation to the same email in this tenant
-  const pendingInvitation = await prisma.invitation.findFirst({
-    where: {
-      tenantId: session.tenantId,
-      email,
-      status: 'PENDING',
-      expiresAt: { gt: new Date() },
-    },
-  });
+    // Check for pending invitation to the same email in this tenant
+    const pendingInvitation = await prisma.invitation.findFirst({
+      where: {
+        tenantId: session.tenantId,
+        email,
+        status: 'PENDING',
+        expiresAt: { gt: new Date() },
+      },
+    });
 
-  if (pendingInvitation) {
-    throw new Error('Ya existe una invitación pendiente para este email.');
-  }
+    if (pendingInvitation) {
+      return { success: false, error: 'Ya existe una invitación pendiente para este email.' };
+    }
 
-  // Get tenant and inviter info for the email
-  const [tenant, inviter] = await Promise.all([
-    prisma.tenant.findUniqueOrThrow({
-      where: { id: session.tenantId },
-      select: { name: true },
-    }),
-    prisma.user.findUniqueOrThrow({
-      where: { id: session.userId },
-      select: { firstName: true, lastName: true },
-    }),
-  ]);
+    // Get tenant and inviter info for the email
+    const [tenant, inviter] = await Promise.all([
+      prisma.tenant.findUniqueOrThrow({
+        where: { id: session.tenantId },
+        select: { name: true },
+      }),
+      prisma.user.findUniqueOrThrow({
+        where: { id: session.userId },
+        select: { firstName: true, lastName: true },
+      }),
+    ]);
 
-  // Create invitation token
-  const token = randomBytes(32).toString('hex');
-  const expiresAt = new Date(
-    Date.now() + INVITATION_EXPIRY_DAYS * 24 * 60 * 60 * 1000
-  );
-
-  await prisma.invitation.create({
-    data: {
-      tenantId: session.tenantId,
-      email,
-      role,
-      token,
-      expiresAt,
-      invitedBy: session.userId,
-    },
-  });
-
-  // Build accept URL
-  const baseUrl = getBaseUrl();
-  const acceptUrl = `${baseUrl}/accept-invitation?token=${token}`;
-  const inviterName = `${inviter.firstName} ${inviter.lastName}`;
-
-  // Send invitation email via Resend
-  const emailParams = {
-    inviteeName: email.split('@')[0],
-    inviterName,
-    tenantName: tenant.name,
-    role: role as 'ADMIN' | 'SUPERVISOR',
-    acceptUrl,
-    expiresInDays: INVITATION_EXPIRY_DAYS,
-  };
-
-  const { error } = await resend.emails.send({
-    from: EMAIL_FROM,
-    to: email,
-    subject: `${inviterName} te invitó a ${tenant.name} en Seedor`,
-    html: buildInvitationEmailHtml(emailParams),
-    text: buildInvitationEmailText(emailParams),
-  });
-
-  if (error) {
-    // Mark invitation as failed — but still created so admin can see it
-    console.error('Failed to send invitation email:', error);
-    throw new Error(
-      'La invitación fue creada pero no se pudo enviar el email. Reintentá más tarde.'
+    // Create invitation token
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(
+      Date.now() + INVITATION_EXPIRY_DAYS * 24 * 60 * 60 * 1000
     );
-  }
 
-  revalidatePath('/dashboard/usuarios');
+    await prisma.invitation.create({
+      data: {
+        tenantId: session.tenantId,
+        email,
+        role,
+        token,
+        expiresAt,
+        invitedBy: session.userId,
+      },
+    });
+
+    // Build accept URL
+    const baseUrl = getBaseUrl();
+    const acceptUrl = `${baseUrl}/accept-invitation?token=${token}`;
+    const inviterName = `${inviter.firstName} ${inviter.lastName}`;
+
+    // Send invitation email via Resend
+    const emailParams = {
+      inviteeName: email.split('@')[0],
+      inviterName,
+      tenantName: tenant.name,
+      role: role as 'ADMIN' | 'SUPERVISOR',
+      acceptUrl,
+      expiresInDays: INVITATION_EXPIRY_DAYS,
+    };
+
+    try {
+      const { error } = await resend.emails.send({
+        from: EMAIL_FROM,
+        to: email,
+        subject: `${inviterName} te invitó a ${tenant.name} en Seedor`,
+        html: buildInvitationEmailHtml(emailParams),
+        text: buildInvitationEmailText(emailParams),
+      });
+
+      if (error) {
+        console.error('Resend API error:', JSON.stringify(error));
+        // Invitation was created — don't fail, just warn
+        revalidatePath('/dashboard/usuarios');
+        return {
+          success: false,
+          error: `La invitación fue creada pero no se pudo enviar el email: ${error.message}. El usuario puede ser re-invitado.`,
+        };
+      }
+    } catch (emailErr) {
+      console.error('Resend send exception:', emailErr);
+      revalidatePath('/dashboard/usuarios');
+      return {
+        success: false,
+        error: 'La invitación fue creada pero hubo un error al enviar el email. Podés reenviar la invitación.',
+      };
+    }
+
+    revalidatePath('/dashboard/usuarios');
+    return { success: true };
+  } catch (err) {
+    console.error('inviteUserAction unexpected error:', err);
+    return { success: false, error: 'Error inesperado al crear la invitación.' };
+  }
 }
 
-export async function resendInvitationAction(invitationId: string) {
-  const session = await requireRole(['ADMIN']);
+export async function resendInvitationAction(invitationId: string): Promise<ActionResult> {
+  try {
+    const session = await requireRole(['ADMIN']);
 
-  const invitation = await prisma.invitation.findFirst({
-    where: {
-      id: invitationId,
-      tenantId: session.tenantId,
-      status: 'PENDING',
-    },
-    include: {
-      tenant: { select: { name: true } },
-      inviter: { select: { firstName: true, lastName: true } },
-    },
-  });
+    const invitation = await prisma.invitation.findFirst({
+      where: {
+        id: invitationId,
+        tenantId: session.tenantId,
+        status: 'PENDING',
+      },
+      include: {
+        tenant: { select: { name: true } },
+        inviter: { select: { firstName: true, lastName: true } },
+      },
+    });
 
-  if (!invitation) {
-    throw new Error('No se encontró la invitación o ya fue aceptada.');
+    if (!invitation) {
+      return { success: false, error: 'No se encontró la invitación o ya fue aceptada.' };
+    }
+
+    // Refresh the expiration
+    const newToken = randomBytes(32).toString('hex');
+    const expiresAt = new Date(
+      Date.now() + INVITATION_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    );
+
+    await prisma.invitation.update({
+      where: { id: invitationId },
+      data: { token: newToken, expiresAt },
+    });
+
+    const baseUrl = getBaseUrl();
+    const acceptUrl = `${baseUrl}/accept-invitation?token=${newToken}`;
+    const inviterName = `${invitation.inviter.firstName} ${invitation.inviter.lastName}`;
+
+    const emailParams = {
+      inviteeName: invitation.email.split('@')[0],
+      inviterName,
+      tenantName: invitation.tenant.name,
+      role: invitation.role as 'ADMIN' | 'SUPERVISOR',
+      acceptUrl,
+      expiresInDays: INVITATION_EXPIRY_DAYS,
+    };
+
+    try {
+      const { error } = await resend.emails.send({
+        from: EMAIL_FROM,
+        to: invitation.email,
+        subject: `${inviterName} te invitó a ${invitation.tenant.name} en Seedor`,
+        html: buildInvitationEmailHtml(emailParams),
+        text: buildInvitationEmailText(emailParams),
+      });
+
+      if (error) {
+        console.error('Resend API error on resend:', JSON.stringify(error));
+        revalidatePath('/dashboard/usuarios');
+        return { success: false, error: `No se pudo enviar el email: ${error.message}` };
+      }
+    } catch (emailErr) {
+      console.error('Resend send exception on resend:', emailErr);
+      revalidatePath('/dashboard/usuarios');
+      return { success: false, error: 'Error al enviar el email de invitación.' };
+    }
+
+    revalidatePath('/dashboard/usuarios');
+    return { success: true };
+  } catch (err) {
+    console.error('resendInvitationAction unexpected error:', err);
+    return { success: false, error: 'Error inesperado al reenviar la invitación.' };
   }
-
-  // Refresh the expiration
-  const newToken = randomBytes(32).toString('hex');
-  const expiresAt = new Date(
-    Date.now() + INVITATION_EXPIRY_DAYS * 24 * 60 * 60 * 1000
-  );
-
-  await prisma.invitation.update({
-    where: { id: invitationId },
-    data: { token: newToken, expiresAt },
-  });
-
-  const baseUrl = getBaseUrl();
-  const acceptUrl = `${baseUrl}/accept-invitation?token=${newToken}`;
-  const inviterName = `${invitation.inviter.firstName} ${invitation.inviter.lastName}`;
-
-  const emailParams = {
-    inviteeName: invitation.email.split('@')[0],
-    inviterName,
-    tenantName: invitation.tenant.name,
-    role: invitation.role as 'ADMIN' | 'SUPERVISOR',
-    acceptUrl,
-    expiresInDays: INVITATION_EXPIRY_DAYS,
-  };
-
-  const { error } = await resend.emails.send({
-    from: EMAIL_FROM,
-    to: invitation.email,
-    subject: `${inviterName} te invitó a ${invitation.tenant.name} en Seedor`,
-    html: buildInvitationEmailHtml(emailParams),
-    text: buildInvitationEmailText(emailParams),
-  });
-
-  if (error) {
-    console.error('Failed to resend invitation email:', error);
-    throw new Error('No se pudo reenviar el email de invitación.');
-  }
-
-  revalidatePath('/dashboard/usuarios');
 }
 
-export async function revokeInvitationAction(invitationId: string) {
-  const session = await requireRole(['ADMIN']);
+export async function revokeInvitationAction(invitationId: string): Promise<ActionResult> {
+  try {
+    const session = await requireRole(['ADMIN']);
 
-  const invitation = await prisma.invitation.findFirst({
-    where: {
-      id: invitationId,
-      tenantId: session.tenantId,
-      status: 'PENDING',
-    },
-  });
+    const invitation = await prisma.invitation.findFirst({
+      where: {
+        id: invitationId,
+        tenantId: session.tenantId,
+        status: 'PENDING',
+      },
+    });
 
-  if (!invitation) {
-    throw new Error('No se encontró la invitación.');
+    if (!invitation) {
+      return { success: false, error: 'No se encontró la invitación.' };
+    }
+
+    await prisma.invitation.update({
+      where: { id: invitationId },
+      data: { status: 'REVOKED' },
+    });
+
+    revalidatePath('/dashboard/usuarios');
+    return { success: true };
+  } catch (err) {
+    console.error('revokeInvitationAction unexpected error:', err);
+    return { success: false, error: 'Error inesperado al revocar la invitación.' };
   }
-
-  await prisma.invitation.update({
-    where: { id: invitationId },
-    data: { status: 'REVOKED' },
-  });
-
-  revalidatePath('/dashboard/usuarios');
 }
 
-export async function updateUserRoleAction(formData: FormData) {
-  const session = await requireRole(['ADMIN']);
+export async function updateUserRoleAction(formData: FormData): Promise<ActionResult> {
+  try {
+    const session = await requireRole(['ADMIN']);
 
-  const userId = String(formData.get('userId') || '');
-  const role = String(formData.get('role') || '') as UserRole;
+    const userId = String(formData.get('userId') || '');
+    const role = String(formData.get('role') || '') as UserRole;
 
-  if (!userId || !allowedRoles.includes(role)) {
-    throw new Error('Datos inválidos para actualizar rol.');
+    if (!userId || !allowedRoles.includes(role)) {
+      return { success: false, error: 'Datos inválidos para actualizar rol.' };
+    }
+
+    const membership = await prisma.tenantUserMembership.findFirst({
+      where: {
+        tenantId: session.tenantId,
+        userId,
+      },
+      select: { id: true },
+    });
+
+    if (!membership) {
+      return { success: false, error: 'El usuario no pertenece al tenant activo.' };
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { role },
+    });
+
+    revalidatePath('/dashboard/usuarios');
+    return { success: true };
+  } catch (err) {
+    console.error('updateUserRoleAction unexpected error:', err);
+    return { success: false, error: 'Error inesperado al actualizar el rol.' };
   }
-
-  const membership = await prisma.tenantUserMembership.findFirst({
-    where: {
-      tenantId: session.tenantId,
-      userId,
-    },
-    select: { id: true },
-  });
-
-  if (!membership) {
-    throw new Error('El usuario no pertenece al tenant activo.');
-  }
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { role },
-  });
-
-  revalidatePath('/dashboard/usuarios');
 }
 
-export async function updateUserStatusAction(formData: FormData) {
-  const session = await requireRole(['ADMIN']);
+export async function updateUserStatusAction(formData: FormData): Promise<ActionResult> {
+  try {
+    const session = await requireRole(['ADMIN']);
 
-  const userId = String(formData.get('userId') || '');
-  const status = String(formData.get('status') || '') as UserStatus;
+    const userId = String(formData.get('userId') || '');
+    const status = String(formData.get('status') || '') as UserStatus;
 
-  if (!userId || !allowedStatuses.includes(status)) {
-    throw new Error('Datos inválidos para actualizar estado.');
+    if (!userId || !allowedStatuses.includes(status)) {
+      return { success: false, error: 'Datos inválidos para actualizar estado.' };
+    }
+
+    const membership = await prisma.tenantUserMembership.findFirst({
+      where: {
+        tenantId: session.tenantId,
+        userId,
+      },
+      select: { id: true },
+    });
+
+    if (!membership) {
+      return { success: false, error: 'El usuario no pertenece al tenant activo.' };
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { status },
+    });
+
+    revalidatePath('/dashboard/usuarios');
+    return { success: true };
+  } catch (err) {
+    console.error('updateUserStatusAction unexpected error:', err);
+    return { success: false, error: 'Error inesperado al actualizar el estado.' };
   }
-
-  const membership = await prisma.tenantUserMembership.findFirst({
-    where: {
-      tenantId: session.tenantId,
-      userId,
-    },
-    select: { id: true },
-  });
-
-  if (!membership) {
-    throw new Error('El usuario no pertenece al tenant activo.');
-  }
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { status },
-  });
-
-  revalidatePath('/dashboard/usuarios');
 }

@@ -32,18 +32,16 @@ function formatTimeLeft(expiresAt: Date): string {
 
 export function PendingInvitations({ invitations }: PendingInvitationsProps) {
   async function handleResend(invitationId: string) {
-    try {
-      await resendInvitationAction(invitationId);
-    } catch (error) {
-      console.error('Error resending invitation:', error);
+    const result = await resendInvitationAction(invitationId);
+    if (!result.success) {
+      console.error('Error resending invitation:', result.error);
     }
   }
 
   async function handleRevoke(invitationId: string) {
-    try {
-      await revokeInvitationAction(invitationId);
-    } catch (error) {
-      console.error('Error revoking invitation:', error);
+    const result = await revokeInvitationAction(invitationId);
+    if (!result.success) {
+      console.error('Error revoking invitation:', result.error);
     }
   }
 

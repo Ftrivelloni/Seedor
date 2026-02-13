@@ -39,20 +39,18 @@ export function InviteUserModal() {
     const [errorMessage, setErrorMessage] = useState('');
 
     async function handleSubmit(formData: FormData) {
-        try {
-            setStatus('idle');
-            setErrorMessage('');
-            await inviteUserAction(formData);
+        setStatus('idle');
+        setErrorMessage('');
+        const result = await inviteUserAction(formData);
+        if (result.success) {
             setStatus('success');
             setTimeout(() => {
                 setOpen(false);
                 setStatus('idle');
             }, 2000);
-        } catch (err) {
+        } else {
             setStatus('error');
-            setErrorMessage(
-                err instanceof Error ? err.message : 'Error al enviar la invitación.'
-            );
+            setErrorMessage(result.error);
         }
     }
 
