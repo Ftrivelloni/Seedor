@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Settings, User, Bell, Shield } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
 import { Label } from '@/components/dashboard/ui/label';
@@ -10,6 +12,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/dashboard
 import { Separator } from '@/components/dashboard/ui/separator';
 
 export default function Configuracion() {
+    const router = useRouter();
+    const [checked, setChecked] = useState(false);
+
+    // Client-side role check — server-side guard is in layout/middleware
+    useEffect(() => {
+      fetch('/api/auth/me')
+        .then(r => r.json())
+        .then((data: { role?: string }) => {
+          if (data.role !== 'ADMIN') {
+            router.replace('/dashboard');
+          } else {
+            setChecked(true);
+          }
+        })
+        .catch(() => router.replace('/dashboard'));
+    }, [router]);
+
+    if (!checked) return null;
+
     return (
         <div className="mx-auto max-w-4xl space-y-6">
             <div>

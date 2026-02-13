@@ -31,6 +31,7 @@ model Tenant {
   taskTypes                 TaskType[]
   cropTypes                 CropType[]
   moduleSettings            TenantModuleSetting[]
+  invitations               Invitation[]
   memberships               TenantUserMembership[]
   warehouses                Warehouse[]
   workers                   Worker[]
@@ -65,6 +66,7 @@ model User {
   memberships               TenantUserMembership?
   invitedBy                 User?                      @relation("UserInvitations", fields: [invitedById], references: [id])
   invitedUsers              User[]                     @relation("UserInvitations")
+  sentInvitations           Invitation[]               @relation("InvitationsSent")
 }
 
 model TenantUserMembership {
@@ -78,6 +80,25 @@ model TenantUserMembership {
 
   @@unique([tenantId, userId])
   @@index([tenantId])
+}
+
+model Invitation {
+  id        String           @id @default(cuid())
+  tenantId  String
+  email     String
+  role      UserRole         @default(SUPERVISOR)
+  token     String           @unique
+  expiresAt DateTime
+  status    InvitationStatus @default(PENDING)
+  invitedBy String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inviter   User             @relation("InvitationsSent", fields: [invitedBy], references: [id])
+
+  @@index([tenantId])
+  @@index([token])
+  @@index([email, tenantId])
 }
 
 model Field {
@@ -415,6 +436,13 @@ model StripeEvent {
   processedAt   DateTime @default(now())
 
   @@index([type])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
 }
 
 enum UserRole {

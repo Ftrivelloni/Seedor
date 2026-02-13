@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DollarSign, TrendingUp, Users, ShoppingCart } from 'lucide-react';
 import { StateCard } from '@/components/dashboard/StateCard';
@@ -9,6 +11,24 @@ import { mockClientes, mockOrdenes } from '@/data/seedorData';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function VentasOverview() {
+  const router = useRouter();
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then((data: { role?: string }) => {
+        if (data.role !== 'ADMIN') {
+          router.replace('/dashboard');
+        } else {
+          setChecked(true);
+        }
+      })
+      .catch(() => router.replace('/dashboard'));
+  }, [router]);
+
+  if (!checked) return null;
+
   const ordenes = mockOrdenes;
   const clientes = mockClientes;
 

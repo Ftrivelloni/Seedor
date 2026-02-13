@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { InviteUserModal } from './InviteUserModal';
 import { UsersTable } from './UsersTable';
+import { PendingInvitations } from './PendingInvitations';
 import { Search, Download, Settings } from 'lucide-react';
 import { Button } from '@/components/dashboard/ui/button';
 import { Input } from '@/components/dashboard/ui/input';
@@ -21,17 +22,23 @@ export default async function UsuariosPage({
   const session = await requireRole(['ADMIN']);
   const params = await searchParams;
 
-  const users = await prisma.tenantUserMembership.findMany({
-    where: {
-      tenantId: session.tenantId,
-    },
-    include: {
-      user: true,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
+  const [users, pendingInvitations] = await Promise.all([
+    prisma.tenantUserMembership.findMany({
+      where: { tenantId: session.tenantId },
+      include: { user: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.invitation.findMany({
+      where: {
+        tenantId: session.tenantId,
+        status: 'PENDING',
+      },
+      include: {
+        inviter: { select: { firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
 
   // Filter users based on search params
   let filteredUsers = users;
@@ -128,6 +135,11 @@ export default async function UsuariosPage({
           Exportar
         </Button>
       </div>
+
+      {/* Pending Invitations */}
+      {pendingInvitations.length > 0 && (
+        <PendingInvitations invitations={pendingInvitations} />
+      )}
 
       {/* Users Table */}
       <UsersTable users={filteredUsers} />
