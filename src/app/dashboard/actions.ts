@@ -47,3 +47,40 @@ export async function updateDashboardPreferenceAction(formData: FormData) {
 
   revalidatePath('/dashboard');
 }
+
+/**
+ * Lightweight action to persist just the widget order (used on drag-end).
+ */
+export async function updateWidgetOrderAction(formData: FormData) {
+  const session = await requireAuthSession();
+
+  const widgetsRaw = String(formData.get('widgetsJson') || '[]');
+
+  let widgets: string[];
+  try {
+    widgets = JSON.parse(widgetsRaw);
+    if (!Array.isArray(widgets)) widgets = [];
+  } catch {
+    widgets = [];
+  }
+
+  await prisma.dashboardPreference.upsert({
+    where: {
+      tenantId_userId: {
+        tenantId: session.tenantId,
+        userId: session.userId,
+      },
+    },
+    create: {
+      tenantId: session.tenantId,
+      userId: session.userId,
+      templateKey: 'balanced',
+      widgetsJson: JSON.stringify(widgets),
+    },
+    update: {
+      widgetsJson: JSON.stringify(widgets),
+    },
+  });
+
+  revalidatePath('/dashboard');
+}

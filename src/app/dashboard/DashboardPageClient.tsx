@@ -1,11 +1,29 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Settings2, Plus } from 'lucide-react';
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { Settings2, Plus, GripVertical, X } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { DashboardData, TemplateKey, WidgetSize } from './dashboard-types';
 import { WIDGET_CATALOG } from './dashboard-types';
 import { renderWidget } from './widgets/DashboardWidgets';
 import CustomizeSidebar from './CustomizeSidebar';
+import { updateWidgetOrderAction } from './actions';
 
 /* ════════════════════════════════════════
    Props
@@ -27,70 +45,127 @@ interface CellStyle {
   rowSpan: number;
 }
 
-function resolveGridCells(
-  template: TemplateKey,
-  widgets: string[],
-): { id: string; style: CellStyle }[] {
-  const kpiIds = widgets.filter((id) => {
+function getWidgetColSpan(size: WidgetSize | undefined, template: TemplateKey): number {
+  if (size === 'kpi') return 1;
+  // medium / large
+  if (template === 'sidebar-left' || template === 'sidebar-right') return 3;
+  return 2; // balanced, panel-left, panel-right
+}
+
+/**
+ * Sort widgets according to a template's intended layout.
+ * Called when the user saves from Personalizar to enforce template order.
+ */
+function sortWidgetsByTemplate(template: TemplateKey, widgets: string[]): string[] {
+  const kpis = widgets.filter((id) => {
     const def = WIDGET_CATALOG.find((w) => w.id === id);
     return def?.size === 'kpi';
   });
-  const mediumIds = widgets.filter((id) => {
+  const mediums = widgets.filter((id) => {
     const def = WIDGET_CATALOG.find((w) => w.id === id);
     return def?.size === 'medium' || def?.size === 'large';
   });
 
   switch (template) {
     case 'balanced':
-      // 4 KPIs top (1 col each in 4-col grid), then medium widgets at 2 cols each
-      return [
-        ...kpiIds.map((id) => ({ id, style: { colSpan: 1, rowSpan: 1 } })),
-        ...mediumIds.map((id) => ({ id, style: { colSpan: 2, rowSpan: 1 } })),
-      ];
-
     case 'panel-left':
-      // First medium widget takes 2 cols + 2 rows, rest stack on the right
-      if (mediumIds.length === 0)
-        return kpiIds.map((id) => ({ id, style: { colSpan: 1, rowSpan: 1 } }));
-      return [
-        { id: mediumIds[0], style: { colSpan: 2, rowSpan: 2 } },
-        ...kpiIds.map((id) => ({ id, style: { colSpan: 1, rowSpan: 1 } })),
-        ...mediumIds.slice(1).map((id) => ({ id, style: { colSpan: 2, rowSpan: 1 } })),
-      ];
-
-    case 'panel-right':
-      // KPIs on the left, big medium widget on the right
-      if (mediumIds.length === 0)
-        return kpiIds.map((id) => ({ id, style: { colSpan: 1, rowSpan: 1 } }));
-      return [
-        ...kpiIds.map((id) => ({ id, style: { colSpan: 1, rowSpan: 1 } })),
-        { id: mediumIds[0], style: { colSpan: 2, rowSpan: 2 } },
-        ...mediumIds.slice(1).map((id) => ({ id, style: { colSpan: 2, rowSpan: 1 } })),
-      ];
-
     case 'sidebar-left':
-      // KPIs stacked in 1-col sidebar left, medium widgets take 3 cols right
-      return [
-        ...kpiIds.map((id) => ({ id, style: { colSpan: 1, rowSpan: 1 } })),
-        ...mediumIds.map((id) => ({ id, style: { colSpan: 3, rowSpan: 1 } })),
-      ];
-
+      // KPIs first, then mediums
+      return [...kpis, ...mediums];
+    case 'panel-right':
     case 'sidebar-right':
-      // Medium widgets on left (3 cols), KPI sidebar right
-      return [
-        ...mediumIds.map((id) => ({ id, style: { colSpan: 3, rowSpan: 1 } })),
-        ...kpiIds.map((id) => ({ id, style: { colSpan: 1, rowSpan: 1 } })),
-      ];
-
+      // Mediums first, then KPIs
+      return [...mediums, ...kpis];
     default:
-      return widgets.map((id) => ({ id, style: { colSpan: 1, rowSpan: 1 } }));
+      return widgets;
   }
 }
 
+function resolveGridCells(
+  template: TemplateKey,
+  widgets: string[],
+): { id: string; style: CellStyle }[] {
+  // Preserve the exact order the user arranged via drag-and-drop.
+  // Each widget simply gets its colSpan/rowSpan based on its own size definition.
+  return widgets.map((id) => {
+    const def = WIDGET_CATALOG.find((w) => w.id === id);
+    const colSpan = getWidgetColSpan(def?.size, template);
+    return { id, style: { colSpan, rowSpan: 1 } };
+  });
+}
+
 /* ════════════════════════════════════════
-   Widget wrapper card
+   Sortable Widget Card
    ════════════════════════════════════════ */
-function WidgetCard({
+function SortableWidgetCard({
+  widgetId,
+  colSpan,
+  rowSpan,
+  data,
+  onRemove,
+}: {
+  widgetId: string;
+  colSpan: number;
+  rowSpan: number;
+  data: DashboardData;
+  onRemove: (id: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: widgetId });
+
+  const def = WIDGET_CATALOG.find((w) => w.id === widgetId);
+  const isKpi = def?.size === 'kpi';
+
+  const style = {
+    gridColumn: `span ${colSpan}`,
+    gridRow: `span ${rowSpan}`,
+    transform: CSS.Translate.toString(transform),
+    transition: transition || 'transform 250ms cubic-bezier(0.25, 1, 0.5, 1)',
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : 'auto' as number | string,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative rounded-2xl border border-gray-200 bg-white shadow-sm p-5 transition-shadow hover:shadow-md ${isKpi ? 'min-h-[120px]' : 'min-h-[240px]'
+        } ${isDragging ? 'ring-2 ring-green-400/50' : ''}`}
+    >
+      {/* ── Hover controls (top-right) ── */}
+      <div className="absolute top-2.5 right-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+        <button
+          className="flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100/80 hover:bg-gray-200/90 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing transition-all duration-150 backdrop-blur-sm"
+          aria-label="Arrastrar widget"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => onRemove(widgetId)}
+          className="flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100/80 hover:bg-red-100/90 text-gray-400 hover:text-red-500 transition-all duration-150 backdrop-blur-sm"
+          aria-label="Eliminar widget"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {renderWidget(widgetId, data)}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════
+   Static Widget Card (for DragOverlay)
+   ════════════════════════════════════════ */
+function StaticWidgetCard({
   widgetId,
   colSpan,
   rowSpan,
@@ -106,12 +181,12 @@ function WidgetCard({
 
   return (
     <div
-      className={`rounded-2xl border border-gray-200 bg-white shadow-sm p-5 transition-shadow hover:shadow-md ${
-        isKpi ? 'min-h-[120px]' : 'min-h-[240px]'
-      }`}
+      className={`rounded-2xl border border-gray-200 bg-white shadow-2xl p-5 ring-2 ring-green-500/30 ${isKpi ? 'min-h-[120px]' : 'min-h-[240px]'
+        }`}
       style={{
-        gridColumn: `span ${colSpan}`,
-        gridRow: `span ${rowSpan}`,
+        width: colSpan === 1 ? '25%' : colSpan === 2 ? '50%' : '75%',
+        minWidth: colSpan === 1 ? 200 : colSpan === 2 ? 400 : 600,
+        opacity: 0.95,
       }}
     >
       {renderWidget(widgetId, data)}
@@ -126,6 +201,20 @@ export function DashboardPageClient({ data, templateKey: initialTemplate, enable
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [templateKey, setTemplateKey] = useState<TemplateKey>(initialTemplate);
   const [enabledWidgets, setEnabledWidgets] = useState<string[]>(initialWidgets);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  /* Debounce timer for persisting order */
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* Sensors: pointer (mouse/touch) + keyboard for accessibility */
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px move before drag starts — avoids accidental drags
+      },
+    }),
+    useSensor(KeyboardSensor),
+  );
 
   /* Filter by admin role */
   const visibleWidgets = useMemo(
@@ -145,11 +234,69 @@ export function DashboardPageClient({ data, templateKey: initialTemplate, enable
     [templateKey, visibleWidgets],
   );
 
-  /* Callback from sidebar save */
+  /* Persist widget order to DB (debounced) */
+  const persistOrder = useCallback(
+    (newWidgets: string[]) => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        const fd = new FormData();
+        fd.set('widgetsJson', JSON.stringify(newWidgets));
+        updateWidgetOrderAction(fd).catch(console.error);
+      }, 600);
+    },
+    [],
+  );
+
+  /* Drag handlers */
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(String(event.active.id));
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveId(null);
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const oldIdx = enabledWidgets.indexOf(String(active.id));
+      const newIdx = enabledWidgets.indexOf(String(over.id));
+      if (oldIdx === -1 || newIdx === -1) return;
+
+      const newOrder = [...enabledWidgets];
+      const [moved] = newOrder.splice(oldIdx, 1);
+      newOrder.splice(newIdx, 0, moved);
+
+      setEnabledWidgets(newOrder);
+      persistOrder(newOrder);
+    },
+    [enabledWidgets, persistOrder],
+  );
+
+  const handleDragCancel = useCallback(() => {
+    setActiveId(null);
+  }, []);
+
+  /* Remove widget */
+  const handleRemoveWidget = useCallback(
+    (id: string) => {
+      const newWidgets = enabledWidgets.filter((w) => w !== id);
+      setEnabledWidgets(newWidgets);
+      persistOrder(newWidgets);
+    },
+    [enabledWidgets, persistOrder],
+  );
+
+  /* Callback from sidebar save — sort widgets according to template layout */
   const handleUpdate = (template: TemplateKey, widgets: string[]) => {
+    const sorted = sortWidgetsByTemplate(template, widgets);
     setTemplateKey(template);
-    setEnabledWidgets(widgets);
+    setEnabledWidgets(sorted);
   };
+
+  /* Data for the active drag overlay */
+  const activeCellData = activeId
+    ? gridCells.find((c) => c.id === activeId)
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -193,17 +340,48 @@ export function DashboardPageClient({ data, templateKey: initialTemplate, enable
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-4 gap-5 auto-rows-auto">
-          {gridCells.map((cell) => (
-            <WidgetCard
-              key={cell.id}
-              widgetId={cell.id}
-              colSpan={cell.style.colSpan}
-              rowSpan={cell.style.rowSpan}
-              data={data}
-            />
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <SortableContext
+            items={gridCells.map((c) => c.id)}
+            strategy={rectSortingStrategy}
+          >
+            <div className="grid grid-cols-4 gap-5 auto-rows-auto">
+              {gridCells.map((cell) => (
+                <SortableWidgetCard
+                  key={cell.id}
+                  widgetId={cell.id}
+                  colSpan={cell.style.colSpan}
+                  rowSpan={cell.style.rowSpan}
+                  data={data}
+                  onRemove={handleRemoveWidget}
+                />
+              ))}
+            </div>
+          </SortableContext>
+
+          {/* ── Drag overlay (floating clone) ── */}
+          <DragOverlay
+            dropAnimation={{
+              duration: 250,
+              easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+            }}
+          >
+            {activeCellData ? (
+              <StaticWidgetCard
+                widgetId={activeCellData.id}
+                colSpan={activeCellData.style.colSpan}
+                rowSpan={activeCellData.style.rowSpan}
+                data={data}
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
 
       {/* ── Customize sidebar ── */}
