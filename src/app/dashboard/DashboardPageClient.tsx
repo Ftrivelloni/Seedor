@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useId, useEffect } from 'react';
 import { Settings2, Plus, GripVertical, X } from 'lucide-react';
 import {
   DndContext,
@@ -203,6 +203,13 @@ export function DashboardPageClient({ data, templateKey: initialTemplate, enable
   const [enabledWidgets, setEnabledWidgets] = useState<string[]>(initialWidgets);
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  /* Deterministic id for DndContext to avoid hydration mismatch */
+  const dndContextId = useId();
+
+  /* Defer DndContext to client-only render to avoid SSR attribute mismatches */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   /* Debounce timer for persisting order */
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -339,8 +346,26 @@ export function DashboardPageClient({ data, templateKey: initialTemplate, enable
             Agregar widgets
           </button>
         </div>
+      ) : !mounted ? (
+        /* Static grid for SSR — no DndContext to avoid hydration mismatch */
+        <div className="grid grid-cols-4 gap-5 auto-rows-auto">
+          {gridCells.map((cell) => {
+            const def = WIDGET_CATALOG.find((w) => w.id === cell.id);
+            const isKpi = def?.size === 'kpi';
+            return (
+              <div
+                key={cell.id}
+                style={{ gridColumn: `span ${cell.style.colSpan}`, gridRow: `span ${cell.style.rowSpan}` }}
+                className={`group relative rounded-2xl border border-gray-200 bg-white shadow-sm p-5 transition-shadow hover:shadow-md ${isKpi ? 'min-h-[120px]' : 'min-h-[240px]'}`}
+              >
+                {renderWidget(cell.id, data)}
+              </div>
+            );
+          })}
+        </div>
       ) : (
         <DndContext
+          id={dndContextId}
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}
