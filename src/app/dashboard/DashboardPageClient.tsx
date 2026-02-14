@@ -138,10 +138,17 @@ function SortableWidgetCard({
       className={`group relative rounded-2xl border border-gray-200 bg-white shadow-sm p-5 transition-shadow hover:shadow-md ${isKpi ? 'min-h-[120px]' : 'min-h-[240px]'
         } ${isDragging ? 'ring-2 ring-green-400/50' : ''}`}
     >
-      {/* ── Hover controls (top-right) ── */}
-      <div className="absolute top-2.5 right-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+      {/* ── Hover controls (top-right) ──
+           Uses solid backgrounds (no backdrop-filter or alpha channels) and
+           will-change to force a new compositing layer. This avoids a WebKit bug
+           where absolutely-positioned children inside transformed parents are
+           not painted when backdrop-filter or alpha-bg is used. */}
+      <div
+        className="absolute top-2 right-2 flex items-center gap-1"
+        style={{ zIndex: 20, willChange: 'transform' }}
+      >
         <button
-          className="flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100/80 hover:bg-gray-200/90 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing transition-all duration-150 backdrop-blur-sm"
+          className="flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing transition-colors duration-150"
           aria-label="Arrastrar widget"
           {...attributes}
           {...listeners}
@@ -150,7 +157,7 @@ function SortableWidgetCard({
         </button>
         <button
           onClick={() => onRemove(widgetId)}
-          className="flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100/80 hover:bg-red-100/90 text-gray-400 hover:text-red-500 transition-all duration-150 backdrop-blur-sm"
+          className="flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 hover:bg-red-100 text-gray-400 hover:text-red-500 transition-colors duration-150"
           aria-label="Eliminar widget"
         >
           <X className="h-3.5 w-3.5" />
