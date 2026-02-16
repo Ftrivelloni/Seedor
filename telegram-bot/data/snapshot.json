@@ -1,0 +1,112 @@
+{
+  "generated_at": "2026-02-10T21:11:18.342Z",
+  "tenant": {
+    "id": "cmlcnm2pa000e9ndezxeb93kj",
+    "name": "ejemplo"
+  },
+  "workers": [
+    {
+      "id": "cmlh2wpdb0003xa4ichsl3yw9",
+      "first_name": "koe",
+      "last_name": "dubo",
+      "phone": "+541137809999",
+      "function_type": "tractor",
+      "active": true
+    },
+    {
+      "id": "cmlh2xbe30005xa4i4yxd3yzp",
+      "first_name": "mate",
+      "last_name": "pi",
+      "phone": "+542995751149",
+      "function_type": "riego",
+      "active": true
+    },
+    {
+      "id": "cmlcp9kwe0001wz0wnmlbb8dz",
+      "first_name": "Cata",
+      "last_name": "Yelmini",
+      "phone": "+45 911 36447476",
+      "function_type": "Tractorista",
+      "active": true
+    }
+  ],
+  "fields": [
+    {
+      "id": "cmlcpbn200001wzx4awdc0pam",
+      "name": "Campo Norte",
+      "location": "Ruta Nacional 41",
+      "lots": [
+        {
+          "id": "cmlcpdhx00005wzx4kxmjxgwf",
+          "name": "Lote N1",
+          "area_hectares": 50,
+          "production_type": "Limones"
+        },
+        {
+          "id": "cmlcpdy210007wzx4w1giyryz",
+          "name": "Lote N2",
+          "area_hectares": 25,
+          "production_type": "Naranjas"
+        }
+      ]
+    },
+    {
+      "id": "cmlcpc6tc0003wzx4kb8ojsmm",
+      "name": "Campo Sur",
+      "location": "Zonda",
+      "lots": [
+        {
+          "id": "cmlcpelip0009wzx4gti5ihsu",
+          "name": "Lote S1",
+          "area_hectares": 100,
+          "production_type": "Mandarina"
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "cmlh39ml3000fxa4ii3n8yt0r",
+      "description": "regar",
+      "task_type": "Fumigacion",
+      "status": "PENDING",
+      "start_date": "2026-02-11",
+      "due_date": "2026-02-12",
+      "assigned_worker_ids": [
+        "cmlh2wpdb0003xa4ichsl3yw9",
+        "cmlh2xbe30005xa4i4yxd3yzp"
+      ],
+      "lot_ids": [
+        "cmlcpdhx00005wzx4kxmjxgwf"
+      ]
+    },
+    {
+      "id": "cmlczxshs0007wzzkl340anpc",
+      "description": "Filas 12-14",
+      "task_type": "Poda",
+      "status": "PENDING",
+      "start_date": "2026-02-08",
+      "due_date": "2026-02-14",
+      "assigned_worker_ids": [],
+      "lot_ids": [
+        "cmlcpdhx00005wzx4kxmjxgwf",
+        "cmlcpelip0009wzx4gti5ihsu"
+      ]
+    },
+    {
+      "id": "cmlcpjdm8000kwzx415dpbunh",
+      "description": "poda de arbol",
+      "task_type": "Poda",
+      "status": "PENDING",
+      "start_date": "2026-02-07",
+      "due_date": "2026-02-14",
+      "assigned_worker_ids": [
+        "cmlcp9kwe0001wz0wnmlbb8dz"
+      ],
+      "lot_ids": [
+        "cmlcpdhx00005wzx4kxmjxgwf",
+        "cmlcpelip0009wzx4gti5ihsu"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "events": [
+    {
+      "type": "ATTENDANCE",
+      "worker_id": "cmlh21crr0001aogt7y87uk52",
+      "timestamp": "2026-02-10T20:45:13.925866+00:00",
+      "latitude": -34.410059,
+      "longitude": -58.665534
+    },
+    {
+      "type": "TASK_COMPLETED",
+      "worker_id": "cmlh21crr0001aogt7y87uk52",
+      "task_id": "cmlh24gj50006aogt6ezcs7jt",
+      "timestamp": "2026-02-10T20:45:22.526231+00:00"
+    },
+    {
+      "type": "TASK_COMPLETED",
+      "worker_id": "cmlh22edd0003aogt9shmeg97",
+      "task_id": "cmlh24gj50006aogt6ezcs7jt",
+      "timestamp": "2026-02-10T20:46:16.168014+00:00"
+    },
+    {
+      "type": "TASK_COMPLETED",
+      "worker_id": "cmlh21crr0001aogt7y87uk52",
+      "task_id": "cmlh24gj50006aogt6ezcs7jt",
+      "timestamp": "2026-02-10T20:57:02.583886+00:00"
+    }
+  ]
+}
