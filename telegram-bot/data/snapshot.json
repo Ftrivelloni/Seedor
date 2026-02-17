@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-10T21:11:18.342Z",
+  "generated_at": "2026-02-17T00:53:20.515Z",
   "tenant": {
     "id": "cmlcnm2pa000e9ndezxeb93kj",
     "name": "ejemplo"
@@ -22,6 +22,14 @@
       "active": true
     },
     {
+      "id": "cmlinrqz9001vad6mrxgq4jmu",
+      "first_name": "prueba",
+      "last_name": "prueba",
+      "phone": "2995751149",
+      "function_type": "tractor",
+      "active": true
+    },
+    {
       "id": "cmlcp9kwe0001wz0wnmlbb8dz",
       "first_name": "Cata",
       "last_name": "Yelmini",
@@ -31,6 +39,12 @@
     }
   ],
   "fields": [
+    {
+      "id": "cmlima839001kad6mhjz7qg5g",
+      "name": "aasdffffffffffffaasdffffffffffffaasdffffffffffffaasdffffffffffffaasdffffffffffffaasdffffffffffffaasd",
+      "location": null,
+      "lots": []
+    },
     {
       "id": "cmlcpbn200001wzx4awdc0pam",
       "name": "Campo Norte",
@@ -62,19 +76,44 @@
           "production_type": "Mandarina"
         }
       ]
+    },
+    {
+      "id": "cmlim9n0m001iad6mi3szu3o4",
+      "name": "PRUEBA",
+      "location": null,
+      "lots": []
+    },
+    {
+      "id": "cmlinsknv001xad6m572hkigj",
+      "name": "Test",
+      "location": null,
+      "lots": []
     }
   ],
   "tasks": [
     {
-      "id": "cmlh39ml3000fxa4ii3n8yt0r",
-      "description": "regar",
+      "id": "cmlhelrk6001aad6m6jsyjp23",
+      "description": "hola",
       "task_type": "Fumigacion",
       "status": "PENDING",
       "start_date": "2026-02-11",
       "due_date": "2026-02-12",
+      "assigned_worker_ids": [],
+      "lot_ids": [
+        "cmlcpdhx00005wzx4kxmjxgwf"
+      ]
+    },
+    {
+      "id": "cmlhejrpe000oad6mylpwl2x3",
+      "description": "poda",
+      "task_type": "Poda",
+      "status": "PENDING",
+      "start_date": "2026-02-11",
+      "due_date": "2026-02-12",
       "assigned_worker_ids": [
+        "cmlh2xbe30005xa4i4yxd3yzp",
         "cmlh2wpdb0003xa4ichsl3yw9",
-        "cmlh2xbe30005xa4i4yxd3yzp"
+        "cmlcp9kwe0001wz0wnmlbb8dz"
       ],
       "lot_ids": [
         "cmlcpdhx00005wzx4kxmjxgwf"
@@ -106,6 +145,74 @@
       "lot_ids": [
         "cmlcpdhx00005wzx4kxmjxgwf",
         "cmlcpelip0009wzx4gti5ihsu"
+      ]
+    },
+    {
+      "id": "cmlherx20001ead6m3sfwu4tm",
+      "description": "Tarea de verificaci",
+      "task_type": "Fumigacion",
+      "status": "PENDING",
+      "start_date": "2026-02-11",
+      "due_date": "2026-02-15",
+      "assigned_worker_ids": [],
+      "lot_ids": [
+        "cmlcpdhx00005wzx4kxmjxgwf"
+      ]
+    },
+    {
+      "id": "cmlpvm3np000vvu9gsoschkm7",
+      "description": "prueba mensaje",
+      "task_type": "Poda",
+      "status": "PENDING",
+      "start_date": "2026-02-19",
+      "due_date": "2026-02-21",
+      "assigned_worker_ids": [
+        "cmlh2xbe30005xa4i4yxd3yzp"
+      ],
+      "lot_ids": [
+        "cmlcpdy210007wzx4w1giyryz"
+      ]
+    },
+    {
+      "id": "cmlpvm2ym000qvu9glpduitfa",
+      "description": "prueba mensaje",
+      "task_type": "Poda",
+      "status": "PENDING",
+      "start_date": "2026-02-19",
+      "due_date": "2026-02-21",
+      "assigned_worker_ids": [
+        "cmlh2xbe30005xa4i4yxd3yzp"
+      ],
+      "lot_ids": [
+        "cmlcpdhx00005wzx4kxmjxgwf"
+      ]
+    },
+    {
+      "id": "cmlpv7pxc000lvu9g09ojenhu",
+      "description": "g",
+      "task_type": "Poda",
+      "status": "PENDING",
+      "start_date": "2026-02-18",
+      "due_date": "2026-02-21",
+      "assigned_worker_ids": [
+        "cmlh2xbe30005xa4i4yxd3yzp"
+      ],
+      "lot_ids": [
+        "cmlcpdy210007wzx4w1giyryz"
+      ]
+    },
+    {
+      "id": "cmlptxu0b0006vu9gla40wnbl",
+      "description": "regar lote",
+      "task_type": "Fumigacion",
+      "status": "PENDING",
+      "start_date": "2026-02-17",
+      "due_date": "2026-02-21",
+      "assigned_worker_ids": [
+        "cmlh2xbe30005xa4i4yxd3yzp"
+      ],
+      "lot_ids": [
+        "cmlcpdy210007wzx4w1giyryz"
       ]
     }
   ]

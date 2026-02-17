@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 
 interface TelegramEvent {
@@ -47,6 +48,9 @@ export async function POST(request: Request) {
                         where: { id: event.task_id },
                         include: {
                             workerAssignments: { select: { workerId: true } },
+                            lotLinks: {
+                                select: { lot: { select: { id: true, fieldId: true } } },
+                            },
                         },
                     });
 
@@ -73,6 +77,18 @@ export async function POST(request: Request) {
                             completedAt: new Date(event.timestamp),
                         },
                     });
+
+                    revalidatePath('/dashboard');
+                    revalidatePath('/dashboard/campo');
+
+                    const paths = new Set<string>();
+                    for (const link of task.lotLinks) {
+                        paths.add(`/dashboard/campo/${link.lot.fieldId}`);
+                        paths.add(`/dashboard/campo/${link.lot.fieldId}/${link.lot.id}`);
+                    }
+                    for (const path of paths) {
+                        revalidatePath(path);
+                    }
 
                     processed++;
                 } else if (event.type === 'ATTENDANCE') {

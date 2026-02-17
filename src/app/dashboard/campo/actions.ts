@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { createInventoryMovement } from '@/lib/domain/inventory';
+import { notifyWorkersNewTasks } from '@/lib/telegram';
 
 const allowedTaskStatuses: TaskStatus[] = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'LATE'];
 
@@ -200,27 +201,48 @@ export async function createTaskAction(formData: FormData) {
     }))
     .filter((usage) => usage.itemId && usage.warehouseId && usage.quantity > 0 && usage.unit);
 
+  const createdTasks: Array<{
+    description: string;
+    taskType: string;
+    dueDate: Date;
+    lotId: string;
+  }> = [];
+  const assignedWorkers: Array<{ id: string; phone: string | null }> = [];
+  const lotDisplayById = new Map<string, string>();
+
   await prisma.$transaction(
     async (tx) => {
       const lots = await tx.lot.findMany({
         where: { tenantId: session.tenantId, id: { in: lotIds } },
-        select: { id: true, fieldId: true },
+        select: {
+          id: true,
+          fieldId: true,
+          name: true,
+          field: { select: { name: true } },
+        },
       });
 
       if (lots.length !== lotIds.length) {
         throw new Error('Uno o más lotes no pertenecen al tenant activo.');
       }
 
+      for (const lot of lots) {
+        const fieldLabel = lot.field?.name ? ` - ${lot.field.name}` : '';
+        lotDisplayById.set(lot.id, `${lot.name}${fieldLabel}`);
+      }
+
       const workers = workerIds.length
         ? await tx.worker.findMany({
           where: { tenantId: session.tenantId, id: { in: workerIds } },
-          select: { id: true },
+          select: { id: true, phone: true },
         })
         : [];
 
       if (workers.length !== workerIds.length) {
         throw new Error('Uno o más trabajadores no pertenecen al tenant activo.');
       }
+
+      assignedWorkers.splice(0, assignedWorkers.length, ...workers);
 
       // Create one independent task per lot
       for (const lotId of lotIds) {
@@ -238,6 +260,13 @@ export async function createTaskAction(formData: FormData) {
             createdById: session.userId,
             lotLinks: { create: { lotId } },
           },
+        });
+
+        createdTasks.push({
+          description: task.description,
+          taskType: task.taskType,
+          dueDate: task.dueDate,
+          lotId,
         });
 
         if (workerIds.length > 0) {
@@ -284,6 +313,21 @@ export async function createTaskAction(formData: FormData) {
     },
     { timeout: 15000 }
   );
+
+  if (assignedWorkers.length > 0 && createdTasks.length > 0) {
+    const tasksForNotify = createdTasks.map((task) => ({
+      description: task.description,
+      taskType: task.taskType,
+      dueDate: task.dueDate.toISOString().split('T')[0],
+      lotDisplay: lotDisplayById.get(task.lotId) ?? task.lotId,
+    }));
+
+    try {
+      await notifyWorkersNewTasks({ workers: assignedWorkers, tasks: tasksForNotify });
+    } catch (error) {
+      console.error('[Telegram] Failed to notify workers about new tasks:', error);
+    }
+  }
 
   revalidatePath('/dashboard/campo');
   revalidatePath('/dashboard/inventario');

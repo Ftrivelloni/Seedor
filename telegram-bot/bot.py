@@ -9,9 +9,11 @@ Usage:
     python bot.py
 """
 
+import asyncio
 import json
 import logging
 import os
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -62,29 +64,49 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 SNAPSHOT_PATH = os.path.join(DATA_DIR, "snapshot.json")
 UPDATES_PATH = os.path.join(DATA_DIR, "updates_queue.json")
 SESSIONS_PATH = os.path.join(DATA_DIR, "sessions.json")
+NOTIFICATIONS_PATH = os.path.join(DATA_DIR, "notifications_queue.json")
 
 # ─── Persistent session stores ─────────────────────────────
 # chat_id → worker_id (persisted to sessions.json)
 
-def _load_sessions() -> dict[int, str]:
-    """Load authenticated sessions from disk."""
+def _load_sessions() -> tuple[dict[int, str], dict[int, str]]:
+    """Load authenticated sessions and phones from disk."""
+    workers: dict[int, str] = {}
+    phones: dict[int, str] = {}
     if os.path.exists(SESSIONS_PATH):
         try:
             with open(SESSIONS_PATH, "r", encoding="utf-8") as f:
                 raw = json.load(f)
                 # JSON keys are strings, convert to int
-                return {int(k): v for k, v in raw.items()}
-        except (json.JSONDecodeError, ValueError):
+                for key, value in raw.items():
+                    chat_id = int(key)
+                    if isinstance(value, str):
+                        workers[chat_id] = value
+                    elif isinstance(value, dict):
+                        worker_id = value.get("worker_id") or value.get("workerId")
+                        phone = value.get("phone")
+                        if worker_id:
+                            workers[chat_id] = worker_id
+                        if phone:
+                            phones[chat_id] = phone
+        except (json.JSONDecodeError, ValueError, TypeError):
             pass
-    return {}
+    return workers, phones
 
 def _save_sessions() -> None:
     """Persist authenticated sessions to disk."""
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(SESSIONS_PATH, "w", encoding="utf-8") as f:
-        json.dump({str(k): v for k, v in _authenticated_workers.items()}, f, indent=2)
+        payload: dict[str, dict[str, str]] = {}
+        for chat_id, worker_id in _authenticated_workers.items():
+            entry = {"worker_id": worker_id}
+            phone = _authenticated_phones.get(chat_id)
+            if phone:
+                entry["phone"] = phone
+            payload[str(chat_id)] = entry
+        json.dump(payload, f, indent=2)
 
-_authenticated_workers: dict[int, str] = _load_sessions()
+_authenticated_workers, _authenticated_phones = _load_sessions()
 
 # task_id → new status (local overrides for immediate UX)
 _local_task_overrides: dict[str, str] = {}
@@ -93,6 +115,9 @@ _local_task_overrides: dict[str, str] = {}
 # ─── API Config ────────────────────────────────────────────
 API_URL = os.environ.get("SEEDOR_API_URL", "http://localhost:3000")
 API_KEY = os.environ.get("SEEDOR_API_KEY", "")
+TENANT_ID = os.environ.get("SEEDOR_TENANT_ID", "")
+SNAPSHOT_TTL_SECONDS = int(os.environ.get("SEEDOR_SNAPSHOT_TTL_SECONDS", "30"))
+NOTIFICATION_POLL_SECONDS = int(os.environ.get("SEEDOR_NOTIFICATION_POLL_SECONDS", "15"))
 
 
 # ═══════════════════════════════════════════════════════════
@@ -103,6 +128,55 @@ def _load_snapshot() -> dict:
     """Load and return the current snapshot."""
     with open(SNAPSHOT_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def _write_snapshot(snapshot: dict) -> None:
+    """Atomically write snapshot to disk."""
+    os.makedirs(DATA_DIR, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=DATA_DIR, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, SNAPSHOT_PATH)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
+
+
+def _should_refresh_snapshot() -> bool:
+    """Return True if snapshot is missing or stale."""
+    if not os.path.exists(SNAPSHOT_PATH):
+        return True
+    try:
+        age = datetime.now().timestamp() - os.path.getmtime(SNAPSHOT_PATH)
+    except OSError:
+        return True
+    return age > SNAPSHOT_TTL_SECONDS
+
+
+def _refresh_snapshot_from_api() -> bool:
+    """Fetch snapshot from API and update local file. Returns True on success."""
+    if not API_KEY or not TENANT_ID:
+        return False
+
+    import urllib.request
+
+    url = f"{API_URL.rstrip('/')}/api/telegram/snapshot?tenantId={TENANT_ID}"
+    req = urllib.request.Request(
+        url,
+        method="GET",
+        headers={"Authorization": f"Bearer {API_KEY}"},
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            snapshot = json.loads(resp.read().decode("utf-8"))
+        _write_snapshot(snapshot)
+        return True
+    except Exception as e:
+        logger.warning("Snapshot refresh failed: %s", e)
+        return False
 
 
 def _push_event_to_api(event: dict) -> bool:
@@ -176,13 +250,36 @@ def _normalize_phone(raw: str) -> str:
     return cleaned
 
 
+def _find_workers_by_phone(snapshot: dict, phone: str) -> list[dict]:
+    """Return all workers matching the normalized phone."""
+    normalized = _normalize_phone(phone)
+    return [
+        w for w in snapshot.get("workers", [])
+        if w.get("phone") and _normalize_phone(w["phone"]) == normalized
+    ]
+
+
+def _count_active_tasks(snapshot: dict, worker_id: str) -> int:
+    """Count active (non-completed) tasks assigned to a worker."""
+    count = 0
+    for t in snapshot.get("tasks", []):
+        if worker_id not in t.get("assigned_worker_ids", []):
+            continue
+        status = _local_task_overrides.get(t["id"], t.get("status"))
+        if status != "COMPLETED":
+            count += 1
+    return count
+
+
 def _find_worker_by_phone(snapshot: dict, phone: str) -> Optional[dict]:
     """Search snapshot workers by normalized phone."""
-    normalized = _normalize_phone(phone)
-    for w in snapshot.get("workers", []):
-        if _normalize_phone(w["phone"]) == normalized:
-            return w
-    return None
+    matches = _find_workers_by_phone(snapshot, phone)
+    if not matches:
+        return None
+    if len(matches) == 1:
+        return matches[0]
+    task_counts = {w["id"]: _count_active_tasks(snapshot, w["id"]) for w in matches}
+    return max(matches, key=lambda w: task_counts.get(w["id"], 0))
 
 
 def _get_worker_name(worker: dict) -> str:
@@ -196,6 +293,106 @@ def _get_lot_display(snapshot: dict, lot_id: str) -> str:
             if lot["id"] == lot_id:
                 return f"{lot['name']} — {field['name']}"
     return lot_id
+
+
+def _load_notification_events() -> list[dict]:
+    if not os.path.exists(NOTIFICATIONS_PATH):
+        return []
+    try:
+        with open(NOTIFICATIONS_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        events = data.get("events", [])
+        if isinstance(events, list):
+            return events
+    except (json.JSONDecodeError, OSError, AttributeError):
+        pass
+    return []
+
+
+def _save_notification_events(events: list[dict]) -> None:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=DATA_DIR, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump({"events": events}, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, NOTIFICATIONS_PATH)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
+
+
+def _get_chat_ids_for_worker(worker: dict) -> list[int]:
+    chat_ids: set[int] = set()
+    worker_id = worker.get("id")
+    if worker_id:
+        for chat_id, stored_worker_id in _authenticated_workers.items():
+            if stored_worker_id == worker_id:
+                chat_ids.add(chat_id)
+
+    if not chat_ids:
+        phone = worker.get("phone")
+        if phone:
+            normalized = _normalize_phone(phone)
+            for chat_id, stored_phone in _authenticated_phones.items():
+                if _normalize_phone(stored_phone) == normalized:
+                    chat_ids.add(chat_id)
+
+    return list(chat_ids)
+
+
+async def _send_to_chat_ids(bot, chat_ids: list[int], message: str) -> bool:
+    sent = False
+    for chat_id in chat_ids:
+        try:
+            await bot.send_message(chat_id=chat_id, text=message)
+            sent = True
+        except Exception as e:
+            logger.warning("Failed to send notification to chat_id=%s: %s", chat_id, e)
+    return sent
+
+
+async def _process_notification_queue(app) -> None:
+    events = _load_notification_events()
+    if not events:
+        return
+
+    retry_events: list[dict] = []
+
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        if event.get("type") != "TASK_ASSIGNED":
+            retry_events.append(event)
+            continue
+
+        message = event.get("message")
+        workers = event.get("workers")
+        if not message or not isinstance(workers, list):
+            continue
+
+        pending_workers: list[dict] = []
+        for worker in workers:
+            if not isinstance(worker, dict):
+                continue
+            chat_ids = _get_chat_ids_for_worker(worker)
+            if not chat_ids:
+                pending_workers.append(worker)
+                continue
+            sent = await _send_to_chat_ids(app.bot, chat_ids, message)
+            if not sent:
+                pending_workers.append(worker)
+
+        if pending_workers:
+            retry_events.append({**event, "workers": pending_workers})
+
+    _save_notification_events(retry_events)
+
+
+async def _notification_poller(app) -> None:
+    while True:
+        await _process_notification_queue(app)
+        await asyncio.sleep(NOTIFICATION_POLL_SECONDS)
 
 
 def _main_menu_keyboard() -> ReplyKeyboardMarkup:
@@ -239,6 +436,9 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     phone = contact.phone_number
     logger.info("Contact received: %s", phone)
 
+    if _should_refresh_snapshot():
+        _refresh_snapshot_from_api()
+
     try:
         snapshot = _load_snapshot()
     except FileNotFoundError:
@@ -267,6 +467,7 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     chat_id = update.message.chat_id
     _authenticated_workers[chat_id] = worker["id"]
+    _authenticated_phones[chat_id] = _normalize_phone(phone)
     _save_sessions()
 
     name = _get_worker_name(worker)
@@ -293,25 +494,85 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
 
+    refreshed = False
+    if _should_refresh_snapshot():
+        refreshed = _refresh_snapshot_from_api()
+
+    def _resolve_active_tasks(snapshot: dict, worker_id: str) -> tuple[Optional[dict], str, list[dict]]:
+        worker = next(
+            (w for w in snapshot.get("workers", []) if w["id"] == worker_id),
+            None,
+        )
+        if worker is None:
+            return None, worker_id, []
+
+        if worker.get("phone"):
+            normalized_phone = _normalize_phone(worker["phone"])
+            if _authenticated_phones.get(chat_id) != normalized_phone:
+                _authenticated_phones[chat_id] = normalized_phone
+                _save_sessions()
+
+        def _active_tasks_for(target_worker_id: str) -> list[dict]:
+            tasks = [
+                t for t in snapshot.get("tasks", [])
+                if target_worker_id in t.get("assigned_worker_ids", [])
+            ]
+            for task in tasks:
+                if task["id"] in _local_task_overrides:
+                    task["status"] = _local_task_overrides[task["id"]]
+            return [t for t in tasks if t["status"] != "COMPLETED"]
+
+        active_tasks = _active_tasks_for(worker_id)
+
+        if not active_tasks:
+            phone = worker.get("phone")
+            if phone:
+                matches = _find_workers_by_phone(snapshot, phone)
+                if len(matches) > 1:
+                    task_counts = {w["id"]: _count_active_tasks(snapshot, w["id"]) for w in matches}
+                    best = max(matches, key=lambda w: task_counts.get(w["id"], 0))
+                    if best["id"] != worker_id and task_counts.get(best["id"], 0) > 0:
+                        worker_id = best["id"]
+                        _authenticated_workers[chat_id] = worker_id
+                        _save_sessions()
+                        active_tasks = _active_tasks_for(worker_id)
+
+        return worker, worker_id, active_tasks
+
     try:
         snapshot = _load_snapshot()
     except FileNotFoundError:
         await update.message.reply_text("⚠️ Snapshot no disponible.")
         return
 
-    # Find tasks assigned to this worker
-    my_tasks = [
-        t for t in snapshot.get("tasks", [])
-        if worker_id in t.get("assigned_worker_ids", [])
-    ]
+    worker, worker_id, active_tasks = _resolve_active_tasks(snapshot, worker_id)
+    if worker is None:
+        _authenticated_workers.pop(chat_id, None)
+        _authenticated_phones.pop(chat_id, None)
+        _save_sessions()
+        await update.message.reply_text(
+            "⚠️ Tu sesión está desactualizada. Usá /start para identificarte de nuevo.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
 
-    # Apply local overrides
-    for task in my_tasks:
-        if task["id"] in _local_task_overrides:
-            task["status"] = _local_task_overrides[task["id"]]
-
-    # Filter out completed tasks
-    active_tasks = [t for t in my_tasks if t["status"] != "COMPLETED"]
+    if not active_tasks and not refreshed:
+        if _refresh_snapshot_from_api():
+            try:
+                snapshot = _load_snapshot()
+            except FileNotFoundError:
+                snapshot = None
+            if snapshot:
+                worker, worker_id, active_tasks = _resolve_active_tasks(snapshot, worker_id)
+                if worker is None:
+                    _authenticated_workers.pop(chat_id, None)
+                    _authenticated_phones.pop(chat_id, None)
+                    _save_sessions()
+                    await update.message.reply_text(
+                        "⚠️ Tu sesión está desactualizada. Usá /start para identificarte de nuevo.",
+                        reply_markup=ReplyKeyboardRemove(),
+                    )
+                    return
 
     if not active_tasks:
         await update.message.reply_text(
@@ -464,7 +725,10 @@ def main() -> None:
         )
         raise SystemExit(1)
 
-    app = Application.builder().token(token).build()
+    async def _post_init(app: Application) -> None:
+        app.create_task(_notification_poller(app))
+
+    app = Application.builder().token(token).post_init(_post_init).build()
 
     # ── Register handlers (order matters) ──
     app.add_handler(CommandHandler("start", cmd_start))
