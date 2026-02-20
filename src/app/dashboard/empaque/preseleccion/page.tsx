@@ -96,7 +96,33 @@ export default async function PreseleccionPage() {
     }),
   ]);
 
-  const serializeBin = (b: typeof yardBins[number]): SerializedBin => ({
+  type BinForSerialization = {
+    id: string;
+    code: string;
+    binIdentifier: string | null;
+    fieldName: string;
+    fruitType: string;
+    lotName: string;
+    contractor: string | null;
+    harvestType: string | null;
+    binType: string | null;
+    emptyWeight: number | null;
+    netWeight: number;
+    isTrazable: boolean;
+    status: string;
+    truckEntryId: string | null;
+    preselectionId: string | null;
+    internalLot: string | null;
+    fruitColor: string | null;
+    fruitQuality: string | null;
+    caliber: string | null;
+    chamberId: string | null;
+    chamberEntryDate: Date | null;
+    chamberExitDate: Date | null;
+    createdAt: Date;
+  };
+
+  const serializeBin = (b: BinForSerialization): SerializedBin => ({
     id: b.id,
     code: b.code,
     binIdentifier: b.binIdentifier,

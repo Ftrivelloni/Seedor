@@ -180,6 +180,7 @@ export default async function EmpaquePage() {
           status: activeProcess.status,
           startTime: activeProcess.startTime.toISOString(),
           endTime: activeProcess.endTime?.toISOString() ?? null,
+          pausedAt: activeProcess.pausedAt?.toISOString() ?? null,
           totalDurationHours: activeProcess.totalDurationHours,
           pauseCount: activeProcess.pauseCount,
           totalPauseHours: activeProcess.totalPauseHours,
