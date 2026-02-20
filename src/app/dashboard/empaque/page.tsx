@@ -41,7 +41,7 @@ export default async function EmpaquePage() {
       where: { tenantId, status: { in: ['IN_PROGRESS', 'PAUSED'] } },
       include: {
         inputBins: { include: { bin: { select: { netWeight: true } } } },
-        outputBins: { select: { id: true } },
+        outputBins: { select: { id: true, code: true, netWeight: true, grossWeight: true, truckEntryId: true, variety: true, color: true, caliber: true, chamberId: true, chamberEntryDate: true, chamberExitDate: true, createdAt: true, status: true } },
         workers: { include: { worker: { select: { firstName: true, lastName: true } } } },
         outputConfig: true,
       },
@@ -106,6 +106,7 @@ export default async function EmpaquePage() {
           status: activePreselection.status,
           startTime: activePreselection.startTime.toISOString(),
           endTime: activePreselection.endTime?.toISOString() ?? null,
+          pausedAt: activePreselection.pausedAt?.toISOString() ?? null,
           totalDurationHours: activePreselection.totalDurationHours,
           pauseCount: activePreselection.pauseCount,
           totalPauseHours: activePreselection.totalPauseHours,
@@ -117,6 +118,25 @@ export default async function EmpaquePage() {
             (acc, ib) => acc + ib.bin.netWeight,
             0
           ),
+          totalOutputKg: activePreselection.outputBins.reduce(
+            (acc, ob) => acc + ob.netWeight,
+            0
+          ),
+          outputBins: activePreselection.outputBins.map((b) => ({
+            id: b.id,
+            code: b.code,
+            netWeight: b.netWeight,
+            grossWeight: b.grossWeight,
+            truckEntryId: b.truckEntryId,
+            variety: b.variety,
+            color: b.color,
+            caliber: b.caliber,
+            chamberId: b.chamberId,
+            chamberEntryDate: b.chamberEntryDate?.toISOString() ?? null,
+            chamberExitDate: b.chamberExitDate?.toISOString() ?? null,
+            createdAt: b.createdAt.toISOString(),
+            status: b.status,
+          })),
           workers: activePreselection.workers.map((w) => ({
             id: w.id,
             workerId: w.workerId,
