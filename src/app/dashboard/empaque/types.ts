@@ -54,6 +54,7 @@ export interface SerializedPreselection {
   status: string;
   startTime: string;
   endTime: string | null;
+  pausedAt: string | null;
   totalDurationHours: number | null;
   pauseCount: number;
   totalPauseHours: number | null;
@@ -62,8 +63,10 @@ export interface SerializedPreselection {
   inputBinCount: number;
   outputBinCount: number;
   totalInputKg: number;
+  totalOutputKg: number;
   workers: SerializedPreselectionWorker[];
   outputConfig: SerializedOutputConfig[];
+  outputBins: SerializedBin[];
 }
 
 export interface SerializedPreselectionWorker {
@@ -87,10 +90,6 @@ export interface SerializedOutputConfig {
 export interface SerializedChamber {
   id: string;
   name: string;
-  type: string;
-  capacity: number;
-  temperature: number | null;
-  humidity: number | null;
   binsCount: number;
   bins: SerializedBin[];
   tasks: SerializedChamberTask[];

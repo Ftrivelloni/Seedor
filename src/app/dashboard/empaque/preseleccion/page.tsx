@@ -7,12 +7,38 @@ export default async function PreseleccionPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
   const tenantId = session.tenantId;
 
-  const [activePs, historyPs, yardBins, workers] = await Promise.all([
+  const binSelect = {
+    id: true,
+    code: true,
+    binIdentifier: true,
+    fieldName: true,
+    fruitType: true,
+    lotName: true,
+    contractor: true,
+    harvestType: true,
+    binType: true,
+    emptyWeight: true,
+    netWeight: true,
+    isTrazable: true,
+    status: true,
+    truckEntryId: true,
+    preselectionId: true,
+    internalLot: true,
+    fruitColor: true,
+    fruitQuality: true,
+    caliber: true,
+    chamberId: true,
+    chamberEntryDate: true,
+    chamberExitDate: true,
+    createdAt: true,
+  } as const;
+
+  const [activePs, historyPs, yardBins, preselectionYardBins, workers, fieldsWithLots, inventoryItems, warehouses] = await Promise.all([
     prisma.preselectionSession.findFirst({
       where: { tenantId, status: { in: ['IN_PROGRESS', 'PAUSED'] } },
       include: {
         inputBins: { include: { bin: { select: { netWeight: true } } } },
-        outputBins: { select: { id: true } },
+        outputBins: { select: binSelect },
         workers: { include: { worker: { select: { firstName: true, lastName: true } } } },
         outputConfig: { orderBy: { outputNumber: 'asc' } },
       },
@@ -22,7 +48,7 @@ export default async function PreseleccionPage() {
       where: { tenantId, status: 'COMPLETED' },
       include: {
         inputBins: { include: { bin: { select: { netWeight: true } } } },
-        outputBins: { select: { id: true } },
+        outputBins: { select: binSelect },
         workers: { include: { worker: { select: { firstName: true, lastName: true } } } },
         outputConfig: { orderBy: { outputNumber: 'asc' } },
       },
@@ -33,45 +59,44 @@ export default async function PreseleccionPage() {
       where: { tenantId, status: 'IN_YARD' },
       orderBy: { createdAt: 'desc' },
     }),
+    prisma.packingBin.findMany({
+      where: { tenantId, status: 'READY_FOR_PROCESS', preselectionId: { not: null } },
+      orderBy: { createdAt: 'desc' },
+    }),
     prisma.worker.findMany({
       where: { tenantId, active: true },
       select: { id: true, firstName: true, lastName: true, functionType: true },
       orderBy: { firstName: 'asc' },
     }),
+    prisma.field.findMany({
+      where: { tenantId },
+      select: {
+        id: true,
+        name: true,
+        lots: {
+          select: {
+            id: true,
+            name: true,
+            lotCrops: { select: { cropType: { select: { name: true } } } },
+          },
+          orderBy: { name: 'asc' },
+        },
+      },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.inventoryItem.findMany({
+      where: { tenantId },
+      select: { id: true, name: true, unit: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.warehouse.findMany({
+      where: { tenantId },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
   ]);
 
-  const serializePs = (ps: NonNullable<typeof activePs>): SerializedPreselection => ({
-    id: ps.id,
-    code: ps.code,
-    status: ps.status,
-    startTime: ps.startTime.toISOString(),
-    endTime: ps.endTime?.toISOString() ?? null,
-    totalDurationHours: ps.totalDurationHours,
-    pauseCount: ps.pauseCount,
-    totalPauseHours: ps.totalPauseHours,
-    discardKg: ps.discardKg,
-    notes: ps.notes,
-    inputBinCount: ps.inputBins.length,
-    outputBinCount: ps.outputBins.length,
-    totalInputKg: ps.inputBins.reduce((acc, ib) => acc + ib.bin.netWeight, 0),
-    workers: ps.workers.map((w) => ({
-      id: w.id,
-      workerId: w.workerId,
-      workerName: `${w.worker.firstName} ${w.worker.lastName}`,
-      role: w.role,
-      hoursWorked: w.hoursWorked,
-    })),
-    outputConfig: ps.outputConfig.map((oc) => ({
-      id: oc.id,
-      outputNumber: oc.outputNumber,
-      color: oc.color,
-      caliber: oc.caliber,
-      isDiscard: oc.isDiscard,
-      label: oc.label,
-    })),
-  });
-
-  const serializedYardBins: SerializedBin[] = yardBins.map((b) => ({
+  const serializeBin = (b: typeof yardBins[number]): SerializedBin => ({
     id: b.id,
     code: b.code,
     binIdentifier: b.binIdentifier,
@@ -95,7 +120,47 @@ export default async function PreseleccionPage() {
     chamberEntryDate: b.chamberEntryDate?.toISOString() ?? null,
     chamberExitDate: b.chamberExitDate?.toISOString() ?? null,
     createdAt: b.createdAt.toISOString(),
-  }));
+  });
+
+  const serializePs = (ps: NonNullable<typeof activePs>): SerializedPreselection => {
+    const totalOutputKg = ps.outputBins.reduce((acc, b) => acc + b.netWeight, 0);
+    return {
+      id: ps.id,
+      code: ps.code,
+      status: ps.status,
+      startTime: ps.startTime.toISOString(),
+      endTime: ps.endTime?.toISOString() ?? null,
+      pausedAt: ps.pausedAt?.toISOString() ?? null,
+      totalDurationHours: ps.totalDurationHours,
+      pauseCount: ps.pauseCount,
+      totalPauseHours: ps.totalPauseHours,
+      discardKg: ps.discardKg,
+      notes: ps.notes,
+      inputBinCount: ps.inputBins.length,
+      outputBinCount: ps.outputBins.length,
+      totalInputKg: ps.inputBins.reduce((acc, ib) => acc + ib.bin.netWeight, 0),
+      totalOutputKg,
+      workers: ps.workers.map((w) => ({
+        id: w.id,
+        workerId: w.workerId,
+        workerName: `${w.worker.firstName} ${w.worker.lastName}`,
+        role: w.role,
+        hoursWorked: w.hoursWorked,
+      })),
+      outputConfig: ps.outputConfig.map((oc) => ({
+        id: oc.id,
+        outputNumber: oc.outputNumber,
+        color: oc.color,
+        caliber: oc.caliber,
+        isDiscard: oc.isDiscard,
+        label: oc.label,
+      })),
+      outputBins: ps.outputBins.map(serializeBin),
+    };
+  };
+
+  const serializedYardBins: SerializedBin[] = yardBins.map(serializeBin);
+  const serializedPreselectionYardBins: SerializedBin[] = preselectionYardBins.map(serializeBin);
 
   const serializedWorkers: SerializedWorkerOption[] = workers.map((w) => ({
     id: w.id,
@@ -104,12 +169,26 @@ export default async function PreseleccionPage() {
     functionType: w.functionType,
   }));
 
+  const fields = fieldsWithLots.map((f) => ({
+    id: f.id,
+    name: f.name,
+    lots: f.lots.map((l) => ({
+      id: l.id,
+      name: l.name,
+      crops: l.lotCrops.map((lc) => lc.cropType.name),
+    })),
+  }));
+
   return (
     <PreseleccionPageClient
       activePreselection={activePs ? serializePs(activePs) : null}
       history={historyPs.map(serializePs)}
       availableBins={serializedYardBins}
+      preselectionYardBins={serializedPreselectionYardBins}
       workers={serializedWorkers}
+      fields={fields}
+      inventoryItems={inventoryItems}
+      warehouses={warehouses}
     />
   );
 }

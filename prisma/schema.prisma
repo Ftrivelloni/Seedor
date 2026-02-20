@@ -540,10 +540,7 @@ enum ProcessSessionStatus {
   COMPLETED
 }
 
-enum ChamberType {
-  ETHYLENE
-  COLD
-}
+
 
 enum BoxDestination {
   MERCADO_INTERNO
@@ -644,6 +641,7 @@ model PreselectionSession {
   status             PreselectionStatus  @default(IN_PROGRESS)
   startTime          DateTime            @default(now())
   endTime            DateTime?
+  pausedAt           DateTime?
   totalDurationHours Float?
   pauseCount         Int                 @default(0)
   totalPauseHours    Float?              @default(0)
@@ -711,18 +709,14 @@ model PreselectionInput {
 }
 
 model Chamber {
-  id          String       @id @default(cuid())
-  tenantId    String
-  name        String
-  type        ChamberType
-  capacity    Int
-  temperature Float?
-  humidity    Float?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  bins        PackingBin[]
-  tasks       ChamberTask[]
+  id        String       @id @default(cuid())
+  tenantId  String
+  name      String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bins      PackingBin[]
+  tasks     ChamberTask[]
 
   @@unique([tenantId, name])
 }
