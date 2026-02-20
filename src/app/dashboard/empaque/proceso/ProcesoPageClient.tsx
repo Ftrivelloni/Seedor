@@ -12,8 +12,13 @@ import {
   FlaskConical,
   ArrowRight,
   Timer,
-  AlertTriangle,
+  Recycle,
   TrendingUp,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  CircleDot,
+  Printer,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
@@ -53,6 +58,7 @@ import {
   finalizeProcessSessionAction,
   createBoxAction,
 } from '../actions';
+import { printBoxTarjeton } from '../pdf-tarjetones';
 import type { SerializedProcessSession, SerializedBin, SerializedBox } from '../types';
 import { processStatusLabels, binStatusLabels } from '../types';
 
@@ -77,6 +83,7 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
   const [showBox, setShowBox] = useState(false);
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState('00:00:00');
+  const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
 
   // Live timer
   useEffect(() => {
@@ -215,10 +222,10 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
           iconColor="text-green-600"
         />
         <StateCard
-          title="Descarte Contam."
+          title="Descarte Especial"
           value={`${contaminatedDiscard} kg`}
-          icon={AlertTriangle}
-          iconColor="text-red-600"
+          icon={Recycle}
+          iconColor="text-orange-600"
         />
         <StateCard
           title="Eficiencia"
@@ -351,6 +358,7 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
                       <TableHead>Categoría</TableHead>
                       <TableHead>Destino</TableHead>
                       <TableHead className="text-right">Peso (kg)</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -366,6 +374,15 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-medium">{box.weightKg}</TableCell>
+                        <TableCell>
+                          <button
+                            onClick={() => printBoxTarjeton(box)}
+                            className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                            title="Imprimir tarjetón"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                          </button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -396,21 +413,56 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
-            <div className="rounded-full bg-purple-100 p-4">
-              <Cog className="h-8 w-8 text-purple-600" />
+        <Card className="border-purple-200 bg-gradient-to-br from-purple-50/50 to-white">
+          <CardContent className="py-10">
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              {/* Left side - illustration */}
+              <div className="flex justify-center">
+                <div className="relative">
+                  <div className="w-40 h-40 rounded-full bg-purple-100 flex items-center justify-center">
+                    <Cog className="h-16 w-16 text-purple-400 animate-[spin_8s_linear_infinite]" />
+                  </div>
+                  <div className="absolute -top-2 -right-2 rounded-full bg-green-100 p-2">
+                    <Package className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="absolute -bottom-1 -left-3 rounded-full bg-orange-100 p-2">
+                    <FlaskConical className="h-5 w-5 text-orange-600" />
+                  </div>
+                </div>
+              </div>
+              {/* Right side - info & action */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">Iniciar Sesión de Proceso</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Procese fruta clasificada: volcado, lavado, encerado, calibrado y empaque.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  {processFlowSteps.map((step, i) => (
+                    <div key={step.label} className="flex items-center gap-1">
+                      <span className="text-lg">{step.icon}</span>
+                      <span className="text-xs text-gray-600">{step.label}</span>
+                      {i < processFlowSteps.length - 1 && (
+                        <ArrowRight className="h-3 w-3 text-gray-300 ml-1" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3 text-sm text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <CircleDot className="h-4 w-4 text-purple-500" />
+                    <span>{availableBins.length} bines disponibles</span>
+                  </div>
+                  <span>·</span>
+                  <span>{history.length} sesiones anteriores</span>
+                </div>
+                <Button onClick={handleStartSession} disabled={loading} size="lg" className="bg-purple-600 hover:bg-purple-700 px-6">
+                  <Play className="h-5 w-5 mr-2" />
+                  Iniciar Proceso
+                </Button>
+              </div>
             </div>
-            <div className="text-center">
-              <h3 className="font-semibold text-lg">No hay proceso activo</h3>
-              <p className="text-muted-foreground text-sm">
-                Inicie una sesión de proceso para comenzar a procesar fruta.
-              </p>
-            </div>
-            <Button onClick={handleStartSession} disabled={loading} className="bg-purple-600 hover:bg-purple-700">
-              <Play className="h-4 w-4 mr-2" />
-              Iniciar Proceso
-            </Button>
           </CardContent>
         </Card>
       )}
@@ -421,43 +473,95 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
           <CardHeader>
             <CardTitle className="text-base">Historial de Procesos</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Inicio</TableHead>
-                    <TableHead>Duración</TableHead>
-                    <TableHead>Bines</TableHead>
-                    <TableHead>Cajas</TableHead>
-                    <TableHead>Descarte</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {history.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-mono text-sm">{s.code}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-green-100 text-green-700">
-                          {processStatusLabels[s.status] || s.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {new Date(s.startTime).toLocaleDateString('es-AR')}
-                      </TableCell>
-                      <TableCell>{s.totalDurationHours ? `${s.totalDurationHours}h` : '-'}</TableCell>
-                      <TableCell>{s.inputBinCount}</TableCell>
-                      <TableCell>{s.boxCount}</TableCell>
-                      <TableCell className="text-red-600">
-                        {s.cleanDiscardKg + s.contaminatedDiscardKg} kg
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+          <CardContent className="space-y-2">
+            {history.map((s) => {
+              const isExpanded = expandedHistory.has(s.id);
+              const totalDisc = s.cleanDiscardKg + s.contaminatedDiscardKg;
+              return (
+                <div key={s.id} className="rounded-lg border overflow-hidden">
+                  <button
+                    onClick={() => {
+                      setExpandedHistory((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(s.id)) next.delete(s.id);
+                        else next.add(s.id);
+                        return next;
+                      });
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
+                      <div>
+                        <p className="font-mono font-medium text-sm text-gray-900">{s.code}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(s.startTime).toLocaleDateString('es-AR')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-5 text-sm">
+                      <span className="text-gray-600">{s.totalDurationHours ? `${s.totalDurationHours}h` : '-'}</span>
+                      <span className="text-gray-500">{s.inputBinCount} bines</span>
+                      <span className="text-gray-500">{s.boxCount} cajas</span>
+                      <span className="text-red-500">{totalDisc} kg desc.</span>
+                      <Badge variant="outline" className="bg-green-100 text-green-700">
+                        {processStatusLabels[s.status] || s.status}
+                      </Badge>
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                      )}
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t bg-gray-50 px-4 py-4 space-y-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                        <div>
+                          <p className="text-gray-500">Inicio</p>
+                          <p className="font-medium">{new Date(s.startTime).toLocaleString('es-AR')}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Fin</p>
+                          <p className="font-medium">{s.endTime ? new Date(s.endTime).toLocaleString('es-AR') : '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Descarte Limpio</p>
+                          <p className="font-medium">{s.cleanDiscardKg} kg</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Descarte Especial</p>
+                          <p className="font-medium">{s.contaminatedDiscardKg} kg</p>
+                        </div>
+                      </div>
+
+                      {/* Products if available */}
+                      {s.products.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Productos / Insumos</p>
+                          <div className="flex flex-wrap gap-2">
+                            {s.products.map((p) => (
+                              <span key={p.id} className="inline-flex items-center rounded-full bg-white border border-gray-200 px-2.5 py-1 text-xs text-gray-700">
+                                {p.productName} — {p.quantity} {p.unit}
+                                {p.cost != null && ` · $${p.cost}`}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {s.notes && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Notas</p>
+                          <p className="text-sm text-gray-700">{s.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       )}
@@ -555,10 +659,10 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
               <Input id="cleanDiscardKg" name="cleanDiscardKg" type="number" step="0.1" min="0" defaultValue="0" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="contaminatedDiscardKg">Descarte Contaminado (kg)</Label>
+              <Label htmlFor="contaminatedDiscardKg">Descarte Especial (kg)</Label>
               <Input id="contaminatedDiscardKg" name="contaminatedDiscardKg" type="number" step="0.1" min="0" defaultValue="0" />
               <p className="text-xs text-muted-foreground">
-                El descarte contaminado requiere disposición especial (SENASA).
+                El descarte especial requiere disposición diferenciada (SENASA).
               </p>
             </div>
             <DialogFooter>

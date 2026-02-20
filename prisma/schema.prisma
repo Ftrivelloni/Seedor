@@ -36,6 +36,7 @@ model Tenant {
   warehouses                Warehouse[]
   workers                   Worker[]
   // Empaque relations
+  packingTransports         PackingTransport[]
   packingTruckEntries       PackingTruckEntry[]
   packingBins               PackingBin[]
   preselectionSessions      PreselectionSession[]
@@ -559,6 +560,18 @@ enum DispatchStatus {
   LOADED
   IN_TRANSIT
   DELIVERED
+}
+
+model PackingTransport {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
 }
 
 model PackingTruckEntry {

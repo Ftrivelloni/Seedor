@@ -13,7 +13,9 @@ import {
   Pause,
   Square,
   ChevronDown,
+  ChevronUp,
   CheckCircle2,
+  Eye,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
 import { StateCard } from '@/components/dashboard/StateCard';
@@ -57,6 +59,7 @@ export function PreseleccionPageClient({
   const [showAddInput, setShowAddInput] = useState(false);
   const [showAddBin, setShowAddBin] = useState(false);
   const [showGenerateBin, setShowGenerateBin] = useState(false);
+  const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
   const [elapsed, setElapsed] = useState('');
 
   // Timer
@@ -188,35 +191,6 @@ export function PreseleccionPageClient({
               </div>
             </div>
 
-            {/* Output Config */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  ⚙️ Configuración de Salidas
-                </h3>
-                <button className="text-sm text-green-600 hover:text-green-700 font-medium">
-                  Modificar
-                </button>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {activePreselection.outputConfig.map((oc) => (
-                  <div
-                    key={oc.id}
-                    className={`rounded-lg border px-4 py-2 text-center text-sm ${
-                      oc.isDiscard
-                        ? 'border-red-200 bg-red-50 text-red-700'
-                        : oc.label?.includes('segunda')
-                        ? 'border-yellow-200 bg-yellow-50 text-yellow-700'
-                        : 'border-gray-200 bg-white text-gray-700'
-                    }`}
-                  >
-                    <p className="font-semibold">S{oc.outputNumber}</p>
-                    <p className="text-xs">{oc.label || oc.color || 'Sin config'}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-3">
               <button
@@ -295,40 +269,128 @@ export function PreseleccionPageClient({
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {history.map((ps) => (
-              <div
-                key={ps.id}
-                className="flex items-center justify-between rounded-lg border border-gray-200 p-4 hover:bg-gray-50"
-              >
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  <div>
-                    <p className="font-medium text-gray-900">{ps.code}</p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(ps.startTime).toLocaleDateString('es-AR')}
-                      {ps.endTime &&
-                        ` - ${new Date(ps.endTime).toLocaleDateString('es-AR')}`}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-6 text-sm">
-                  <span className="text-gray-600">
-                    {ps.totalInputKg.toLocaleString('es-AR')} kg
-                  </span>
-                  <span className="text-gray-500">
-                    {ps.inputBinCount} → {ps.outputBinCount} bines
-                  </span>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      preselectionStatusColors[ps.status] || 'bg-gray-100 text-gray-700'
-                    }`}
+            {history.map((ps) => {
+              const isExpanded = expandedHistory.has(ps.id);
+              return (
+                <div key={ps.id} className="rounded-lg border border-gray-200 overflow-hidden hover:border-gray-300 transition-colors">
+                  <button
+                    onClick={() => {
+                      setExpandedHistory((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(ps.id)) next.delete(ps.id);
+                        else next.add(ps.id);
+                        return next;
+                      });
+                    }}
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
                   >
-                    {preselectionStatusLabels[ps.status]}
-                  </span>
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      <div>
+                        <p className="font-medium text-gray-900">{ps.code}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(ps.startTime).toLocaleDateString('es-AR')}
+                          {ps.endTime &&
+                            ` - ${new Date(ps.endTime).toLocaleDateString('es-AR')}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6 text-sm">
+                      <span className="text-gray-600">
+                        {ps.totalInputKg.toLocaleString('es-AR')} kg
+                      </span>
+                      <span className="text-gray-500">
+                        {ps.inputBinCount} → {ps.outputBinCount} bines
+                      </span>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                          preselectionStatusColors[ps.status] || 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {preselectionStatusLabels[ps.status]}
+                      </span>
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                      )}
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t border-gray-200 bg-gray-50 px-4 py-4 space-y-4">
+                      {/* Detail KPIs */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                        <div>
+                          <p className="text-gray-500">Duración</p>
+                          <p className="font-medium text-gray-900">
+                            {ps.totalDurationHours != null ? `${ps.totalDurationHours.toFixed(1)} hs` : '-'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Kg Ingresados</p>
+                          <p className="font-medium text-gray-900">{ps.totalInputKg.toLocaleString('es-AR')}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Descarte</p>
+                          <p className="font-medium text-gray-900">{ps.discardKg} kg</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Pausas</p>
+                          <p className="font-medium text-gray-900">{ps.pauseCount}</p>
+                        </div>
+                      </div>
+
+                      {/* Workers */}
+                      {ps.workers.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Trabajadores</p>
+                          <div className="flex flex-wrap gap-2">
+                            {ps.workers.map((w) => (
+                              <span key={w.id} className="inline-flex items-center gap-1 rounded-full bg-white border border-gray-200 px-2.5 py-1 text-xs text-gray-700">
+                                <Users className="h-3 w-3 text-gray-400" />
+                                {w.workerName}
+                                {w.role && <span className="text-gray-400">· {w.role}</span>}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Output Config */}
+                      {ps.outputConfig.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Salidas</p>
+                          <div className="flex gap-2 flex-wrap">
+                            {ps.outputConfig.map((oc) => (
+                              <div
+                                key={oc.id}
+                                className={`rounded border px-3 py-1.5 text-xs ${
+                                  oc.isDiscard
+                                    ? 'border-red-200 bg-red-50 text-red-700'
+                                    : 'border-gray-200 bg-white text-gray-700'
+                                }`}
+                              >
+                                <span className="font-semibold">S{oc.outputNumber}</span>{' '}
+                                {oc.label || oc.color || '-'}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Notes */}
+                      {ps.notes && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Notas</p>
+                          <p className="text-sm text-gray-700">{ps.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {history.length === 0 && (
               <p className="text-sm text-gray-500 text-center py-4">
                 Sin historial de preselecciones

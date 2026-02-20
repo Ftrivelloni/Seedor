@@ -43,6 +43,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/dashboard/ui/tabs';
 import { StateCard } from '@/components/dashboard/StateCard';
 import { createPalletAction } from '../actions';
+import { printBoxTarjeton, printPalletTarjeton, printMultipleBoxTarjetones } from '../pdf-tarjetones';
 import type { SerializedBox, SerializedPallet } from '../types';
 
 interface Props {
@@ -160,13 +161,23 @@ export function PalletsPageClient({ availableBoxes, pallets }: Props) {
           </TabsList>
 
           {activeTab === 'cajas' && selectedBoxIds.size > 0 && (
-            <Button
-              onClick={() => setShowPallet(true)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Layers className="h-4 w-4 mr-2" />
-              Armar Pallet ({selectedBoxIds.size} cajas)
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => printMultipleBoxTarjetones(selectedBoxes)}
+                className="text-gray-700 border-gray-300"
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                Imprimir Tarjetones ({selectedBoxIds.size})
+              </Button>
+              <Button
+                onClick={() => setShowPallet(true)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Layers className="h-4 w-4 mr-2" />
+                Armar Pallet ({selectedBoxIds.size} cajas)
+              </Button>
+            </div>
           )}
         </div>
 
@@ -222,6 +233,7 @@ export function PalletsPageClient({ availableBoxes, pallets }: Props) {
                     <TableHead>Destino</TableHead>
                     <TableHead className="text-right">Peso (kg)</TableHead>
                     <TableHead>Fecha</TableHead>
+                    <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -249,6 +261,15 @@ export function PalletsPageClient({ availableBoxes, pallets }: Props) {
                       <TableCell className="text-right font-medium">{b.weightKg}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(b.createdAt).toLocaleDateString('es-AR')}
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); printBoxTarjeton(b); }}
+                          className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                          title="Imprimir tarjetón"
+                        >
+                          <Printer className="h-3.5 w-3.5" />
+                        </button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -327,6 +348,17 @@ export function PalletsPageClient({ availableBoxes, pallets }: Props) {
                         )}
                       </div>
                     )}
+
+                    {/* Print tarjetón */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => printPalletTarjeton(p)}
+                    >
+                      <Printer className="h-4 w-4 mr-1" />
+                      Imprimir Tarjetón
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
