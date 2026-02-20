@@ -10,10 +10,16 @@ import {
   Package,
   Trash2,
   FlaskConical,
-  ArrowRight,
   Timer,
-  AlertTriangle,
+  Recycle,
   TrendingUp,
+  ChevronDown,
+  ChevronUp,
+  Printer,
+  Pencil,
+  Square,
+  Settings2,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
@@ -51,39 +57,59 @@ import {
   registerProcessProductAction,
   registerDiscardAction,
   finalizeProcessSessionAction,
+  pauseProcessSessionAction,
+  resumeProcessSessionAction,
+  updateProcessSessionAction,
   createBoxAction,
+  createProcessDestinationAction,
+  deleteProcessDestinationAction,
 } from '../actions';
-import type { SerializedProcessSession, SerializedBin, SerializedBox } from '../types';
+import { printBoxTarjeton } from '../pdf-tarjetones';
+import type { SerializedProcessSession, SerializedBin, SerializedBox, ConfigOption, FieldLotOption } from '../types';
 import { processStatusLabels, binStatusLabels } from '../types';
 
 interface Props {
   activeSession: (SerializedProcessSession & { inputBins: SerializedBin[]; boxes: SerializedBox[] }) | null;
   history: SerializedProcessSession[];
   availableBins: SerializedBin[];
+  fruitOptions: ConfigOption[];
+  destinationOptions: ConfigOption[];
+  fieldLotOptions: FieldLotOption[];
 }
 
-const processFlowSteps = [
-  { label: 'Volcado', icon: '🪣' },
-  { label: 'Lavado', icon: '💧' },
-  { label: 'Cera / Jabón', icon: '🧴' },
-  { label: 'Calibrado', icon: '📏' },
-  { label: 'Empaque', icon: '📦' },
-];
-
-export function ProcesoPageClient({ activeSession, history, availableBins }: Props) {
+export function ProcesoPageClient({ activeSession, history, availableBins, fruitOptions, destinationOptions, fieldLotOptions }: Props) {
   const [showAddBin, setShowAddBin] = useState(false);
   const [showProduct, setShowProduct] = useState(false);
   const [showDiscard, setShowDiscard] = useState(false);
   const [showBox, setShowBox] = useState(false);
+  const [showEditSession, setShowEditSession] = useState(false);
+  const [showDestinations, setShowDestinations] = useState(false);
+  const [editingSession, setEditingSession] = useState<SerializedProcessSession | null>(null);
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState('00:00:00');
+  const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
 
-  // Live timer
+  // Live timer — accounts for pause time
   useEffect(() => {
-    if (!activeSession || activeSession.status !== 'IN_PROGRESS') return;
+    if (!activeSession || activeSession.status === 'COMPLETED') return;
+
+    if (activeSession.status === 'PAUSED') {
+      // Show frozen time: total elapsed minus total pause time
+      const start = new Date(activeSession.startTime).getTime();
+      const pausedAt = activeSession.pausedAt ? new Date(activeSession.pausedAt).getTime() : Date.now();
+      const totalPauseMs = (activeSession.totalPauseHours ?? 0) * 3600000;
+      const diff = pausedAt - start - totalPauseMs;
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setElapsed(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+      return;
+    }
+
     const start = new Date(activeSession.startTime).getTime();
+    const totalPauseMs = (activeSession.totalPauseHours ?? 0) * 3600000;
     const tick = () => {
-      const diff = Date.now() - start;
+      const diff = Date.now() - start - totalPauseMs;
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
@@ -127,6 +153,26 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
       toast.error(e instanceof Error ? e.message : 'Error al finalizar sesión');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handlePause() {
+    if (!activeSession) return;
+    try {
+      await pauseProcessSessionAction(activeSession.id);
+      toast.success('Proceso pausado');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Error al pausar');
+    }
+  }
+
+  async function handleResume() {
+    if (!activeSession) return;
+    try {
+      await resumeProcessSessionAction(activeSession.id);
+      toast.success('Proceso reanudado');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Error al reanudar');
     }
   }
 
@@ -183,12 +229,53 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
       const fd = new FormData(e.currentTarget);
       fd.set('processSessionId', activeSession!.id);
       await createBoxAction(fd);
-      toast.success('Caja generada exitosamente');
+      const qty = Number(fd.get('quantity')) || 1;
+      toast.success(qty > 1 ? `${qty} cajas generadas exitosamente` : 'Caja generada exitosamente');
       setShowBox(false);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Error al generar caja');
+      toast.error(err instanceof Error ? err.message : 'Error al generar cajas');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleUpdateSession(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const fd = new FormData(e.currentTarget);
+      await updateProcessSessionAction(fd);
+      toast.success('Sesión actualizada');
+      setShowEditSession(false);
+      setEditingSession(null);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al actualizar sesión');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateDestination(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const fd = new FormData(e.currentTarget);
+      await createProcessDestinationAction(fd);
+      toast.success('Destino creado');
+      e.currentTarget.reset();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al crear destino');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteDestination(id: string) {
+    try {
+      await deleteProcessDestinationAction(id);
+      toast.success('Destino eliminado');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar');
     }
   }
 
@@ -215,10 +302,10 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
           iconColor="text-green-600"
         />
         <StateCard
-          title="Descarte Contam."
+          title="Descarte Especial"
           value={`${contaminatedDiscard} kg`}
-          icon={AlertTriangle}
-          iconColor="text-red-600"
+          icon={Recycle}
+          iconColor="text-orange-600"
         />
         <StateCard
           title="Eficiencia"
@@ -230,21 +317,26 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
 
       {/* Active Session or Start */}
       {activeSession && activeSession.status !== 'COMPLETED' ? (
-        <Card className="border-purple-300">
+        <Card className={`border-2 ${activeSession.status === 'PAUSED' ? 'border-yellow-200 bg-yellow-50/30' : 'border-purple-300'}`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-3">
               <div className="rounded-full bg-purple-100 p-2">
-                <Cog className="h-5 w-5 text-purple-600" />
+                <Cog className={`h-5 w-5 text-purple-600 ${activeSession.status === 'IN_PROGRESS' ? 'animate-[spin_8s_linear_infinite]' : ''}`} />
               </div>
               <div>
                 <CardTitle className="text-base">
-                  Proceso Activo — {activeSession.code}
+                  {activeSession.status === 'PAUSED' ? 'Proceso Pausado' : 'Proceso Activo'} — {activeSession.code}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   Estado:{' '}
-                  <Badge variant="outline" className="bg-purple-100 text-purple-700 ml-1">
+                  <Badge variant="outline" className={activeSession.status === 'PAUSED' ? 'bg-yellow-100 text-yellow-700' : 'bg-purple-100 text-purple-700'}>
                     {processStatusLabels[activeSession.status] || activeSession.status}
                   </Badge>
+                  {activeSession.status === 'PAUSED' && (
+                    <Badge variant="outline" className="bg-yellow-100 text-yellow-700 ml-1">
+                      PAUSADA
+                    </Badge>
+                  )}
                 </p>
               </div>
             </div>
@@ -253,6 +345,26 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
                 <Timer className="h-4 w-4 text-purple-600" />
                 <span className="font-mono text-lg font-semibold text-purple-700">{elapsed}</span>
               </div>
+              {activeSession.status === 'IN_PROGRESS' ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePause}
+                >
+                  <Pause className="h-4 w-4 mr-1" />
+                  Pausar
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-green-700 border-green-300 hover:bg-green-50"
+                  onClick={handleResume}
+                >
+                  <Play className="h-4 w-4 mr-1" />
+                  Reanudar
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -260,27 +372,12 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
                 onClick={handleFinalizeSession}
                 disabled={loading}
               >
-                <CheckCircle2 className="h-4 w-4 mr-1" />
+                <Square className="h-4 w-4 mr-1" />
                 Finalizar
               </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Process Flow Visual */}
-            <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4">
-              {processFlowSteps.map((step, i) => (
-                <div key={step.label} className="flex items-center gap-2">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-2xl">{step.icon}</span>
-                    <span className="text-xs font-medium text-gray-600">{step.label}</span>
-                  </div>
-                  {i < processFlowSteps.length - 1 && (
-                    <ArrowRight className="h-4 w-4 text-gray-400 mx-2" />
-                  )}
-                </div>
-              ))}
-            </div>
-
             {/* KPI Summary Row */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="text-center bg-purple-50 rounded-lg p-3">
@@ -331,7 +428,7 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
               </Button>
               <Button size="sm" variant="outline" onClick={() => setShowBox(true)} className="text-green-700 border-green-300 hover:bg-green-50">
                 <Package className="h-4 w-4 mr-1" />
-                Generar Caja
+                Generar Cajas
               </Button>
               <Button size="sm" variant="outline" onClick={() => setShowDiscard(true)} className="text-red-700 border-red-300 hover:bg-red-50">
                 <Trash2 className="h-4 w-4 mr-1" />
@@ -347,10 +444,11 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
                     <TableRow>
                       <TableHead>Código</TableHead>
                       <TableHead>Producto</TableHead>
+                      <TableHead>Productor</TableHead>
                       <TableHead>Calibre</TableHead>
                       <TableHead>Categoría</TableHead>
-                      <TableHead>Destino</TableHead>
                       <TableHead className="text-right">Peso (kg)</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -358,14 +456,19 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
                       <TableRow key={box.id}>
                         <TableCell className="font-mono text-sm">{box.code}</TableCell>
                         <TableCell>{box.product}</TableCell>
+                        <TableCell className="text-muted-foreground">{box.producer || '—'}</TableCell>
                         <TableCell>{box.caliber}</TableCell>
                         <TableCell>{box.category}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={box.destination === 'EXPORTACION' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}>
-                            {box.destination === 'EXPORTACION' ? 'Exportación' : 'Mercado Int.'}
-                          </Badge>
-                        </TableCell>
                         <TableCell className="text-right font-medium">{box.weightKg}</TableCell>
+                        <TableCell>
+                          <button
+                            onClick={() => printBoxTarjeton(box)}
+                            className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                            title="Imprimir tarjetón"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                          </button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -396,21 +499,48 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
-            <div className="rounded-full bg-purple-100 p-4">
-              <Cog className="h-8 w-8 text-purple-600" />
+        <Card className="border-purple-200 bg-gradient-to-br from-purple-50/50 to-white">
+          <CardContent className="py-10">
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              {/* Left side - illustration */}
+              <div className="flex justify-center">
+                <div className="relative">
+                  <div className="w-40 h-40 rounded-full bg-purple-100 flex items-center justify-center">
+                    <Cog className="h-16 w-16 text-purple-400 animate-[spin_8s_linear_infinite]" />
+                  </div>
+                  <div className="absolute -top-2 -right-2 rounded-full bg-green-100 p-2">
+                    <Package className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="absolute -bottom-1 -left-3 rounded-full bg-orange-100 p-2">
+                    <FlaskConical className="h-5 w-5 text-orange-600" />
+                  </div>
+                </div>
+              </div>
+              {/* Right side - info & action */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">Iniciar Sesión de Proceso</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Procese fruta clasificada generando cajas para armar pallets.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-gray-500">
+                  <span>{availableBins.length} bines disponibles</span>
+                  <span>·</span>
+                  <span>{history.length} sesiones anteriores</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button onClick={handleStartSession} disabled={loading} size="lg" className="bg-purple-600 hover:bg-purple-700 px-6">
+                    <Play className="h-5 w-5 mr-2" />
+                    Iniciar Proceso
+                  </Button>
+                  <Button variant="outline" size="lg" onClick={() => setShowDestinations(true)}>
+                    <Settings2 className="h-4 w-4 mr-2" />
+                    Destinos
+                  </Button>
+                </div>
+              </div>
             </div>
-            <div className="text-center">
-              <h3 className="font-semibold text-lg">No hay proceso activo</h3>
-              <p className="text-muted-foreground text-sm">
-                Inicie una sesión de proceso para comenzar a procesar fruta.
-              </p>
-            </div>
-            <Button onClick={handleStartSession} disabled={loading} className="bg-purple-600 hover:bg-purple-700">
-              <Play className="h-4 w-4 mr-2" />
-              Iniciar Proceso
-            </Button>
           </CardContent>
         </Card>
       )}
@@ -418,46 +548,126 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
       {/* History */}
       {history.length > 0 && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Historial de Procesos</CardTitle>
+            <Button variant="outline" size="sm" onClick={() => setShowDestinations(true)}>
+              <Settings2 className="h-4 w-4 mr-1" />
+              Destinos
+            </Button>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Inicio</TableHead>
-                    <TableHead>Duración</TableHead>
-                    <TableHead>Bines</TableHead>
-                    <TableHead>Cajas</TableHead>
-                    <TableHead>Descarte</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {history.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-mono text-sm">{s.code}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-green-100 text-green-700">
-                          {processStatusLabels[s.status] || s.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {new Date(s.startTime).toLocaleDateString('es-AR')}
-                      </TableCell>
-                      <TableCell>{s.totalDurationHours ? `${s.totalDurationHours}h` : '-'}</TableCell>
-                      <TableCell>{s.inputBinCount}</TableCell>
-                      <TableCell>{s.boxCount}</TableCell>
-                      <TableCell className="text-red-600">
-                        {s.cleanDiscardKg + s.contaminatedDiscardKg} kg
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+          <CardContent className="space-y-2">
+            {history.map((s) => {
+              const isExpanded = expandedHistory.has(s.id);
+              const totalDisc = s.cleanDiscardKg + s.contaminatedDiscardKg;
+              return (
+                <div key={s.id} className="rounded-lg border overflow-hidden">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      setExpandedHistory((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(s.id)) next.delete(s.id);
+                        else next.add(s.id);
+                        return next;
+                      });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setExpandedHistory((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(s.id)) next.delete(s.id);
+                          else next.add(s.id);
+                          return next;
+                        });
+                      }
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
+                      <div>
+                        <p className="font-mono font-medium text-sm text-gray-900">{s.code}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(s.startTime).toLocaleDateString('es-AR')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-5 text-sm">
+                      <span className="text-gray-600">{s.totalDurationHours ? `${s.totalDurationHours}h` : '-'}</span>
+                      <span className="text-gray-500">{s.inputBinCount} bines</span>
+                      <span className="text-gray-500">{s.boxCount} cajas</span>
+                      <span className="text-red-500">{totalDisc} kg desc.</span>
+                      <Badge variant="outline" className="bg-green-100 text-green-700">
+                        {processStatusLabels[s.status] || s.status}
+                      </Badge>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingSession(s);
+                          setShowEditSession(true);
+                        }}
+                        className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600"
+                        title="Editar sesión"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                      )}
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="border-t bg-gray-50 px-4 py-4 space-y-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                        <div>
+                          <p className="text-gray-500">Inicio</p>
+                          <p className="font-medium">{new Date(s.startTime).toLocaleString('es-AR')}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Fin</p>
+                          <p className="font-medium">{s.endTime ? new Date(s.endTime).toLocaleString('es-AR') : '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Descarte Limpio</p>
+                          <p className="font-medium">{s.cleanDiscardKg} kg</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Descarte Especial</p>
+                          <p className="font-medium">{s.contaminatedDiscardKg} kg</p>
+                        </div>
+                      </div>
+
+                      {/* Products if available */}
+                      {s.products.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Productos / Insumos</p>
+                          <div className="flex flex-wrap gap-2">
+                            {s.products.map((p) => (
+                              <span key={p.id} className="inline-flex items-center rounded-full bg-white border border-gray-200 px-2.5 py-1 text-xs text-gray-700">
+                                {p.productName} — {p.quantity} {p.unit}
+                                {p.cost != null && ` · $${p.cost}`}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {s.notes && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Notas</p>
+                          <p className="text-sm text-gray-700">{s.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       )}
@@ -555,10 +765,10 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
               <Input id="cleanDiscardKg" name="cleanDiscardKg" type="number" step="0.1" min="0" defaultValue="0" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="contaminatedDiscardKg">Descarte Contaminado (kg)</Label>
+              <Label htmlFor="contaminatedDiscardKg">Descarte Especial (kg)</Label>
               <Input id="contaminatedDiscardKg" name="contaminatedDiscardKg" type="number" step="0.1" min="0" defaultValue="0" />
               <p className="text-xs text-muted-foreground">
-                El descarte contaminado requiere disposición especial (SENASA).
+                El descarte especial requiere disposición diferenciada (SENASA).
               </p>
             </div>
             <DialogFooter>
@@ -573,20 +783,52 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
         </DialogContent>
       </Dialog>
 
-      {/* Generate Box Modal */}
+      {/* Generate Box Modal — batch creation with CropType + Field/Lot dropdowns */}
       <Dialog open={showBox} onOpenChange={setShowBox}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Generar Nueva Caja</DialogTitle>
+            <DialogTitle>Generar Cajas</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateBox} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="product">Producto / Fruta</Label>
-              <Input id="product" name="product" placeholder="Ej: Naranja, Limón, Mandarina" required />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="product">Fruta</Label>
+                {fruitOptions.length > 0 ? (
+                  <Select name="product" required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar fruta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fruitOptions.map((f) => (
+                        <SelectItem key={f.id} value={f.name}>{f.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input id="product" name="product" placeholder="Ej: Naranja, Limón" required />
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Cantidad de cajas</Label>
+                <Input id="quantity" name="quantity" type="number" min="1" max="100" defaultValue="1" required />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="producer">Productor (opcional)</Label>
-              <Input id="producer" name="producer" />
+              <Label htmlFor="producer">Productor (Campo / Lote)</Label>
+              {fieldLotOptions.length > 0 ? (
+                <Select name="producer">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar unidad productora" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fieldLotOptions.map((fl) => (
+                      <SelectItem key={fl.lotId} value={fl.label}>{fl.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input id="producer" name="producer" placeholder="Ej: Campo Norte — Lote 1" />
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -624,31 +866,110 @@ export function ProcesoPageClient({ activeSession, history, availableBins }: Pro
                 <Input id="packagingCode" name="packagingCode" placeholder="Ej: ENV-001" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="destination">Destino</Label>
-                <Select name="destination" defaultValue="MERCADO_INTERNO">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MERCADO_INTERNO">Mercado Interno</SelectItem>
-                    <SelectItem value="EXPORTACION">Exportación</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="weightKg">Peso Neto (kg)</Label>
+                <Input id="weightKg" name="weightKg" type="number" step="0.1" min="0.1" required />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="weightKg">Peso Neto (kg)</Label>
-              <Input id="weightKg" name="weightKg" type="number" step="0.1" min="0.1" required />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowBox(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={loading} className="bg-green-600 hover:bg-green-700">
-                Generar Caja
+                Generar Cajas
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Session Modal */}
+      <Dialog open={showEditSession} onOpenChange={(open) => { setShowEditSession(open); if (!open) setEditingSession(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Sesión — {editingSession?.code}</DialogTitle>
+          </DialogHeader>
+          {editingSession && (
+            <form onSubmit={handleUpdateSession} className="space-y-4">
+              <input type="hidden" name="processSessionId" value={editingSession.id} />
+              <div className="space-y-2">
+                <Label htmlFor="editCleanDiscard">Descarte Limpio (kg)</Label>
+                <Input
+                  id="editCleanDiscard"
+                  name="cleanDiscardKg"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  defaultValue={editingSession.cleanDiscardKg}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editContaminatedDiscard">Descarte Especial (kg)</Label>
+                <Input
+                  id="editContaminatedDiscard"
+                  name="contaminatedDiscardKg"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  defaultValue={editingSession.contaminatedDiscardKg}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editNotes">Notas</Label>
+                <Textarea
+                  id="editNotes"
+                  name="notes"
+                  defaultValue={editingSession.notes ?? ''}
+                  rows={3}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => { setShowEditSession(false); setEditingSession(null); }}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  Guardar Cambios
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Destinations Modal */}
+      <Dialog open={showDestinations} onOpenChange={setShowDestinations}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gestionar Destinos de Proceso</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <form onSubmit={handleCreateDestination} className="flex gap-2">
+              <Input name="name" placeholder="Nuevo destino..." required className="flex-1" />
+              <Button type="submit" disabled={loading} size="sm">
+                <Plus className="h-4 w-4 mr-1" />
+                Agregar
+              </Button>
+            </form>
+            {destinationOptions.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No hay destinos configurados aún.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {destinationOptions.map((d) => (
+                  <div key={d.id} className="flex items-center justify-between border rounded-lg px-3 py-2">
+                    <span className="text-sm font-medium">{d.name}</span>
+                    <button
+                      onClick={() => handleDeleteDestination(d.id)}
+                      className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"
+                      title="Eliminar destino"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

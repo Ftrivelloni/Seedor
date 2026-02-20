@@ -36,6 +36,7 @@ model Tenant {
   warehouses                Warehouse[]
   workers                   Worker[]
   // Empaque relations
+  packingTransports         PackingTransport[]
   packingTruckEntries       PackingTruckEntry[]
   packingBins               PackingBin[]
   preselectionSessions      PreselectionSession[]
@@ -44,6 +45,8 @@ model Tenant {
   packingBoxes              PackingBox[]
   pallets                   Pallet[]
   dispatches                Dispatch[]
+  processDestinations       ProcessDestination[]
+  dispatchClients           DispatchClient[]
 }
 
 model User {
@@ -539,15 +542,7 @@ enum ProcessSessionStatus {
   COMPLETED
 }
 
-enum ChamberType {
-  ETHYLENE
-  COLD
-}
 
-enum BoxDestination {
-  MERCADO_INTERNO
-  EXPORTACION
-}
 
 enum PalletStatus {
   ON_FLOOR
@@ -559,6 +554,18 @@ enum DispatchStatus {
   LOADED
   IN_TRANSIT
   DELIVERED
+}
+
+model PackingTransport {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
 }
 
 model PackingTruckEntry {
@@ -631,6 +638,7 @@ model PreselectionSession {
   status             PreselectionStatus  @default(IN_PROGRESS)
   startTime          DateTime            @default(now())
   endTime            DateTime?
+  pausedAt           DateTime?
   totalDurationHours Float?
   pauseCount         Int                 @default(0)
   totalPauseHours    Float?              @default(0)
@@ -701,8 +709,8 @@ model Chamber {
   id          String       @id @default(cuid())
   tenantId    String
   name        String
-  type        ChamberType
-  capacity    Int
+  type        String?      // e.g. "cold", "ethylene"
+  capacity    Int          @default(0)
   temperature Float?
   humidity    Float?
   createdAt   DateTime     @default(now())
@@ -733,6 +741,7 @@ model ProcessSession {
   status                ProcessSessionStatus @default(IN_PROGRESS)
   startTime             DateTime             @default(now())
   endTime               DateTime?
+  pausedAt              DateTime?
   totalDurationHours    Float?
   pauseCount            Int                  @default(0)
   totalPauseHours       Float?               @default(0)
@@ -782,7 +791,6 @@ model PackingBox {
   caliber          String
   category         String
   packagingCode    String?
-  destination      BoxDestination
   weightKg         Float
   processSessionId String?
   palletId         String?
@@ -802,6 +810,7 @@ model Pallet {
   number          Int
   code            String
   status          PalletStatus     @default(ON_FLOOR)
+  destination     String?
   operatorName    String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -851,4 +860,28 @@ model DispatchPallet {
   pallet     Pallet   @relation(fields: [palletId], references: [id])
 
   @@unique([dispatchId, palletId])
+}
+
+model ProcessDestination {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model DispatchClient {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
 }

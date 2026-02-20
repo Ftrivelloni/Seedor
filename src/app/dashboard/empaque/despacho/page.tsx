@@ -1,13 +1,13 @@
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { DespachoPageClient } from './DespachoPageClient';
-import type { SerializedDispatch, SerializedPallet } from '../types';
+import type { SerializedDispatch, SerializedPallet, ConfigOption } from '../types';
 
 export default async function DespachoPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
   const tenantId = session.tenantId;
 
-  const [dispatchesRaw, availablePalletsRaw] = await Promise.all([
+  const [dispatchesRaw, availablePalletsRaw, dispatchClients] = await Promise.all([
     prisma.dispatch.findMany({
       where: { tenantId },
       include: {
@@ -25,6 +25,10 @@ export default async function DespachoPage() {
       where: { tenantId, status: 'ON_FLOOR' },
       include: { boxes: true },
       orderBy: { createdAt: 'desc' },
+    }),
+    prisma.dispatchClient.findMany({
+      where: { tenantId },
+      orderBy: { name: 'asc' },
     }),
   ]);
 
@@ -68,6 +72,7 @@ export default async function DespachoPage() {
     number: p.number,
     code: p.code,
     status: p.status,
+    destination: p.destination,
     operatorName: p.operatorName,
     createdAt: p.createdAt.toISOString(),
     boxCount: p.boxes.length,
@@ -80,7 +85,6 @@ export default async function DespachoPage() {
       caliber: b.caliber,
       category: b.category,
       packagingCode: b.packagingCode,
-      destination: b.destination,
       weightKg: b.weightKg,
       palletId: b.palletId,
       palletCode: p.code,
@@ -88,10 +92,13 @@ export default async function DespachoPage() {
     })),
   }));
 
+  const clientOptions: ConfigOption[] = dispatchClients.map((c) => ({ id: c.id, name: c.name }));
+
   return (
     <DespachoPageClient
       dispatches={dispatches}
       availablePallets={availablePallets}
+      clientOptions={clientOptions}
     />
   );
 }

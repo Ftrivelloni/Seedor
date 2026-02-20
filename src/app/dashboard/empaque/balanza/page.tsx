@@ -7,7 +7,7 @@ export default async function BalanzaPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
   const tenantId = session.tenantId;
 
-  const [entries, yardBins, fields] = await Promise.all([
+  const [entries, yardBins, fieldsWithLots, transports] = await Promise.all([
     prisma.packingTruckEntry.findMany({
       where: { tenantId },
       include: {
@@ -40,6 +40,26 @@ export default async function BalanzaPage() {
       take: 20,
     }),
     prisma.field.findMany({
+      where: { tenantId },
+      select: {
+        id: true,
+        name: true,
+        lots: {
+          select: {
+            id: true,
+            name: true,
+            lotCrops: {
+              select: {
+                cropType: { select: { name: true } },
+              },
+            },
+          },
+          orderBy: { name: 'asc' },
+        },
+      },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.packingTransport.findMany({
       where: { tenantId },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
@@ -114,11 +134,22 @@ export default async function BalanzaPage() {
     createdAt: b.createdAt.toISOString(),
   }));
 
+  const fields = fieldsWithLots.map((f) => ({
+    id: f.id,
+    name: f.name,
+    lots: f.lots.map((l) => ({
+      id: l.id,
+      name: l.name,
+      crops: l.lotCrops.map((lc) => lc.cropType.name),
+    })),
+  }));
+
   return (
     <BalanzaPageClient
       entries={serializedEntries}
       yardBins={serializedYardBins}
       fields={fields}
+      transports={transports}
     />
   );
 }

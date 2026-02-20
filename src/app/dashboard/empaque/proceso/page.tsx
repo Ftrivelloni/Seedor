@@ -1,13 +1,13 @@
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { ProcesoPageClient } from './ProcesoPageClient';
-import type { SerializedProcessSession, SerializedBin, SerializedBox } from '../types';
+import type { SerializedProcessSession, SerializedBin, SerializedBox, ConfigOption, FieldLotOption } from '../types';
 
 export default async function ProcesoPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
   const tenantId = session.tenantId;
 
-  const [activeRaw, historyRaw, availableBinsRaw] = await Promise.all([
+  const [activeRaw, historyRaw, availableBinsRaw, cropTypes, destinations, fields] = await Promise.all([
     prisma.processSession.findFirst({
       where: { tenantId, status: { in: ['IN_PROGRESS', 'PAUSED'] } },
       include: {
@@ -23,6 +23,7 @@ export default async function ProcesoPage() {
       where: { tenantId, status: 'COMPLETED' },
       include: {
         _count: { select: { inputBins: true, boxes: true } },
+        products: true,
       },
       orderBy: { startTime: 'desc' },
       take: 20,
@@ -30,6 +31,19 @@ export default async function ProcesoPage() {
     prisma.packingBin.findMany({
       where: { tenantId, status: 'READY_FOR_PROCESS' },
       orderBy: { createdAt: 'desc' },
+    }),
+    prisma.cropType.findMany({
+      where: { tenantId },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.processDestination.findMany({
+      where: { tenantId },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.field.findMany({
+      where: { tenantId },
+      include: { lots: { orderBy: { name: 'asc' } } },
+      orderBy: { name: 'asc' },
     }),
   ]);
 
@@ -67,7 +81,6 @@ export default async function ProcesoPage() {
     caliber: bx.caliber,
     category: bx.category,
     packagingCode: bx.packagingCode,
-    destination: bx.destination,
     weightKg: bx.weightKg,
     palletId: bx.palletId,
     palletCode: null,
@@ -83,6 +96,7 @@ export default async function ProcesoPage() {
       status: activeRaw.status,
       startTime: activeRaw.startTime.toISOString(),
       endTime: activeRaw.endTime?.toISOString() ?? null,
+      pausedAt: activeRaw.pausedAt?.toISOString() ?? null,
       totalDurationHours: activeRaw.totalDurationHours,
       pauseCount: activeRaw.pauseCount,
       totalPauseHours: activeRaw.totalPauseHours,
@@ -109,6 +123,7 @@ export default async function ProcesoPage() {
     status: s.status,
     startTime: s.startTime.toISOString(),
     endTime: s.endTime?.toISOString() ?? null,
+    pausedAt: null,
     totalDurationHours: s.totalDurationHours,
     pauseCount: s.pauseCount,
     totalPauseHours: s.totalPauseHours,
@@ -117,16 +132,37 @@ export default async function ProcesoPage() {
     notes: s.notes,
     inputBinCount: s._count.inputBins,
     boxCount: s._count.boxes,
-    products: [],
+    products: s.products.map((p) => ({
+      id: p.id,
+      productName: p.productName,
+      quantity: p.quantity,
+      unit: p.unit,
+      cost: p.cost,
+    })),
   }));
 
   const availableBins: SerializedBin[] = availableBinsRaw.map(serializeBin);
+
+  const fruitOptions: ConfigOption[] = cropTypes.map((ct) => ({ id: ct.id, name: ct.name }));
+  const destinationOptions: ConfigOption[] = destinations.map((d) => ({ id: d.id, name: d.name }));
+  const fieldLotOptions: FieldLotOption[] = fields.flatMap((f) =>
+    f.lots.map((l) => ({
+      fieldId: f.id,
+      fieldName: f.name,
+      lotId: l.id,
+      lotName: l.name,
+      label: `${f.name} — ${l.name}`,
+    }))
+  );
 
   return (
     <ProcesoPageClient
       activeSession={activeSession}
       history={history}
       availableBins={availableBins}
+      fruitOptions={fruitOptions}
+      destinationOptions={destinationOptions}
+      fieldLotOptions={fieldLotOptions}
     />
   );
 }

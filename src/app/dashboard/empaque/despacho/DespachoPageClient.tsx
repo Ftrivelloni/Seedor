@@ -45,17 +45,19 @@ import {
   TableRow,
 } from '@/components/dashboard/ui/table';
 import { StateCard } from '@/components/dashboard/StateCard';
-import { createDispatchAction, updateDispatchStatusAction } from '../actions';
-import type { SerializedDispatch, SerializedPallet } from '../types';
+import { createDispatchAction, updateDispatchStatusAction, createDispatchClientAction, deleteDispatchClientAction } from '../actions';
+import type { SerializedDispatch, SerializedPallet, ConfigOption } from '../types';
 import { dispatchStatusLabels, dispatchStatusColors } from '../types';
 
 interface Props {
   dispatches: SerializedDispatch[];
   availablePallets: SerializedPallet[];
+  clientOptions: ConfigOption[];
 }
 
-export function DespachoPageClient({ dispatches, availablePallets }: Props) {
+export function DespachoPageClient({ dispatches, availablePallets, clientOptions }: Props) {
   const [showNew, setShowNew] = useState(false);
+  const [showClients, setShowClients] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [selectedPalletIds, setSelectedPalletIds] = useState<Set<string>>(new Set());
@@ -113,6 +115,30 @@ export function DespachoPageClient({ dispatches, availablePallets }: Props) {
       toast.success('Estado actualizado');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Error al actualizar estado');
+    }
+  }
+
+  async function handleCreateClient(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const fd = new FormData(e.currentTarget);
+      await createDispatchClientAction(fd);
+      toast.success('Cliente creado');
+      e.currentTarget.reset();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al crear cliente');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteClient(id: string) {
+    try {
+      await deleteDispatchClientAction(id);
+      toast.success('Cliente eliminado');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar');
     }
   }
 
@@ -190,10 +216,16 @@ export function DespachoPageClient({ dispatches, availablePallets }: Props) {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={() => setShowNew(true)} className="bg-green-600 hover:bg-green-700">
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Despacho
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowClients(true)}>
+            <FileText className="h-4 w-4 mr-2" />
+            Clientes
+          </Button>
+          <Button onClick={() => setShowNew(true)} className="bg-green-600 hover:bg-green-700">
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Despacho
+          </Button>
+        </div>
       </div>
 
       {/* Dispatches Table */}
@@ -316,7 +348,20 @@ export function DespachoPageClient({ dispatches, availablePallets }: Props) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="clientName">Cliente *</Label>
-                  <Input id="clientName" name="clientName" required />
+                  {clientOptions.length > 0 ? (
+                    <Select name="clientName" required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientOptions.map((c) => (
+                          <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input id="clientName" name="clientName" required />
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="clientType">Tipo de Cliente</Label>
@@ -473,6 +518,44 @@ export function DespachoPageClient({ dispatches, availablePallets }: Props) {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Clients Modal */}
+      <Dialog open={showClients} onOpenChange={setShowClients}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gestionar Clientes de Despacho</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <form onSubmit={handleCreateClient} className="flex gap-2">
+              <Input name="name" placeholder="Nuevo cliente..." required className="flex-1" />
+              <Button type="submit" disabled={loading} size="sm">
+                <Plus className="h-4 w-4 mr-1" />
+                Agregar
+              </Button>
+            </form>
+            {clientOptions.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No hay clientes configurados aún.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {clientOptions.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between border rounded-lg px-3 py-2">
+                    <span className="text-sm font-medium">{c.name}</span>
+                    <button
+                      onClick={() => handleDeleteClient(c.id)}
+                      className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"
+                      title="Eliminar cliente"
+                    >
+                      <span className="text-xs">✕</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
