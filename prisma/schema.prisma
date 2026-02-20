@@ -45,6 +45,8 @@ model Tenant {
   packingBoxes              PackingBox[]
   pallets                   Pallet[]
   dispatches                Dispatch[]
+  processDestinations       ProcessDestination[]
+  dispatchClients           DispatchClient[]
 }
 
 model User {
@@ -542,11 +544,6 @@ enum ProcessSessionStatus {
 
 
 
-enum BoxDestination {
-  MERCADO_INTERNO
-  EXPORTACION
-}
-
 enum PalletStatus {
   ON_FLOOR
   DISPATCHED
@@ -740,6 +737,7 @@ model ProcessSession {
   status                ProcessSessionStatus @default(IN_PROGRESS)
   startTime             DateTime             @default(now())
   endTime               DateTime?
+  pausedAt              DateTime?
   totalDurationHours    Float?
   pauseCount            Int                  @default(0)
   totalPauseHours       Float?               @default(0)
@@ -789,7 +787,6 @@ model PackingBox {
   caliber          String
   category         String
   packagingCode    String?
-  destination      BoxDestination
   weightKg         Float
   processSessionId String?
   palletId         String?
@@ -809,6 +806,7 @@ model Pallet {
   number          Int
   code            String
   status          PalletStatus     @default(ON_FLOOR)
+  destination     String?
   operatorName    String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -858,4 +856,28 @@ model DispatchPallet {
   pallet     Pallet   @relation(fields: [palletId], references: [id])
 
   @@unique([dispatchId, palletId])
+}
+
+model ProcessDestination {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model DispatchClient {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
 }

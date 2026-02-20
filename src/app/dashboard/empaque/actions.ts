@@ -720,8 +720,13 @@ export async function finalizeProcessSessionAction(processSessionId: string) {
   if (!ps) throw new Error('Sesión de proceso no encontrada.');
 
   const now = new Date();
-  const durationMs = now.getTime() - ps.startTime.getTime();
-  const durationHours = Math.round((durationMs / 3600000) * 100) / 100;
+  const totalMs = now.getTime() - ps.startTime.getTime();
+  let totalPauseMs = (ps.totalPauseHours ?? 0) * 3600000;
+  if (ps.status === 'PAUSED' && ps.pausedAt) {
+    totalPauseMs += now.getTime() - ps.pausedAt.getTime();
+  }
+  const activeMs = totalMs - totalPauseMs;
+  const durationHours = Math.round((activeMs / 3600000) * 100) / 100;
 
   await prisma.processSession.update({
     where: { id: processSessionId },
@@ -729,7 +734,74 @@ export async function finalizeProcessSessionAction(processSessionId: string) {
       status: 'COMPLETED',
       endTime: now,
       totalDurationHours: durationHours,
+      totalPauseHours: Math.round((totalPauseMs / 3600000) * 100) / 100,
+      pausedAt: null,
     },
+  });
+
+  revalidateEmpaque();
+}
+
+export async function pauseProcessSessionAction(processSessionId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const ps = await prisma.processSession.findFirst({
+    where: { id: processSessionId, tenantId: session.tenantId, status: 'IN_PROGRESS' },
+  });
+  if (!ps) throw new Error('Sesión no encontrada o no está en curso.');
+
+  await prisma.processSession.update({
+    where: { id: processSessionId },
+    data: {
+      status: 'PAUSED',
+      pausedAt: new Date(),
+      pauseCount: { increment: 1 },
+    },
+  });
+
+  revalidateEmpaque();
+}
+
+export async function resumeProcessSessionAction(processSessionId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const ps = await prisma.processSession.findFirst({
+    where: { id: processSessionId, tenantId: session.tenantId, status: 'PAUSED' },
+  });
+  if (!ps) throw new Error('Sesión no encontrada o no está pausada.');
+
+  const now = new Date();
+  const pauseDurationMs = ps.pausedAt ? now.getTime() - ps.pausedAt.getTime() : 0;
+  const additionalPauseHours = pauseDurationMs / 3600000;
+
+  await prisma.processSession.update({
+    where: { id: processSessionId },
+    data: {
+      status: 'IN_PROGRESS',
+      pausedAt: null,
+      totalPauseHours: Math.round(((ps.totalPauseHours ?? 0) + additionalPauseHours) * 100) / 100,
+    },
+  });
+
+  revalidateEmpaque();
+}
+
+export async function updateProcessSessionAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const processSessionId = String(formData.get('processSessionId') || '').trim();
+  const cleanDiscardKg = Number(formData.get('cleanDiscardKg') || 0);
+  const contaminatedDiscardKg = Number(formData.get('contaminatedDiscardKg') || 0);
+  const notes = String(formData.get('notes') || '').trim() || null;
+
+  const ps = await prisma.processSession.findFirst({
+    where: { id: processSessionId, tenantId: session.tenantId },
+  });
+  if (!ps) throw new Error('Sesión de proceso no encontrada.');
+
+  await prisma.processSession.update({
+    where: { id: processSessionId },
+    data: { cleanDiscardKg, contaminatedDiscardKg, notes },
   });
 
   revalidateEmpaque();
@@ -745,12 +817,16 @@ export async function createBoxAction(formData: FormData) {
   const caliber = String(formData.get('caliber') || '').trim();
   const category = String(formData.get('category') || '').trim();
   const packagingCode = String(formData.get('packagingCode') || '').trim() || null;
-  const destination = String(formData.get('destination') || 'MERCADO_INTERNO') as 'MERCADO_INTERNO' | 'EXPORTACION';
   const weightKg = Number(formData.get('weightKg') || 0);
+  const quantity = Math.max(1, Math.floor(Number(formData.get('quantity') || 1)));
   const processSessionId = String(formData.get('processSessionId') || '').trim() || null;
 
   if (!product || !caliber || !category || weightKg <= 0) {
     throw new Error('Complete los campos obligatorios de la caja.');
+  }
+
+  if (quantity > 100) {
+    throw new Error('No se pueden crear más de 100 cajas a la vez.');
   }
 
   const year = new Date().getFullYear();
@@ -758,11 +834,12 @@ export async function createBoxAction(formData: FormData) {
     where: { tenantId: session.tenantId, code: { startsWith: `C-${year}-` } },
     orderBy: { code: 'desc' },
   });
-  const seq = lastBox ? parseInt(lastBox.code.split('-')[2]) + 1 : 1;
-  const code = `C-${year}-${String(seq).padStart(5, '0')}`;
+  let seq = lastBox ? parseInt(lastBox.code.split('-')[2]) + 1 : 1;
 
-  await prisma.packingBox.create({
-    data: {
+  const boxes = [];
+  for (let i = 0; i < quantity; i++) {
+    const code = `C-${year}-${String(seq).padStart(5, '0')}`;
+    boxes.push({
       tenantId: session.tenantId,
       code,
       product,
@@ -770,11 +847,13 @@ export async function createBoxAction(formData: FormData) {
       caliber,
       category,
       packagingCode,
-      destination,
       weightKg,
       processSessionId,
-    },
-  });
+    });
+    seq++;
+  }
+
+  await prisma.packingBox.createMany({ data: boxes });
 
   revalidateEmpaque();
 }
@@ -786,6 +865,7 @@ export async function createPalletAction(formData: FormData) {
 
   const boxIdsJson = String(formData.get('boxIds') || '[]');
   const operatorName = String(formData.get('operatorName') || '').trim() || null;
+  const destination = String(formData.get('destination') || '').trim() || null;
   let boxIds: string[] = [];
   try { boxIds = JSON.parse(boxIdsJson); } catch { /* ignore */ }
 
@@ -801,7 +881,7 @@ export async function createPalletAction(formData: FormData) {
 
   await prisma.$transaction(async (tx) => {
     const pallet = await tx.pallet.create({
-      data: { tenantId: session.tenantId, number, code, operatorName },
+      data: { tenantId: session.tenantId, number, code, operatorName, destination },
     });
 
     await tx.packingBox.updateMany({
@@ -941,5 +1021,71 @@ export async function deleteTransportAction(transportId: string) {
   if (!transport) throw new Error('Transporte no encontrado.');
 
   await prisma.packingTransport.delete({ where: { id: transportId } });
+  revalidateEmpaque();
+}
+
+// ═══ Process Destination CRUD ═══
+
+export async function createProcessDestinationAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+  const name = String(formData.get('name') || '').trim();
+  if (!name) throw new Error('El nombre del destino es obligatorio.');
+
+  try {
+    await prisma.processDestination.create({
+      data: { tenantId: session.tenantId, name },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new Error('Ya existe un destino con ese nombre.');
+    }
+    throw err;
+  }
+
+  revalidateEmpaque();
+}
+
+export async function deleteProcessDestinationAction(destinationId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const dest = await prisma.processDestination.findFirst({
+    where: { id: destinationId, tenantId: session.tenantId },
+  });
+  if (!dest) throw new Error('Destino no encontrado.');
+
+  await prisma.processDestination.delete({ where: { id: destinationId } });
+  revalidateEmpaque();
+}
+
+// ═══ Dispatch Client CRUD ═══
+
+export async function createDispatchClientAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+  const name = String(formData.get('name') || '').trim();
+  if (!name) throw new Error('El nombre del cliente es obligatorio.');
+
+  try {
+    await prisma.dispatchClient.create({
+      data: { tenantId: session.tenantId, name },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new Error('Ya existe un cliente con ese nombre.');
+    }
+    throw err;
+  }
+
+  revalidateEmpaque();
+}
+
+export async function deleteDispatchClientAction(clientId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const client = await prisma.dispatchClient.findFirst({
+    where: { id: clientId, tenantId: session.tenantId },
+  });
+  if (!client) throw new Error('Cliente no encontrado.');
+
+  await prisma.dispatchClient.delete({ where: { id: clientId } });
   revalidateEmpaque();
 }

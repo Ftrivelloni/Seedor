@@ -111,6 +111,7 @@ export interface SerializedProcessSession {
   status: string;
   startTime: string;
   endTime: string | null;
+  pausedAt: string | null;
   totalDurationHours: number | null;
   pauseCount: number;
   totalPauseHours: number | null;
@@ -139,7 +140,6 @@ export interface SerializedBox {
   caliber: string;
   category: string;
   packagingCode: string | null;
-  destination: string;
   weightKg: number;
   palletId: string | null;
   palletCode: string | null;
@@ -151,6 +151,7 @@ export interface SerializedPallet {
   number: number;
   code: string;
   status: string;
+  destination: string | null;
   operatorName: string | null;
   createdAt: string;
   boxCount: number;
@@ -271,3 +272,17 @@ export const dispatchStatusColors: Record<string, string> = {
   IN_TRANSIT: 'bg-purple-100 text-purple-700',
   DELIVERED: 'bg-green-100 text-green-700',
 };
+
+// ── Config Options ──
+export interface ConfigOption {
+  id: string;
+  name: string;
+}
+
+export interface FieldLotOption {
+  fieldId: string;
+  fieldName: string;
+  lotId: string;
+  lotName: string;
+  label: string;
+}

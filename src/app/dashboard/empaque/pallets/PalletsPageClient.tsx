@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Printer,
   Search,
-  Filter,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
@@ -44,21 +43,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/dashboard
 import { StateCard } from '@/components/dashboard/StateCard';
 import { createPalletAction } from '../actions';
 import { printBoxTarjeton, printPalletTarjeton, printMultipleBoxTarjetones } from '../pdf-tarjetones';
-import type { SerializedBox, SerializedPallet } from '../types';
+import type { SerializedBox, SerializedPallet, ConfigOption } from '../types';
 
 interface Props {
   availableBoxes: SerializedBox[];
   pallets: SerializedPallet[];
+  destinationOptions: ConfigOption[];
 }
 
-export function PalletsPageClient({ availableBoxes, pallets }: Props) {
+export function PalletsPageClient({ availableBoxes, pallets, destinationOptions }: Props) {
   const [activeTab, setActiveTab] = useState('cajas');
   const [showPallet, setShowPallet] = useState(false);
   const [selectedBoxIds, setSelectedBoxIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
-  const [destinoFilter, setDestinoFilter] = useState<string>('ALL');
   const [loading, setLoading] = useState(false);
   const [operatorName, setOperatorName] = useState('');
+  const [palletDestination, setPalletDestination] = useState('');
 
   // KPIs
   const totalAvailableBoxes = availableBoxes.length;
@@ -68,9 +68,7 @@ export function PalletsPageClient({ availableBoxes, pallets }: Props) {
 
   // Filtered boxes
   const filteredBoxes = availableBoxes.filter((b) => {
-    const matchSearch = !search || b.code.toLowerCase().includes(search.toLowerCase()) || b.product.toLowerCase().includes(search.toLowerCase());
-    const matchDestino = destinoFilter === 'ALL' || b.destination === destinoFilter;
-    return matchSearch && matchDestino;
+    return !search || b.code.toLowerCase().includes(search.toLowerCase()) || b.product.toLowerCase().includes(search.toLowerCase());
   });
 
   function toggleBox(id: string) {
@@ -93,10 +91,6 @@ export function PalletsPageClient({ availableBoxes, pallets }: Props) {
   const selectedBoxes = availableBoxes.filter((b) => selectedBoxIds.has(b.id));
   const selectedWeight = selectedBoxes.reduce((acc, b) => acc + b.weightKg, 0);
 
-  // Compatibility check: all selected boxes should share the same destination
-  const destinations = new Set(selectedBoxes.map((b) => b.destination));
-  const isCompatible = destinations.size <= 1;
-
   async function handleCreatePallet(andPrint: boolean) {
     if (selectedBoxIds.size === 0) return;
     setLoading(true);
@@ -104,11 +98,13 @@ export function PalletsPageClient({ availableBoxes, pallets }: Props) {
       const fd = new FormData();
       fd.set('boxIds', JSON.stringify(Array.from(selectedBoxIds)));
       fd.set('operatorName', operatorName);
+      fd.set('destination', palletDestination);
       await createPalletAction(fd);
       toast.success(`Pallet creado con ${selectedBoxIds.size} cajas${andPrint ? ' — Imprimiendo etiqueta...' : ''}`);
       setShowPallet(false);
       setSelectedBoxIds(new Set());
       setOperatorName('');
+      setPalletDestination('');
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Error al crear pallet');
     } finally {
@@ -194,17 +190,6 @@ export function PalletsPageClient({ availableBoxes, pallets }: Props) {
                 className="pl-10"
               />
             </div>
-            <Select value={destinoFilter} onValueChange={setDestinoFilter}>
-              <SelectTrigger className="w-48">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Todos los destinos</SelectItem>
-                <SelectItem value="MERCADO_INTERNO">Mercado Interno</SelectItem>
-                <SelectItem value="EXPORTACION">Exportación</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           {filteredBoxes.length === 0 ? (
@@ -230,7 +215,6 @@ export function PalletsPageClient({ availableBoxes, pallets }: Props) {
                     <TableHead>Calibre</TableHead>
                     <TableHead>Categoría</TableHead>
                     <TableHead>Envase</TableHead>
-                    <TableHead>Destino</TableHead>
                     <TableHead className="text-right">Peso (kg)</TableHead>
                     <TableHead>Fecha</TableHead>
                     <TableHead className="w-12"></TableHead>
@@ -253,11 +237,6 @@ export function PalletsPageClient({ availableBoxes, pallets }: Props) {
                       <TableCell>{b.caliber}</TableCell>
                       <TableCell>{b.category}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{b.packagingCode || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={b.destination === 'EXPORTACION' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}>
-                          {b.destination === 'EXPORTACION' ? 'Exportación' : 'Mercado Int.'}
-                        </Badge>
-                      </TableCell>
                       <TableCell className="text-right font-medium">{b.weightKg}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(b.createdAt).toLocaleDateString('es-AR')}
@@ -326,8 +305,8 @@ export function PalletsPageClient({ availableBoxes, pallets }: Props) {
                           <p className="font-medium">{p.operatorName || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Fecha</p>
-                          <p className="text-muted-foreground">{new Date(p.createdAt).toLocaleDateString('es-AR')}</p>
+                          <p className="text-xs text-muted-foreground">Destino</p>
+                          <p className="font-medium">{p.destination || '-'}</p>
                         </div>
                       </div>
                     </div>
@@ -374,14 +353,6 @@ export function PalletsPageClient({ availableBoxes, pallets }: Props) {
             <DialogTitle>Armar Pallet</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Compatibility warning */}
-            {!isCompatible && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700 flex items-start gap-2">
-                <Package className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <p>Las cajas seleccionadas tienen destinos diferentes. Se recomienda agrupar cajas del mismo destino.</p>
-              </div>
-            )}
-
             {/* Summary */}
             <div className="bg-gray-50 rounded-lg p-4 space-y-2">
               <div className="flex items-center justify-between text-sm">
@@ -411,6 +382,30 @@ export function PalletsPageClient({ availableBoxes, pallets }: Props) {
                 <p className="text-sm font-medium text-blue-700">Código QR</p>
                 <p className="text-xs text-blue-500">Se generará automáticamente al crear el pallet</p>
               </div>
+            </div>
+
+            {/* Destination */}
+            <div className="space-y-2">
+              <Label htmlFor="palletDestination">Destino</Label>
+              {destinationOptions.length > 0 ? (
+                <Select value={palletDestination} onValueChange={setPalletDestination}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar destino" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {destinationOptions.map((d) => (
+                      <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id="palletDestination"
+                  placeholder="Destino del pallet"
+                  value={palletDestination}
+                  onChange={(e) => setPalletDestination(e.target.value)}
+                />
+              )}
             </div>
 
             {/* Operator */}

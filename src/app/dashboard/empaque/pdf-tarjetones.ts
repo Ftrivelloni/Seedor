@@ -56,10 +56,7 @@ function openPrintWindow(html: string, title: string) {
  * Generate a printable tarjetón for a single box.
  */
 export function printBoxTarjeton(box: SerializedBox) {
-  const destBadge =
-    box.destination === 'EXPORTACION'
-      ? '<span class="badge badge-export">Exportación</span>'
-      : '<span class="badge badge-internal">Mercado Interno</span>';
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(box.code)}&size=120x120&format=svg`;
 
   const html = `
     <div class="card">
@@ -68,9 +65,11 @@ export function printBoxTarjeton(box: SerializedBox) {
           <div class="logo-area">Seedor</div>
           <h1 style="margin-top: 4px;">Tarjetón de Caja</h1>
         </div>
-        <div style="text-align: right;">
-          <div class="code">${box.code}</div>
-          ${destBadge}
+        <div style="text-align: right; display: flex; align-items: flex-start; gap: 12px;">
+          <div>
+            <div class="code">${box.code}</div>
+          </div>
+          <img src="${qrUrl}" alt="QR ${box.code}" style="width: 80px; height: 80px;" />
         </div>
       </div>
       <div class="grid">
@@ -108,6 +107,8 @@ export function printBoxTarjeton(box: SerializedBox) {
  * Generate a printable tarjetón for a pallet (includes list of boxes).
  */
 export function printPalletTarjeton(pallet: SerializedPallet) {
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(pallet.code)}&size=120x120&format=svg`;
+
   const boxRows = pallet.boxes
     .map(
       (b) => `
@@ -116,7 +117,6 @@ export function printPalletTarjeton(pallet: SerializedPallet) {
         <td>${b.product}</td>
         <td>${b.caliber}</td>
         <td>${b.category}</td>
-        <td>${b.destination === 'EXPORTACION' ? 'Exp.' : 'M.I.'}</td>
         <td style="text-align: right; font-weight: 600;">${b.weightKg} kg</td>
       </tr>`
     )
@@ -129,9 +129,12 @@ export function printPalletTarjeton(pallet: SerializedPallet) {
           <div class="logo-area">Seedor</div>
           <h1 style="margin-top: 4px;">Tarjetón de Pallet</h1>
         </div>
-        <div style="text-align: right;">
-          <div class="code">${pallet.code}</div>
-          <div style="font-size: 12px; color: #666;">Pallet #${pallet.number}</div>
+        <div style="text-align: right; display: flex; align-items: flex-start; gap: 12px;">
+          <div>
+            <div class="code">${pallet.code}</div>
+            <div style="font-size: 12px; color: #666;">Pallet #${pallet.number}</div>
+          </div>
+          <img src="${qrUrl}" alt="QR ${pallet.code}" style="width: 80px; height: 80px;" />
         </div>
       </div>
       <div class="grid">
@@ -143,6 +146,7 @@ export function printPalletTarjeton(pallet: SerializedPallet) {
           <div class="label">Cantidad de Cajas</div>
           <div class="value" style="font-size: 28px; font-weight: 900;">${pallet.boxCount}</div>
         </div>
+        ${pallet.destination ? `<div class="field"><div class="label">Destino</div><div class="value">${pallet.destination}</div></div>` : ''}
         ${pallet.operatorName ? `<div class="field"><div class="label">Operador</div><div class="value">${pallet.operatorName}</div></div>` : ''}
         <div class="field">
           <div class="label">Fecha de Armado</div>
@@ -160,7 +164,6 @@ export function printPalletTarjeton(pallet: SerializedPallet) {
             <th>Producto</th>
             <th>Calibre</th>
             <th>Categoría</th>
-            <th>Destino</th>
             <th style="text-align: right;">Peso</th>
           </tr>
         </thead>
@@ -181,10 +184,7 @@ export function printPalletTarjeton(pallet: SerializedPallet) {
 export function printMultipleBoxTarjetones(boxes: SerializedBox[]) {
   const cards = boxes
     .map((box) => {
-      const destBadge =
-        box.destination === 'EXPORTACION'
-          ? '<span class="badge badge-export">Exp.</span>'
-          : '<span class="badge badge-internal">M.I.</span>';
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(box.code)}&size=80x80&format=svg`;
       return `
       <div class="card">
         <div class="card-header">
@@ -192,9 +192,9 @@ export function printMultipleBoxTarjetones(boxes: SerializedBox[]) {
             <div class="logo-area" style="font-size: 11px;">Seedor</div>
             <div style="font-size: 10px; color: #666; margin-top: 2px;">Tarjetón de Caja</div>
           </div>
-          <div style="text-align: right;">
+          <div style="text-align: right; display: flex; align-items: flex-start; gap: 8px;">
             <div class="code" style="font-size: 20px;">${box.code}</div>
-            ${destBadge}
+            <img src="${qrUrl}" alt="QR" style="width: 50px; height: 50px;" />
           </div>
         </div>
         <div class="grid">
