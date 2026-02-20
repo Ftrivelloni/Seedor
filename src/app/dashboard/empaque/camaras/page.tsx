@@ -67,6 +67,10 @@ export default async function CamarasPage() {
   const serializedChambers: SerializedChamber[] = chambers.map((ch) => ({
     id: ch.id,
     name: ch.name,
+    type: ch.type,
+    capacity: ch.capacity,
+    temperature: ch.temperature,
+    humidity: ch.humidity,
     binsCount: ch.bins.length,
     totalKg: ch.bins.reduce((acc, b) => acc + b.netWeight, 0),
     bins: ch.bins.map(serializeBin),

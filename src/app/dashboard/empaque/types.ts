@@ -90,6 +90,10 @@ export interface SerializedOutputConfig {
 export interface SerializedChamber {
   id: string;
   name: string;
+  type: string | null;
+  capacity: number;
+  temperature: number | null;
+  humidity: number | null;
   binsCount: number;
   bins: SerializedBin[];
   tasks: SerializedChamberTask[];
