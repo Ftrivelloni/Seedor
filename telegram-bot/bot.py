@@ -581,45 +581,91 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
 
-    # Build message
-    status_emoji = {
-        "PENDING": "🟡",
-        "IN_PROGRESS": "🔵",
-        "LATE": "🔴",
-    }
+    # ── Helpers ──
+    status_emoji = {"PENDING": "🟡", "IN_PROGRESS": "🔵", "LATE": "🔴"}
+    status_label = {"PENDING": "Pendiente", "IN_PROGRESS": "En progreso", "LATE": "Atrasada"}
 
-    lines = ["📋 *Tus tareas activas:*\n"]
-    buttons = []
+    def _fmt_due(raw_date: str) -> str:
+        try:
+            dt = datetime.strptime(raw_date[:10], "%Y-%m-%d")
+            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            diff = (dt - today).days
+            date_str = f"{dt.day}/{dt.month}/{dt.year}"
+            if diff < 0:
+                return f"⚠️ Vencida ({date_str})"
+            elif diff == 0:
+                return f"🔔 Hoy"
+            elif diff == 1:
+                return f"📅 Mañana"
+            elif diff <= 7:
+                return f"📅 En {diff} días ({date_str})"
+            else:
+                return f"📅 {date_str}"
+        except (ValueError, TypeError):
+            return raw_date
 
+    # ── Group tasks: field_name → lot_name → [tasks] ──
+    from collections import OrderedDict
+
+    field_groups: dict[str, dict[str, list[dict]]] = OrderedDict()
     for t in active_tasks:
-        emoji = status_emoji.get(t["status"], "⚪")
-        lots_display = ", ".join(
-            _get_lot_display(snapshot, lid) for lid in t.get("lot_ids", [])
-        )
-        lines.append(
-            f"{emoji} *{t['description']}*\n"
-            f"   Tipo: {t['task_type']}\n"
-            f"   Lote: {lots_display}\n"
-            f"   Vence: {t['due_date']}\n"
-        )
-        buttons.append(
-            [InlineKeyboardButton(
-                f"✅ Completar: {t['description'][:30]}",
-                callback_data=f"done:{t['id']}",
-            )]
-        )
+        lot_ids = t.get("lot_ids", [])
+        if not lot_ids:
+            field_groups.setdefault("Sin campo", OrderedDict()).setdefault("Sin lote", []).append(t)
+        else:
+            for lid in lot_ids:
+                field_name, lot_name = "Sin campo", lid
+                for field in snapshot.get("fields", []):
+                    for lot in field.get("lots", []):
+                        if lot["id"] == lid:
+                            field_name = field["name"]
+                            lot_name = lot["name"]
+                            break
+                field_groups.setdefault(field_name, OrderedDict()).setdefault(lot_name, []).append(t)
 
-    reply_markup = InlineKeyboardMarkup(buttons)
-
+    # ── Summary message ──
+    total = len(active_tasks)
+    num_fields = len(field_groups)
     await update.message.reply_text(
-        "\n".join(lines),
+        f"📋 *Tenés {total} tareas en {num_fields} campo{'s' if num_fields != 1 else ''}:*",
         parse_mode="Markdown",
-        reply_markup=reply_markup,
+        reply_markup=_main_menu_keyboard(),
     )
+
+    # ── One message per field ──
+    for field_name, lots in field_groups.items():
+        lines = [f"🏡  *{field_name}*\n{'━' * 20}\n"]
+        buttons = []
+
+        for lot_name, tasks in lots.items():
+            lines.append(f"🌱 *{lot_name}*\n")
+
+            for t in tasks:
+                emoji = status_emoji.get(t["status"], "⚪")
+                label = status_label.get(t["status"], t["status"])
+
+                lines.append(
+                    f"  {emoji} *{t['description']}*\n"
+                    f"       Tipo: _{t['task_type']}_\n"
+                    f"       Estado: {label}\n"
+                    f"       Vence: {_fmt_due(t['due_date'])}\n"
+                )
+                buttons.append(
+                    [InlineKeyboardButton(
+                        f"✅ Completar: {t['description'][:30]}",
+                        callback_data=f"done:{t['id']}",
+                    )]
+                )
+
+        await update.message.reply_text(
+            "\n".join(lines),
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
 
 
 async def handle_task_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle inline button: mark a task as completed."""
+    """Handle inline button: show confirmation before completing a task."""
     query = update.callback_query
     await query.answer()
 
@@ -630,17 +676,68 @@ async def handle_task_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.edit_message_text("⚠️ Sesión expirada. Usá /start para volver a identificarte.")
         return
 
-    # Parse callback_data: "done:{task_id}"
     data = query.data
     if not data.startswith("done:"):
         return
 
     task_id = data.split(":", 1)[1]
 
+    # Look up task details for the confirmation message
+    task_name = task_id
+    lot_display = ""
+    try:
+        snapshot = _load_snapshot()
+        for t in snapshot.get("tasks", []):
+            if t["id"] == task_id:
+                task_name = t.get("description", task_id)
+                lot_ids = t.get("lot_ids", [])
+                if lot_ids:
+                    lot_display = ", ".join(
+                        _get_lot_display(snapshot, lid) for lid in lot_ids
+                    )
+                break
+    except FileNotFoundError:
+        pass
+
+    # Build confirmation message
+    confirm_text = f"⚠️ *¿Estás seguro?*\n\n"
+    confirm_text += f"Vas a dar como finalizada:\n\n"
+    confirm_text += f"📌 *Tarea:* {task_name}\n"
+    if lot_display:
+        confirm_text += f"🌱 *Lote:* {lot_display}\n"
+
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Sí, confirmar", callback_data=f"confirm:{task_id}"),
+            InlineKeyboardButton("❌ Cancelar", callback_data=f"cancel:{task_id}"),
+        ]
+    ])
+
+    await query.edit_message_text(
+        confirm_text,
+        parse_mode="Markdown",
+        reply_markup=buttons,
+    )
+
+
+async def handle_task_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle confirmation: actually mark the task as completed."""
+    query = update.callback_query
+    await query.answer()
+
+    chat_id = query.message.chat_id
+    worker_id = _authenticated_workers.get(chat_id)
+
+    if not worker_id:
+        await query.edit_message_text("⚠️ Sesión expirada. Usá /start para volver a identificarte.")
+        return
+
+    task_id = query.data.split(":", 1)[1]
+
     # Apply local override for immediate UX
     _local_task_overrides[task_id] = "COMPLETED"
 
-    # Append to updates queue
+    # Push event
     _append_event({
         "type": "TASK_COMPLETED",
         "worker_id": worker_id,
@@ -651,8 +748,20 @@ async def handle_task_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     logger.info("Task %s marked as COMPLETED by worker %s", task_id, worker_id)
 
     await query.edit_message_text(
-        f"✅ *Tarea completada:* Se registró correctamente.\n\n"
-        f"Usá '📋 Mis Tareas' para ver las que quedan.",
+        "✅ *Tarea completada:* Se registró correctamente.\n\n"
+        "Usá '📋 Mis Tareas' para ver las que quedan.",
+        parse_mode="Markdown",
+    )
+
+
+async def handle_task_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle cancellation: go back without completing."""
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text(
+        "↩️ *Cancelado.* La tarea no fue modificada.\n\n"
+        "Usá '📋 Mis Tareas' para ver tus tareas.",
         parse_mode="Markdown",
     )
 
@@ -736,6 +845,8 @@ def main() -> None:
     app.add_handler(MessageHandler(filters.Regex(r"^📋 Mis Tareas$"), handle_my_tasks))
     app.add_handler(MessageHandler(filters.LOCATION, handle_location))
     app.add_handler(CallbackQueryHandler(handle_task_done, pattern=r"^done:"))
+    app.add_handler(CallbackQueryHandler(handle_task_confirm, pattern=r"^confirm:"))
+    app.add_handler(CallbackQueryHandler(handle_task_cancel, pattern=r"^cancel:"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unknown))
 
     logger.info("🌿 Seedor Bot starting… Press Ctrl+C to stop.")

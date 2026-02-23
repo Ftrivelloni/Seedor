@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-17T00:53:20.515Z",
+  "generated_at": "2026-02-23T22:01:51.046Z",
   "tenant": {
     "id": "cmlcnm2pa000e9ndezxeb93kj",
     "name": "ejemplo"
@@ -160,11 +160,39 @@
       ]
     },
     {
-      "id": "cmlpvm3np000vvu9gsoschkm7",
-      "description": "prueba mensaje",
+      "id": "cmlpw67ea001fvu9gqnetbb4m",
+      "description": "cosechar el trigo",
+      "task_type": "Fumigacion",
+      "status": "PENDING",
+      "start_date": "2026-02-18",
+      "due_date": "2026-02-20",
+      "assigned_worker_ids": [
+        "cmlh2xbe30005xa4i4yxd3yzp"
+      ],
+      "lot_ids": [
+        "cmlcpdhx00005wzx4kxmjxgwf"
+      ]
+    },
+    {
+      "id": "cmlptxu0b0006vu9gla40wnbl",
+      "description": "regar lote",
+      "task_type": "Fumigacion",
+      "status": "PENDING",
+      "start_date": "2026-02-17",
+      "due_date": "2026-02-21",
+      "assigned_worker_ids": [
+        "cmlh2xbe30005xa4i4yxd3yzp"
+      ],
+      "lot_ids": [
+        "cmlcpdy210007wzx4w1giyryz"
+      ]
+    },
+    {
+      "id": "cmlpv7pxc000lvu9g09ojenhu",
+      "description": "g",
       "task_type": "Poda",
       "status": "PENDING",
-      "start_date": "2026-02-19",
+      "start_date": "2026-02-18",
       "due_date": "2026-02-21",
       "assigned_worker_ids": [
         "cmlh2xbe30005xa4i4yxd3yzp"
@@ -188,11 +216,11 @@
       ]
     },
     {
-      "id": "cmlpv7pxc000lvu9g09ojenhu",
-      "description": "g",
+      "id": "cmlpvm3np000vvu9gsoschkm7",
+      "description": "prueba mensaje",
       "task_type": "Poda",
       "status": "PENDING",
-      "start_date": "2026-02-18",
+      "start_date": "2026-02-19",
       "due_date": "2026-02-21",
       "assigned_worker_ids": [
         "cmlh2xbe30005xa4i4yxd3yzp"
@@ -202,17 +230,65 @@
       ]
     },
     {
-      "id": "cmlptxu0b0006vu9gla40wnbl",
-      "description": "regar lote",
+      "id": "cmlpw4ie2001avu9g2wd188r7",
+      "description": "mensaje",
       "task_type": "Fumigacion",
       "status": "PENDING",
-      "start_date": "2026-02-17",
+      "start_date": "2026-02-18",
       "due_date": "2026-02-21",
       "assigned_worker_ids": [
         "cmlh2xbe30005xa4i4yxd3yzp"
       ],
       "lot_ids": [
+        "cmlcpdhx00005wzx4kxmjxgwf"
+      ]
+    },
+    {
+      "id": "cmlzpjha8000fvucx52yklikn",
+      "description": "ejemplo",
+      "task_type": "Fumigacion",
+      "status": "PENDING",
+      "start_date": "2026-02-25",
+      "due_date": "2026-02-27",
+      "assigned_worker_ids": [
+        "cmlh2wpdb0003xa4ichsl3yw9",
+        "cmlh2xbe30005xa4i4yxd3yzp",
+        "cmlinrqz9001vad6mrxgq4jmu"
+      ],
+      "lot_ids": [
+        "cmlcpelip0009wzx4gti5ihsu"
+      ]
+    },
+    {
+      "id": "cmlzpjghc0008vucxaxht0plu",
+      "description": "ejemplo",
+      "task_type": "Fumigacion",
+      "status": "PENDING",
+      "start_date": "2026-02-25",
+      "due_date": "2026-02-27",
+      "assigned_worker_ids": [
+        "cmlh2wpdb0003xa4ichsl3yw9",
+        "cmlh2xbe30005xa4i4yxd3yzp",
+        "cmlinrqz9001vad6mrxgq4jmu"
+      ],
+      "lot_ids": [
         "cmlcpdy210007wzx4w1giyryz"
+      ]
+    },
+    {
+      "id": "cmlzpjfoe0001vucxswyokjll",
+      "description": "ejemplo",
+      "task_type": "Fumigacion",
+      "status": "PENDING",
+      "start_date": "2026-02-25",
+      "due_date": "2026-02-27",
+      "assigned_worker_ids": [
+        "cmlh2wpdb0003xa4ichsl3yw9",
+        "cmlh2xbe30005xa4i4yxd3yzp",
+        "cmlinrqz9001vad6mrxgq4jmu"
+      ],
+      "lot_ids": [
+        "cmlcpdhx00005wzx4kxmjxgwf"
       ]
     }
   ]
