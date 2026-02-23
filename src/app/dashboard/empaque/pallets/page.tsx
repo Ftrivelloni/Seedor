@@ -1,13 +1,13 @@
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { PalletsPageClient } from './PalletsPageClient';
-import type { SerializedBox, SerializedPallet } from '../types';
+import type { SerializedBox, SerializedPallet, ConfigOption } from '../types';
 
 export default async function PalletsPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
   const tenantId = session.tenantId;
 
-  const [availableBoxesRaw, palletsRaw] = await Promise.all([
+  const [availableBoxesRaw, palletsRaw, destinations] = await Promise.all([
     prisma.packingBox.findMany({
       where: { tenantId, palletId: null },
       orderBy: { createdAt: 'desc' },
@@ -19,6 +19,10 @@ export default async function PalletsPage() {
       },
       orderBy: { createdAt: 'desc' },
     }),
+    prisma.processDestination.findMany({
+      where: { tenantId },
+      orderBy: { name: 'asc' },
+    }),
   ]);
 
   const availableBoxes: SerializedBox[] = availableBoxesRaw.map((b) => ({
@@ -29,7 +33,6 @@ export default async function PalletsPage() {
     caliber: b.caliber,
     category: b.category,
     packagingCode: b.packagingCode,
-    destination: b.destination,
     weightKg: b.weightKg,
     palletId: b.palletId,
     palletCode: null,
@@ -41,6 +44,7 @@ export default async function PalletsPage() {
     number: p.number,
     code: p.code,
     status: p.status,
+    destination: p.destination,
     operatorName: p.operatorName,
     createdAt: p.createdAt.toISOString(),
     boxCount: p.boxes.length,
@@ -53,7 +57,6 @@ export default async function PalletsPage() {
       caliber: b.caliber,
       category: b.category,
       packagingCode: b.packagingCode,
-      destination: b.destination,
       weightKg: b.weightKg,
       palletId: b.palletId,
       palletCode: p.code,
@@ -61,10 +64,13 @@ export default async function PalletsPage() {
     })),
   }));
 
+  const destinationOptions: ConfigOption[] = destinations.map((d) => ({ id: d.id, name: d.name }));
+
   return (
     <PalletsPageClient
       availableBoxes={availableBoxes}
       pallets={pallets}
+      destinationOptions={destinationOptions}
     />
   );
 }

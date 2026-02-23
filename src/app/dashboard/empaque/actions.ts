@@ -1,8 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
+import { createInventoryMovement } from '@/lib/domain/inventory';
 
 const revalidateEmpaque = () => revalidatePath('/dashboard/empaque', 'layout');
 
@@ -111,6 +113,119 @@ export async function createBinAction(formData: FormData) {
   revalidateEmpaque();
 }
 
+export async function createMultipleBinsAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const truckEntryId = String(formData.get('truckEntryId') || '').trim() || null;
+  const binsJson = String(formData.get('bins') || '[]');
+  let bins: {
+    fieldName: string;
+    fruitType: string;
+    lotName: string;
+    contractor?: string;
+    harvestType?: string;
+    binType?: string;
+    emptyWeight?: number;
+    netWeight: number;
+    isTrazable: boolean;
+    binIdentifier?: string;
+    quantity?: number;
+  }[] = [];
+  try { bins = JSON.parse(binsJson); } catch { /* ignore */ }
+
+  if (bins.length === 0) throw new Error('Debe agregar al menos un bin.');
+
+  // Expand quantity into individual bin records
+  const expandedBins = bins.flatMap((bin) => {
+    const qty = Math.max(1, Math.min(bin.quantity ?? 1, 200));
+    return Array.from({ length: qty }, () => ({
+      fieldName: bin.fieldName,
+      fruitType: bin.fruitType,
+      lotName: bin.lotName,
+      contractor: bin.contractor,
+      harvestType: bin.harvestType,
+      binType: bin.binType,
+      emptyWeight: bin.emptyWeight,
+      netWeight: bin.netWeight,
+      isTrazable: bin.isTrazable,
+      binIdentifier: bin.binIdentifier,
+    }));
+  });
+
+  if (expandedBins.length > 200) throw new Error('Máximo 200 bines por operación.');
+
+  for (const bin of expandedBins) {
+    if (!bin.fieldName || !bin.fruitType || !bin.lotName || !bin.netWeight || bin.netWeight <= 0) {
+      throw new Error('Cada bin debe tener campo, fruta, lote y peso neto válido.');
+    }
+  }
+
+  const year = new Date().getFullYear();
+
+  await prisma.$transaction(async (tx) => {
+    const lastBin = await tx.packingBin.findFirst({
+      where: { tenantId: session.tenantId, code: { startsWith: `B-${year}-` } },
+      orderBy: { code: 'desc' },
+    });
+    let seq = lastBin ? parseInt(lastBin.code.split('-')[2]) + 1 : 1;
+
+    await tx.packingBin.createMany({
+      data: expandedBins.map((bin) => {
+        const code = `B-${year}-${String(seq++).padStart(4, '0')}`;
+        return {
+          tenantId: session.tenantId,
+          code,
+          binIdentifier: bin.binIdentifier || null,
+          fieldName: bin.fieldName,
+          fruitType: bin.fruitType,
+          lotName: bin.lotName,
+          contractor: bin.contractor || null,
+          harvestType: bin.harvestType || null,
+          binType: bin.binType || null,
+          emptyWeight: bin.emptyWeight ?? null,
+          netWeight: bin.netWeight,
+          isTrazable: bin.isTrazable ?? true,
+          truckEntryId,
+          status: 'IN_YARD',
+        };
+      }),
+    });
+  });
+
+  revalidateEmpaque();
+}
+
+export async function updateTruckEntryAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const entryId = String(formData.get('entryId') || '').trim();
+  const remitoNumber = String(formData.get('remitoNumber') || '').trim();
+  const dtv = String(formData.get('dtv') || '').trim();
+  const transport = String(formData.get('transport') || '').trim();
+  const chassis = String(formData.get('chassis') || '').trim() || null;
+  const trailer = String(formData.get('trailer') || '').trim() || null;
+  const driverName = String(formData.get('driverName') || '').trim();
+  const driverDni = String(formData.get('driverDni') || '').trim();
+  const producerUnit = String(formData.get('producerUnit') || '').trim() || null;
+  const fieldOrigin = String(formData.get('fieldOrigin') || '').trim() || null;
+
+  if (!entryId || !remitoNumber || !dtv || !transport || !driverName || !driverDni) {
+    throw new Error('Complete los campos obligatorios del ingreso.');
+  }
+
+  const entry = await prisma.packingTruckEntry.findFirst({
+    where: { id: entryId, tenantId: session.tenantId },
+  });
+  if (!entry) throw new Error('Ingreso no encontrado.');
+
+  await prisma.packingTruckEntry.update({
+    where: { id: entryId },
+    data: { remitoNumber, dtv, transport, chassis, trailer, driverName, driverDni, producerUnit, fieldOrigin },
+  });
+
+  revalidateEmpaque();
+}
+
 /* ══════════════ PRESELECCIÓN ══════════════ */
 
 export async function createPreselectionAction(formData: FormData) {
@@ -195,6 +310,8 @@ export async function registerPreselectionInputAction(formData: FormData) {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
   const preselectionId = String(formData.get('preselectionId') || '').trim();
+  const inventoryItemId = String(formData.get('inventoryItemId') || '').trim();
+  const warehouseId = String(formData.get('warehouseId') || '').trim();
   const itemName = String(formData.get('itemName') || '').trim();
   const quantity = Number(formData.get('quantity') || 0);
   const unit = String(formData.get('unit') || '').trim();
@@ -209,9 +326,28 @@ export async function registerPreselectionInputAction(formData: FormData) {
   });
   if (!ps) throw new Error('Preselección no encontrada.');
 
+  // Create preselection input record
   await prisma.preselectionInput.create({
     data: { preselectionId, itemName, quantity, unit, cost },
   });
+
+  // If inventory item + warehouse provided, create consumption movement
+  if (inventoryItemId && warehouseId) {
+    try {
+      await createInventoryMovement({
+        tenantId: session.tenantId,
+        type: 'CONSUMPTION',
+        itemId: inventoryItemId,
+        quantity,
+        sourceWarehouseId: warehouseId,
+        notes: `Consumo en preselección ${ps.code}`,
+        createdByUserId: session.userId,
+      });
+    } catch (err) {
+      // Log but don't block preselection — stock may be insufficient
+      console.warn('Inventory consumption failed:', err);
+    }
+  }
 
   revalidateEmpaque();
 }
@@ -225,17 +361,91 @@ export async function finalizePreselectionAction(preselectionId: string, discard
   if (!ps) throw new Error('Preselección no encontrada.');
 
   const now = new Date();
-  const durationMs = now.getTime() - ps.startTime.getTime();
-  const durationHours = Math.round((durationMs / 3600000) * 100) / 100;
+  let totalPauseMs = (ps.totalPauseHours ?? 0) * 3600000;
+  // If currently paused, add time from pausedAt to now
+  if (ps.status === 'PAUSED' && ps.pausedAt) {
+    totalPauseMs += now.getTime() - ps.pausedAt.getTime();
+  }
+  const totalMs = now.getTime() - ps.startTime.getTime();
+  const activeMs = totalMs - totalPauseMs;
+  const durationHours = Math.round((activeMs / 3600000) * 100) / 100;
 
   await prisma.preselectionSession.update({
     where: { id: preselectionId },
     data: {
       status: 'COMPLETED',
       endTime: now,
-      totalDurationHours: durationHours,
+      totalDurationHours: Math.max(0, durationHours),
+      totalPauseHours: Math.round((totalPauseMs / 3600000) * 100) / 100,
       discardKg,
+      pausedAt: null,
     },
+  });
+
+  revalidateEmpaque();
+}
+
+export async function pausePreselectionAction(preselectionId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const ps = await prisma.preselectionSession.findFirst({
+    where: { id: preselectionId, tenantId: session.tenantId, status: 'IN_PROGRESS' },
+  });
+  if (!ps) throw new Error('Preselección no encontrada o no está en curso.');
+
+  await prisma.preselectionSession.update({
+    where: { id: preselectionId },
+    data: {
+      status: 'PAUSED',
+      pausedAt: new Date(),
+      pauseCount: { increment: 1 },
+    },
+  });
+
+  revalidateEmpaque();
+}
+
+export async function resumePreselectionAction(preselectionId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const ps = await prisma.preselectionSession.findFirst({
+    where: { id: preselectionId, tenantId: session.tenantId, status: 'PAUSED' },
+  });
+  if (!ps) throw new Error('Preselección no encontrada o no está pausada.');
+
+  const now = new Date();
+  const pauseDurationMs = ps.pausedAt ? now.getTime() - ps.pausedAt.getTime() : 0;
+  const additionalPauseHours = pauseDurationMs / 3600000;
+
+  await prisma.preselectionSession.update({
+    where: { id: preselectionId },
+    data: {
+      status: 'IN_PROGRESS',
+      pausedAt: null,
+      totalPauseHours: Math.round(((ps.totalPauseHours ?? 0) + additionalPauseHours) * 100) / 100,
+    },
+  });
+
+  revalidateEmpaque();
+}
+
+export async function updatePreselectionAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const preselectionId = String(formData.get('preselectionId') || '').trim();
+  const notes = String(formData.get('notes') || '').trim() || null;
+  const discardKg = Number(formData.get('discardKg') || 0);
+
+  if (!preselectionId) throw new Error('ID de preselección requerido.');
+
+  const ps = await prisma.preselectionSession.findFirst({
+    where: { id: preselectionId, tenantId: session.tenantId },
+  });
+  if (!ps) throw new Error('Preselección no encontrada.');
+
+  await prisma.preselectionSession.update({
+    where: { id: preselectionId },
+    data: { notes, discardKg },
   });
 
   revalidateEmpaque();
@@ -299,15 +509,11 @@ export async function createChamberAction(formData: FormData) {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
   const name = String(formData.get('name') || '').trim();
-  const type = String(formData.get('type') || 'ETHYLENE') as 'ETHYLENE' | 'COLD';
-  const capacity = Number(formData.get('capacity') || 30);
-  const temperature = formData.get('temperature') ? Number(formData.get('temperature')) : null;
-  const humidity = formData.get('humidity') ? Number(formData.get('humidity')) : null;
 
   if (!name) throw new Error('Nombre de cámara requerido.');
 
   await prisma.chamber.create({
-    data: { tenantId: session.tenantId, name, type, capacity, temperature, humidity },
+    data: { tenantId: session.tenantId, name },
   });
 
   revalidateEmpaque();
@@ -344,9 +550,53 @@ export async function egressBinFromChamberAction(binId: string) {
   await prisma.packingBin.update({
     where: { id: binId },
     data: {
-      chamberId: null,
       chamberExitDate: new Date(),
       status: 'READY_FOR_PROCESS',
+    },
+  });
+
+  revalidateEmpaque();
+}
+
+export async function undoIngressAction(binId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const bin = await prisma.packingBin.findFirst({
+    where: { id: binId, tenantId: session.tenantId, status: 'IN_CHAMBER' },
+  });
+  if (!bin) throw new Error('Bin no encontrado en cámara.');
+
+  await prisma.packingBin.update({
+    where: { id: binId },
+    data: {
+      chamberId: null,
+      chamberEntryDate: null,
+      status: 'READY_FOR_PROCESS',
+    },
+  });
+
+  revalidateEmpaque();
+}
+
+export async function undoEgressAction(binId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const bin = await prisma.packingBin.findFirst({
+    where: {
+      id: binId,
+      tenantId: session.tenantId,
+      status: 'READY_FOR_PROCESS',
+      chamberExitDate: { not: null },
+      chamberId: { not: null },
+    },
+  });
+  if (!bin) throw new Error('No se puede deshacer el egreso de este bin.');
+
+  await prisma.packingBin.update({
+    where: { id: binId },
+    data: {
+      chamberExitDate: null,
+      status: 'IN_CHAMBER',
     },
   });
 
@@ -371,26 +621,6 @@ export async function registerChamberTaskAction(formData: FormData) {
 
   await prisma.chamberTask.create({
     data: { chamberId, type, description, cost },
-  });
-
-  revalidateEmpaque();
-}
-
-export async function updateChamberSettingsAction(formData: FormData) {
-  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
-
-  const chamberId = String(formData.get('chamberId') || '').trim();
-  const temperature = formData.get('temperature') ? Number(formData.get('temperature')) : null;
-  const humidity = formData.get('humidity') ? Number(formData.get('humidity')) : null;
-
-  const chamber = await prisma.chamber.findFirst({
-    where: { id: chamberId, tenantId: session.tenantId },
-  });
-  if (!chamber) throw new Error('Cámara no encontrada.');
-
-  await prisma.chamber.update({
-    where: { id: chamberId },
-    data: { temperature, humidity },
   });
 
   revalidateEmpaque();
@@ -490,8 +720,13 @@ export async function finalizeProcessSessionAction(processSessionId: string) {
   if (!ps) throw new Error('Sesión de proceso no encontrada.');
 
   const now = new Date();
-  const durationMs = now.getTime() - ps.startTime.getTime();
-  const durationHours = Math.round((durationMs / 3600000) * 100) / 100;
+  const totalMs = now.getTime() - ps.startTime.getTime();
+  let totalPauseMs = (ps.totalPauseHours ?? 0) * 3600000;
+  if (ps.status === 'PAUSED' && ps.pausedAt) {
+    totalPauseMs += now.getTime() - ps.pausedAt.getTime();
+  }
+  const activeMs = totalMs - totalPauseMs;
+  const durationHours = Math.round((activeMs / 3600000) * 100) / 100;
 
   await prisma.processSession.update({
     where: { id: processSessionId },
@@ -499,7 +734,74 @@ export async function finalizeProcessSessionAction(processSessionId: string) {
       status: 'COMPLETED',
       endTime: now,
       totalDurationHours: durationHours,
+      totalPauseHours: Math.round((totalPauseMs / 3600000) * 100) / 100,
+      pausedAt: null,
     },
+  });
+
+  revalidateEmpaque();
+}
+
+export async function pauseProcessSessionAction(processSessionId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const ps = await prisma.processSession.findFirst({
+    where: { id: processSessionId, tenantId: session.tenantId, status: 'IN_PROGRESS' },
+  });
+  if (!ps) throw new Error('Sesión no encontrada o no está en curso.');
+
+  await prisma.processSession.update({
+    where: { id: processSessionId },
+    data: {
+      status: 'PAUSED',
+      pausedAt: new Date(),
+      pauseCount: { increment: 1 },
+    },
+  });
+
+  revalidateEmpaque();
+}
+
+export async function resumeProcessSessionAction(processSessionId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const ps = await prisma.processSession.findFirst({
+    where: { id: processSessionId, tenantId: session.tenantId, status: 'PAUSED' },
+  });
+  if (!ps) throw new Error('Sesión no encontrada o no está pausada.');
+
+  const now = new Date();
+  const pauseDurationMs = ps.pausedAt ? now.getTime() - ps.pausedAt.getTime() : 0;
+  const additionalPauseHours = pauseDurationMs / 3600000;
+
+  await prisma.processSession.update({
+    where: { id: processSessionId },
+    data: {
+      status: 'IN_PROGRESS',
+      pausedAt: null,
+      totalPauseHours: Math.round(((ps.totalPauseHours ?? 0) + additionalPauseHours) * 100) / 100,
+    },
+  });
+
+  revalidateEmpaque();
+}
+
+export async function updateProcessSessionAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const processSessionId = String(formData.get('processSessionId') || '').trim();
+  const cleanDiscardKg = Number(formData.get('cleanDiscardKg') || 0);
+  const contaminatedDiscardKg = Number(formData.get('contaminatedDiscardKg') || 0);
+  const notes = String(formData.get('notes') || '').trim() || null;
+
+  const ps = await prisma.processSession.findFirst({
+    where: { id: processSessionId, tenantId: session.tenantId },
+  });
+  if (!ps) throw new Error('Sesión de proceso no encontrada.');
+
+  await prisma.processSession.update({
+    where: { id: processSessionId },
+    data: { cleanDiscardKg, contaminatedDiscardKg, notes },
   });
 
   revalidateEmpaque();
@@ -515,12 +817,16 @@ export async function createBoxAction(formData: FormData) {
   const caliber = String(formData.get('caliber') || '').trim();
   const category = String(formData.get('category') || '').trim();
   const packagingCode = String(formData.get('packagingCode') || '').trim() || null;
-  const destination = String(formData.get('destination') || 'MERCADO_INTERNO') as 'MERCADO_INTERNO' | 'EXPORTACION';
   const weightKg = Number(formData.get('weightKg') || 0);
+  const quantity = Math.max(1, Math.floor(Number(formData.get('quantity') || 1)));
   const processSessionId = String(formData.get('processSessionId') || '').trim() || null;
 
   if (!product || !caliber || !category || weightKg <= 0) {
     throw new Error('Complete los campos obligatorios de la caja.');
+  }
+
+  if (quantity > 100) {
+    throw new Error('No se pueden crear más de 100 cajas a la vez.');
   }
 
   const year = new Date().getFullYear();
@@ -528,11 +834,12 @@ export async function createBoxAction(formData: FormData) {
     where: { tenantId: session.tenantId, code: { startsWith: `C-${year}-` } },
     orderBy: { code: 'desc' },
   });
-  const seq = lastBox ? parseInt(lastBox.code.split('-')[2]) + 1 : 1;
-  const code = `C-${year}-${String(seq).padStart(5, '0')}`;
+  let seq = lastBox ? parseInt(lastBox.code.split('-')[2]) + 1 : 1;
 
-  await prisma.packingBox.create({
-    data: {
+  const boxes = [];
+  for (let i = 0; i < quantity; i++) {
+    const code = `C-${year}-${String(seq).padStart(5, '0')}`;
+    boxes.push({
       tenantId: session.tenantId,
       code,
       product,
@@ -540,11 +847,13 @@ export async function createBoxAction(formData: FormData) {
       caliber,
       category,
       packagingCode,
-      destination,
       weightKg,
       processSessionId,
-    },
-  });
+    });
+    seq++;
+  }
+
+  await prisma.packingBox.createMany({ data: boxes });
 
   revalidateEmpaque();
 }
@@ -556,6 +865,7 @@ export async function createPalletAction(formData: FormData) {
 
   const boxIdsJson = String(formData.get('boxIds') || '[]');
   const operatorName = String(formData.get('operatorName') || '').trim() || null;
+  const destination = String(formData.get('destination') || '').trim() || null;
   let boxIds: string[] = [];
   try { boxIds = JSON.parse(boxIdsJson); } catch { /* ignore */ }
 
@@ -571,7 +881,7 @@ export async function createPalletAction(formData: FormData) {
 
   await prisma.$transaction(async (tx) => {
     const pallet = await tx.pallet.create({
-      data: { tenantId: session.tenantId, number, code, operatorName },
+      data: { tenantId: session.tenantId, number, code, operatorName, destination },
     });
 
     await tx.packingBox.updateMany({
@@ -677,5 +987,105 @@ export async function updateDispatchStatusAction(dispatchId: string, status: str
     data: { status: status as 'PREPARING' | 'LOADED' | 'IN_TRANSIT' | 'DELIVERED' },
   });
 
+  revalidateEmpaque();
+}
+
+// ═══ Transport CRUD ═══
+
+export async function createTransportAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+  const name = String(formData.get('name') || '').trim();
+  if (!name) throw new Error('El nombre del transporte es obligatorio.');
+  if (name.length > 100) throw new Error('El nombre no puede superar los 100 caracteres.');
+
+  try {
+    await prisma.packingTransport.create({
+      data: { tenantId: session.tenantId, name },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new Error('Ya existe un transporte con ese nombre.');
+    }
+    throw err;
+  }
+
+  revalidateEmpaque();
+}
+
+export async function deleteTransportAction(transportId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const transport = await prisma.packingTransport.findFirst({
+    where: { id: transportId, tenantId: session.tenantId },
+  });
+  if (!transport) throw new Error('Transporte no encontrado.');
+
+  await prisma.packingTransport.delete({ where: { id: transportId } });
+  revalidateEmpaque();
+}
+
+// ═══ Process Destination CRUD ═══
+
+export async function createProcessDestinationAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+  const name = String(formData.get('name') || '').trim();
+  if (!name) throw new Error('El nombre del destino es obligatorio.');
+
+  try {
+    await prisma.processDestination.create({
+      data: { tenantId: session.tenantId, name },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new Error('Ya existe un destino con ese nombre.');
+    }
+    throw err;
+  }
+
+  revalidateEmpaque();
+}
+
+export async function deleteProcessDestinationAction(destinationId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const dest = await prisma.processDestination.findFirst({
+    where: { id: destinationId, tenantId: session.tenantId },
+  });
+  if (!dest) throw new Error('Destino no encontrado.');
+
+  await prisma.processDestination.delete({ where: { id: destinationId } });
+  revalidateEmpaque();
+}
+
+// ═══ Dispatch Client CRUD ═══
+
+export async function createDispatchClientAction(formData: FormData) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+  const name = String(formData.get('name') || '').trim();
+  if (!name) throw new Error('El nombre del cliente es obligatorio.');
+
+  try {
+    await prisma.dispatchClient.create({
+      data: { tenantId: session.tenantId, name },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new Error('Ya existe un cliente con ese nombre.');
+    }
+    throw err;
+  }
+
+  revalidateEmpaque();
+}
+
+export async function deleteDispatchClientAction(clientId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const client = await prisma.dispatchClient.findFirst({
+    where: { id: clientId, tenantId: session.tenantId },
+  });
+  if (!client) throw new Error('Cliente no encontrado.');
+
+  await prisma.dispatchClient.delete({ where: { id: clientId } });
   revalidateEmpaque();
 }
