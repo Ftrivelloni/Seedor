@@ -14,7 +14,6 @@
 | **Language** | TypeScript 5 (strict) | Path alias `@/*` → `./src/*` |
 | **Database** | PostgreSQL via Prisma 6 | `@prisma/client` + `@prisma/adapter-pg` |
 | **Auth** | Custom (no NextAuth) | HMAC-SHA256 session tokens, `scryptSync` passwords |
-| **Payments** | Stripe (subscriptions) | Webhooks, dynamic price IDs from product metadata |
 | **Email** | Resend | Invitation emails only |
 | **UI Components** | shadcn/ui (44 components) | In `src/components/dashboard/ui/` |
 | **Styling** | Tailwind CSS v4 | Via `@tailwindcss/postcss`; `oklch` color tokens in `globals.css` |
@@ -43,8 +42,7 @@ src/
 │   ├── forgot-password/page.tsx  # UI only (not implemented)
 │   ├── api/                      # API route handlers
 │   │   ├── auth/                 # login, register, logout, me, validate-invitation, accept-invitation
-│   │   ├── campo/tasks/          # PATCH task status
-│   │   └── stripe/               # create-checkout, subscription (CRUD), webhook
+│   │   └── campo/tasks/          # PATCH task status
 │   └── dashboard/                # Protected dashboard area
 │       ├── layout.tsx            # Wraps in AppLayout, calls requireAuthSession()
 │       ├── page.tsx              # Dashboard overview with widgets
@@ -65,12 +63,10 @@ src/
 ├── lib/
 │   ├── prisma.ts                 # Singleton PrismaClient (globalThis caching in dev)
 │   ├── resend.ts                 # Resend email client
-│   ├── stripe.ts                 # Stripe client
 │   ├── utils.ts                  # cn() helper (clsx + twMerge)
 │   ├── auth/                     # Auth utilities (see §4)
 │   ├── domain/inventory.ts       # Inventory movement domain logic
 │   ├── email/invitation-email.ts # HTML/text email builder for invitations
-│   ├── stripe/                   # config.ts (dynamic prices), helpers.ts, index.ts
 │   └── utils/format-relative-time.ts # Spanish relative time formatting
 ├── hooks/                        # useScrollAnimation, useStaggeredAnimation, useParallax
 ├── data/seedorData.ts            # Mock data for placeholder pages (523 lines)
@@ -150,7 +146,7 @@ interface AuthSession {
 ### Auth Flows
 
 ```
-Registration:  Form → /register/select-plan → Stripe Checkout → /register/success → POST /api/auth/register → auto-login → /dashboard
+Registration:  Form → /register/select-plan → POST /api/auth/register → auto-login → /dashboard
 Login:         Form → POST /api/auth/login → session cookie → /dashboard
 Invitation:    Email link → GET /api/auth/validate-invitation?token=xxx → form → POST /api/auth/accept-invitation → auto-login → /dashboard
 Logout:        POST /api/auth/logout → clear cookie → /login
@@ -385,21 +381,11 @@ export default function CampoError({
 | Method | Route | Auth | Purpose |
 |---|---|---|---|
 | POST | `/api/auth/login` | Public | Email/password login → session cookie |
-| POST | `/api/auth/register` | Public | Register user + tenant + Stripe + modules (transaction) |
+| POST | `/api/auth/register` | Public | Register user + tenant + modules (transaction) |
 | POST | `/api/auth/logout` | None | Clear session cookie |
 | GET | `/api/auth/me` | Session | Return current user info |
 | GET | `/api/auth/validate-invitation` | Public | Validate invitation token |
 | POST | `/api/auth/accept-invitation` | Public | Accept invitation, create user, auto-login |
-
-### Stripe Endpoints
-
-| Method | Route | Auth | Purpose |
-|---|---|---|---|
-| POST | `/api/stripe/create-checkout` | Public | Create Stripe Checkout session (pre-registration) |
-| GET | `/api/stripe/subscription` | Session | Get tenant subscription details |
-| POST | `/api/stripe/subscription/add-module` | ADMIN | Add optional module to subscription |
-| POST | `/api/stripe/subscription/remove-module` | ADMIN | Remove optional module from subscription |
-| POST | `/api/stripe/webhook` | Stripe signature | Process Stripe events (idempotent via StripeEvent table) |
 
 ### Other
 
@@ -429,32 +415,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { taskId
 
 ---
 
-## 7. Stripe Integration
-
-### Architecture
-
-- **No hardcoded Price IDs** — reads from Stripe Product metadata (`module=BASE|MACHINERY|PACKAGING|SALES`)
-- **5-minute in-memory cache** for price lookups (`src/lib/stripe/config.ts`)
-- **Mandatory modules**: DASHBOARD, USERS, WORKERS, FIELD, INVENTORY, SETTINGS (included in base price)
-- **Optional modules**: MACHINERY, PACKAGING, SALES (individual subscription items)
-
-### Subscription Flow
-
-```
-1. User fills registration form → selects optional modules
-2. POST /api/stripe/create-checkout → Stripe Checkout Session (subscription mode)
-3. Stripe checkout → redirect to /register/success
-4. POST /api/auth/register → creates Tenant + User + Membership + ModuleSettings in transaction
-5. Stripe webhook (invoice.payment_succeeded) → activates subscription, syncs modules
-```
-
-### Webhook Idempotency
-
-Uses `StripeEvent` model in DB. Each webhook checks if event ID was already processed before acting.
-
----
-
-## 8. Module Details
+## 7. Module Details
 
 ### Implemented Modules
 
@@ -638,8 +599,6 @@ const code = `PREFIX-${year}-${String(nextNumber).padStart(4, '0')}`;
 | `DIRECT_URL` | PostgreSQL direct connection (for migrations) |
 | `SESSION_SECRET` | HMAC key for session token signing |
 | `RESEND_API_KEY` | Resend email API key |
-| `STRIPE_SECRET_KEY` | Stripe API secret key |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
 | `NEXT_PUBLIC_APP_URL` | Application base URL (for invitation email links) |
 
 ---

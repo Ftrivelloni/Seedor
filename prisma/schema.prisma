@@ -12,8 +12,6 @@ model Tenant {
   id                        String                     @id @default(cuid())
   name                      String
   slug                      String                     @unique
-  stripeCustomerId          String?                    @unique
-  stripeSubscriptionId      String?                    @unique
   subscriptionStatus        SubscriptionStatus         @default(INACTIVE)
   planInterval              PlanInterval               @default(MONTHLY)
   currentPeriodEnd          DateTime?
@@ -224,25 +222,25 @@ model LotCrop {
 }
 
 model Worker {
-  id              String              @id @default(cuid())
-  tenantId        String
-  firstName       String
-  lastName        String
-  dni             String
-  phone           String
-  email           String?
-  paymentType     WorkerPaymentType
-  functionType    String
-  hourlyRate      Float?
-  taskRate        Float?
-  fixedSalary     Float?
-  paymentStatus   WorkerPaymentStatus @default(PENDING)
-  active          Boolean             @default(true)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  taskAssignments TaskAssignment[]
-  workLogs        TaskWorkLog[]
-  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                  String               @id @default(cuid())
+  tenantId            String
+  firstName           String
+  lastName            String
+  dni                 String
+  phone               String
+  email               String?
+  paymentType         WorkerPaymentType
+  functionType        String
+  hourlyRate          Float?
+  taskRate            Float?
+  fixedSalary         Float?
+  paymentStatus       WorkerPaymentStatus  @default(PENDING)
+  active              Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  taskAssignments     TaskAssignment[]
+  workLogs            TaskWorkLog[]
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   preselectionWorkers PreselectionWorker[]
 
   @@unique([tenantId, dni])
@@ -416,29 +414,15 @@ model DashboardPreference {
 }
 
 model TenantModuleSetting {
-  id                      String    @id @default(cuid())
-  tenantId                String
-  module                  ModuleKey
-  enabled                 Boolean   @default(true)
-  stripePriceId           String?
-  stripeSubscriptionItemId String?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-  tenant                  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id        String    @id @default(cuid())
+  tenantId  String
+  module    ModuleKey
+  enabled   Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, module])
-}
-
-// ═══════════════════════════════════════════════════════
-// STRIPE IDEMPOTENCY — prevents duplicate webhook processing
-// ═══════════════════════════════════════════════════════
-
-model StripeEvent {
-  id            String   @id // Stripe event ID (evt_xxx)
-  type          String
-  processedAt   DateTime @default(now())
-
-  @@index([type])
 }
 
 enum InvitationStatus {
@@ -491,12 +475,12 @@ enum ExtraordinaryItemStatus {
 }
 
 enum SubscriptionStatus {
-  INACTIVE       // No subscription yet
-  TRIALING       // In free trial
-  ACTIVE         // Paid and active
-  PAST_DUE       // Payment failed, grace period
-  CANCELED       // Subscription canceled
-  UNPAID         // Multiple payment failures
+  INACTIVE // No subscription yet
+  TRIALING // In free trial
+  ACTIVE // Paid and active
+  PAST_DUE // Payment failed, grace period
+  CANCELED // Subscription canceled
+  UNPAID // Multiple payment failures
 }
 
 enum PlanInterval {
@@ -542,8 +526,6 @@ enum ProcessSessionStatus {
   COMPLETED
 }
 
-
-
 enum PalletStatus {
   ON_FLOOR
   DISPATCHED
@@ -569,61 +551,61 @@ model PackingTransport {
 }
 
 model PackingTruckEntry {
-  id            String   @id @default(cuid())
-  tenantId      String
-  remitoNumber  String
-  dtv           String
-  transport     String
-  chassis       String?
-  trailer       String?
-  driverName    String
-  driverDni     String
-  operatorId    String?
-  producerUnit  String?
-  fieldOrigin   String?
-  entryDate     DateTime @default(now())
-  status        String   @default("PENDING")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  bins          PackingBin[]
+  id           String       @id @default(cuid())
+  tenantId     String
+  remitoNumber String
+  dtv          String
+  transport    String
+  chassis      String?
+  trailer      String?
+  driverName   String
+  driverDni    String
+  operatorId   String?
+  producerUnit String?
+  fieldOrigin  String?
+  entryDate    DateTime     @default(now())
+  status       String       @default("PENDING")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bins         PackingBin[]
 
   @@index([tenantId, entryDate])
 }
 
 model PackingBin {
-  id               String    @id @default(cuid())
-  tenantId         String
-  code             String
-  binIdentifier    String?
-  fieldName        String
-  fruitType        String
-  lotName          String
-  contractor       String?
-  harvestType      String?
-  binType          String?
-  emptyWeight      Float?
-  netWeight        Float
-  isTrazable       Boolean   @default(true)
-  status           BinStatus @default(IN_YARD)
-  truckEntryId     String?
-  preselectionId   String?
-  internalLot      String?
-  fruitColor       String?
-  fruitQuality     String?
-  caliber          String?
-  chamberId        String?
-  chamberEntryDate DateTime?
-  chamberExitDate  DateTime?
-  parentBinId      String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  truckEntry       PackingTruckEntry? @relation(fields: [truckEntryId], references: [id])
-  preselection     PreselectionSession? @relation("PreselectionOutputBins", fields: [preselectionId], references: [id])
-  chamber          Chamber?  @relation(fields: [chamberId], references: [id])
-  parentBin        PackingBin? @relation("BinHierarchy", fields: [parentBinId], references: [id])
-  childBins        PackingBin[] @relation("BinHierarchy")
+  id                    String               @id @default(cuid())
+  tenantId              String
+  code                  String
+  binIdentifier         String?
+  fieldName             String
+  fruitType             String
+  lotName               String
+  contractor            String?
+  harvestType           String?
+  binType               String?
+  emptyWeight           Float?
+  netWeight             Float
+  isTrazable            Boolean              @default(true)
+  status                BinStatus            @default(IN_YARD)
+  truckEntryId          String?
+  preselectionId        String?
+  internalLot           String?
+  fruitColor            String?
+  fruitQuality          String?
+  caliber               String?
+  chamberId             String?
+  chamberEntryDate      DateTime?
+  chamberExitDate       DateTime?
+  parentBinId           String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  tenant                Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  truckEntry            PackingTruckEntry?   @relation(fields: [truckEntryId], references: [id])
+  preselection          PreselectionSession? @relation("PreselectionOutputBins", fields: [preselectionId], references: [id])
+  chamber               Chamber?             @relation(fields: [chamberId], references: [id])
+  parentBin             PackingBin?          @relation("BinHierarchy", fields: [parentBinId], references: [id])
+  childBins             PackingBin[]         @relation("BinHierarchy")
   preselectionInputBins PreselectionBin[]
   processInputBins      ProcessBin[]
 
@@ -632,23 +614,23 @@ model PackingBin {
 }
 
 model PreselectionSession {
-  id                 String              @id @default(cuid())
+  id                 String                     @id @default(cuid())
   tenantId           String
   code               String
-  status             PreselectionStatus  @default(IN_PROGRESS)
-  startTime          DateTime            @default(now())
+  status             PreselectionStatus         @default(IN_PROGRESS)
+  startTime          DateTime                   @default(now())
   endTime            DateTime?
   pausedAt           DateTime?
   totalDurationHours Float?
-  pauseCount         Int                 @default(0)
-  totalPauseHours    Float?              @default(0)
-  discardKg          Float               @default(0)
+  pauseCount         Int                        @default(0)
+  totalPauseHours    Float?                     @default(0)
+  discardKg          Float                      @default(0)
   notes              String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  tenant             Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   inputBins          PreselectionBin[]
-  outputBins         PackingBin[]        @relation("PreselectionOutputBins")
+  outputBins         PackingBin[]               @relation("PreselectionOutputBins")
   workers            PreselectionWorker[]
   inputs             PreselectionInput[]
   outputConfig       PreselectionOutputConfig[]
@@ -706,16 +688,16 @@ model PreselectionInput {
 }
 
 model Chamber {
-  id          String       @id @default(cuid())
+  id          String        @id @default(cuid())
   tenantId    String
   name        String
-  type        String?      // e.g. "cold", "ethylene"
-  capacity    Int          @default(0)
+  type        String? // e.g. "cold", "ethylene"
+  capacity    Int           @default(0)
   temperature Float?
   humidity    Float?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   bins        PackingBin[]
   tasks       ChamberTask[]
 
@@ -783,7 +765,7 @@ model ProcessProduct {
 }
 
 model PackingBox {
-  id               String        @id @default(cuid())
+  id               String          @id @default(cuid())
   tenantId         String
   code             String
   product          String
@@ -794,11 +776,11 @@ model PackingBox {
   weightKg         Float
   processSessionId String?
   palletId         String?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  tenant           Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   processSession   ProcessSession? @relation(fields: [processSessionId], references: [id])
-  pallet           Pallet?       @relation(fields: [palletId], references: [id])
+  pallet           Pallet?         @relation(fields: [palletId], references: [id])
 
   @@unique([tenantId, code])
   @@index([tenantId, palletId])
@@ -823,7 +805,7 @@ model Pallet {
 }
 
 model Dispatch {
-  id              String         @id @default(cuid())
+  id              String           @id @default(cuid())
   tenantId        String
   code            String
   clientName      String
@@ -841,11 +823,11 @@ model Dispatch {
   licensePlate    String?
   departureDate   DateTime?
   departureTime   String?
-  status          DispatchStatus @default(PREPARING)
+  status          DispatchStatus   @default(PREPARING)
   observations    String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   pallets         DispatchPallet[]
 
   @@unique([tenantId, code])
