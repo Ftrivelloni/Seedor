@@ -16,6 +16,13 @@ model Tenant {
   planInterval              PlanInterval               @default(MONTHLY)
   currentPeriodEnd          DateTime?
   cancelAtPeriodEnd         Boolean                    @default(false)
+  // ── Mercado Pago Subscription Fields ──
+  mpCustomerId              String?
+  mpPreapprovalPlanId       String?
+  mpPreapprovalId           String?
+  mpPayerEmail              String?
+  mpLastPaymentId           String?
+  mpLastEventAt             DateTime?
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
   dashboardPreferences      DashboardPreference[]
