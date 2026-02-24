@@ -78,17 +78,17 @@ export default async function UsuariosPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <header className="flex items-start justify-between">
+      <header className="space-y-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Usuarios</h1>
-          <p className="text-sm text-gray-600">
+          <h1 className="text-xl md:text-2xl font-semibold text-gray-900">Usuarios</h1>
+          <p className="text-xs md:text-sm text-gray-600">
             Administrá accesos y permisos de tu empresa
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2" disabled>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" className="gap-2 hidden md:flex" disabled>
             <Settings className="h-4 w-4" />
             Roles y permisos
           </Button>
@@ -97,7 +97,7 @@ export default async function UsuariosPage({
       </header>
 
       {/* Search and Filters */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3">
         <form className="relative flex-1" action="/dashboard/usuarios">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
@@ -111,13 +111,13 @@ export default async function UsuariosPage({
           <input type="hidden" name="status" value={params.status || 'ALL'} />
         </form>
 
-        <form className="flex items-center gap-3" action="/dashboard/usuarios">
+        <form className="flex flex-wrap items-center gap-2" action="/dashboard/usuarios">
           <input type="hidden" name="q" value={params.q || ''} />
           <Select name="role" defaultValue={params.role || 'ALL'}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-full sm:w-[160px]">
               <SelectValue placeholder="Todos los roles" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" sideOffset={5} className="w-[var(--radix-select-trigger-width)]">
               <SelectItem value="ALL">Todos los roles</SelectItem>
               <SelectItem value="ADMIN">Administrador</SelectItem>
               <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
@@ -125,10 +125,10 @@ export default async function UsuariosPage({
           </Select>
 
           <Select name="status" defaultValue={params.status || 'ALL'}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-full sm:w-[140px]">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" sideOffset={5} className="w-[var(--radix-select-trigger-width)]">
               <SelectItem value="ALL">Todos</SelectItem>
               <SelectItem value="ACTIVE">Activo</SelectItem>
               <SelectItem value="INACTIVE">Inactivo</SelectItem>
@@ -139,12 +139,12 @@ export default async function UsuariosPage({
           <Button type="submit" variant="ghost" size="sm" className="hidden">
             Filtrar
           </Button>
-        </form>
 
-        <Button variant="outline" className="gap-2" disabled>
-          <Download className="h-4 w-4" />
-          Exportar
-        </Button>
+          <Button variant="outline" className="gap-2 hidden md:flex" disabled>
+            <Download className="h-4 w-4" />
+            Exportar
+          </Button>
+        </form>
       </div>
 
       {/* Pending Invitations */}

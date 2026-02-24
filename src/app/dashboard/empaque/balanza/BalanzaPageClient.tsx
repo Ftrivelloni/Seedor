@@ -16,6 +16,7 @@ import {
   Minus,
   Settings2,
 } from 'lucide-react';
+import { useIsMobile } from '@/hooks';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
 import { StateCard } from '@/components/dashboard/StateCard';
 import {

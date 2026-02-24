@@ -12,6 +12,7 @@ import {
   ChevronUp,
   Check,
 } from 'lucide-react';
+import { useIsMobile } from '@/hooks';
 import { Badge } from '@/components/dashboard/ui/badge';
 import { Button } from '@/components/dashboard/ui/button';
 import { Input } from '@/components/dashboard/ui/input';
@@ -78,6 +79,7 @@ export function InventoryPageClient({
   extraordinaryRequests,
   alerts,
 }: InventoryPageClientProps) {
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
 
   const lowStockCount = alerts.filter((a) => a.level === 'BAJO').length;
@@ -86,18 +88,18 @@ export function InventoryPageClient({
   const pendingExtraordinary = extraordinaryRequests.filter((r) => r.status === 'PENDING').length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* ── Header ── */}
-      <header className="flex items-start justify-between">
+      <header className="space-y-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Inventario</h1>
-          <p className="text-sm text-gray-600">
+          <h1 className="text-xl md:text-2xl font-semibold text-gray-900">Inventario</h1>
+          <p className="text-xs md:text-sm text-gray-600">
             Depósitos, insumos, movimientos, alertas de stock y pedidos extraordinarios.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <RegisterMovementModal warehouses={warehouses} items={items} />
-          <CreateItemModal />
+          {!isMobile && <CreateItemModal />}
           <CreateWarehouseModal />
         </div>
       </header>
