@@ -47,6 +47,9 @@ model Tenant {
   dispatches                Dispatch[]
   processDestinations       ProcessDestination[]
   dispatchClients           DispatchClient[]
+  // Maquinaria relations
+  machines                  Machine[]
+  machineMovements          MachineMovement[]
 }
 
 model User {
@@ -70,6 +73,7 @@ model User {
   invitedBy                 User?                      @relation("UserInvitations", fields: [invitedById], references: [id])
   invitedUsers              User[]                     @relation("UserInvitations")
   sentInvitations           Invitation[]               @relation("InvitationsSent")
+  createdMachineMovements   MachineMovement[]          @relation("MachineMovementCreatedBy")
 }
 
 model TenantUserMembership {
@@ -244,6 +248,7 @@ model Worker {
   workLogs        TaskWorkLog[]
   tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   preselectionWorkers PreselectionWorker[]
+  machineMovementWorkers MachineMovementWorker[]
 
   @@unique([tenantId, dni])
   @@index([tenantId])
@@ -304,6 +309,7 @@ model Warehouse {
   taskUsages           TaskInventoryUsage[]
   tenant               Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   stocks               WarehouseStock[]
+  machineUsages        MachineInventoryUsage[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -318,10 +324,11 @@ model InventoryItem {
   unit        String
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
-  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  movements   InventoryMovement[]
-  taskUsages  TaskInventoryUsage[]
-  stocks      WarehouseStock[]
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  movements     InventoryMovement[]
+  taskUsages    TaskInventoryUsage[]
+  stocks        WarehouseStock[]
+  machineUsages MachineInventoryUsage[]
 
   @@unique([tenantId, code])
   @@index([tenantId, name])
@@ -361,6 +368,7 @@ model InventoryMovement {
   sourceWarehouse        Warehouse?            @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id])
   tenant                 Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   taskUsage              TaskInventoryUsage?
+  machineUsage           MachineInventoryUsage?
 
   @@index([tenantId, createdAt])
   @@index([itemId])
@@ -884,4 +892,101 @@ model DispatchClient {
 
   @@unique([tenantId, name])
   @@index([tenantId])
+}
+
+// ═══════════════════════════════════════════════════════
+// MAQUINARIA MODULE MODELS
+// ═══════════════════════════════════════════════════════
+
+enum MachineMovementType {
+  USE
+  SERVICE
+  MAINTENANCE
+}
+
+model Machine {
+  id                   String            @id @default(cuid())
+  tenantId             String
+  name                 String
+  description          String?
+  type                 String
+  location             String?
+  imageUrl             String?
+  acquisitionDate      DateTime?
+  hourMeter            Float             @default(0)
+  totalCost            Float             @default(0)
+  serviceIntervalHours Float?
+  serviceIntervalDays  Int?
+  lastServiceAt        DateTime?
+  lastServiceHourMeter Float             @default(0)
+  active               Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  tenant               Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  movements            MachineMovement[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model MachineMovement {
+  id              String              @id @default(cuid())
+  tenantId        String
+  machineId       String
+  type            MachineMovementType
+  date            DateTime            @default(now())
+  description     String?
+  hoursUsed       Float?
+  cost            Float               @default(0)
+  notes           String?
+  createdByUserId String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  machine         Machine             @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdByUser   User?               @relation("MachineMovementCreatedBy", fields: [createdByUserId], references: [id])
+  workers         MachineMovementWorker[]
+  spareParts      MachineMovementSparePart[]
+  inventoryUsages MachineInventoryUsage[]
+
+  @@index([machineId, date])
+  @@index([tenantId])
+}
+
+model MachineMovementWorker {
+  id         String          @id @default(cuid())
+  movementId String
+  workerId   String
+  cost       Float           @default(0)
+  movement   MachineMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  worker     Worker          @relation(fields: [workerId], references: [id])
+
+  @@unique([movementId, workerId])
+}
+
+model MachineMovementSparePart {
+  id         String          @id @default(cuid())
+  movementId String
+  name       String
+  quantity   Float           @default(1)
+  cost       Float           @default(0)
+  movement   MachineMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+
+  @@index([movementId])
+}
+
+model MachineInventoryUsage {
+  id                  String             @id @default(cuid())
+  movementId          String
+  itemId              String
+  warehouseId         String
+  quantity            Float
+  inventoryMovementId String?            @unique
+  createdAt           DateTime           @default(now())
+  movement            MachineMovement    @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  item                InventoryItem      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  warehouse           Warehouse          @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  inventoryMovement   InventoryMovement? @relation(fields: [inventoryMovementId], references: [id])
+
+  @@index([movementId])
 }
