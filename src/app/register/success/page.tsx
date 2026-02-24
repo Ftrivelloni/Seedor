@@ -3,10 +3,12 @@
 import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 interface RegistrationSuccess {
     companyName: string;
     selectedModules: string[];
+    subscriptionError?: string;
 }
 
 const MODULE_NAMES: Record<string, string> = {
@@ -16,8 +18,18 @@ const MODULE_NAMES: Record<string, string> = {
 };
 
 function SuccessContent() {
+    const searchParams = useSearchParams();
     const [isLoaded, setIsLoaded] = useState(false);
     const [successData, setSuccessData] = useState<RegistrationSuccess | null>(null);
+
+    // Mercado Pago redirect params
+    const mpStatus = searchParams.get('status') || searchParams.get('collection_status');
+    const preapprovalId = searchParams.get('preapproval_id');
+
+    const paymentApproved = mpStatus === 'authorized' || mpStatus === 'approved';
+    const paymentPending = mpStatus === 'pending';
+    const paymentFailed = mpStatus === 'rejected' || mpStatus === 'cancelled';
+    const hasPaymentInfo = !!mpStatus;
 
     useEffect(() => {
         const timer = setTimeout(() => setIsLoaded(true), 100);
@@ -55,14 +67,14 @@ function SuccessContent() {
             {/* Main Content */}
             <main className="flex-1 flex items-center justify-center px-6 py-12">
                 <div className="max-w-lg text-center">
-                    {/* Success Icon */}
+                    {/* Icon */}
                     <div
                         className={`mb-8 transition-all duration-700 ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`}
                         style={{ transitionDelay: '100ms' }}
                     >
-                        <div className="w-24 h-24 mx-auto bg-[#73AC01] rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(115,172,1,0.3)]">
+                        <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(115,172,1,0.3)] ${paymentFailed ? 'bg-amber-500' : 'bg-[#73AC01]'}`}>
                             <svg className="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={paymentFailed ? 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' : 'M5 13l4 4L19 7'} />
                             </svg>
                         </div>
                     </div>
@@ -72,7 +84,7 @@ function SuccessContent() {
                         className={`text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0A0908] mb-4 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                         style={{ transitionDelay: '200ms' }}
                     >
-                        ¡Bienvenido a Seedor!
+                        {paymentFailed ? '¡Cuenta creada!' : '¡Bienvenido a Seedor!'}
                     </h1>
 
                     {/* Subtitle */}
@@ -88,6 +100,67 @@ function SuccessContent() {
                             'Tu cuenta ha sido creada exitosamente.'
                         )}
                     </p>
+
+                    {/* Payment Status Banner */}
+                    {hasPaymentInfo && (
+                        <div
+                            className={`mb-6 rounded-xl border p-4 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'} ${
+                                paymentApproved
+                                    ? 'border-green-200 bg-green-50'
+                                    : paymentPending
+                                        ? 'border-amber-200 bg-amber-50'
+                                        : 'border-red-200 bg-red-50'
+                            }`}
+                            style={{ transitionDelay: '320ms' }}
+                        >
+                            <div className="flex items-center justify-center gap-2">
+                                {paymentApproved && (
+                                    <>
+                                        <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span className="text-sm font-medium text-green-700">Suscripción activada correctamente</span>
+                                    </>
+                                )}
+                                {paymentPending && (
+                                    <>
+                                        <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span className="text-sm font-medium text-amber-700">Tu pago está pendiente de confirmación</span>
+                                    </>
+                                )}
+                                {paymentFailed && (
+                                    <>
+                                        <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                        <span className="text-sm font-medium text-red-700">El pago no se completó. Podés suscribirte desde Configuración.</span>
+                                    </>
+                                )}
+                            </div>
+                            {preapprovalId && paymentApproved && (
+                                <p className="mt-2 text-xs text-center text-[#0A0908]/40">ID de suscripción: {preapprovalId}</p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Subscription Error (API failure, not MP redirect) */}
+                    {successData?.subscriptionError && !hasPaymentInfo && (
+                        <div
+                            className={`mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+                            style={{ transitionDelay: '320ms' }}
+                        >
+                            <div className="flex items-center justify-center gap-2">
+                                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="text-sm font-medium text-amber-700">
+                                    Tu cuenta fue creada pero no se pudo configurar el pago automático. Podés suscribirte desde Configuración.
+                                </span>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Selected Modules Summary */}
                     {successData?.selectedModules && successData.selectedModules.length > 0 && (
