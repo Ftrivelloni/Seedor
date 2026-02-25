@@ -54,9 +54,8 @@ src/
 │       ├── inventario/           # Warehouses, items, stock movements
 │       ├── empaque/              # 6-stage packing pipeline
 │       ├── configuracion/        # Settings (placeholder)
-│       ├── maquinaria/           # Machinery (placeholder, mock data)
+│       ├── maquinaria/           # Machine management, usage & service tracking
 │       ├── ventas/               # Sales (placeholder, mock data)
-│       ├── integraciones/        # Integrations (placeholder)
 │       └── widgets/              # Widget render components
 ├── components/
 │   ├── dashboard/                # AppLayout, StateCard, TaskKanbanBoard, EmptyState, etc.
@@ -94,6 +93,7 @@ Tenant (org) ←── TenantUserMembership ──→ User
   ├── Invitations
   ├── DashboardPreferences
   ├── TenantModuleSettings
+  ├── Machines ──→ MachineMovements ──→ Workers, SpareParts, InventoryUsages
   └── Empaque pipeline (TruckEntries, Bins, Sessions, Chambers, Boxes, Pallets, Dispatches)
 ```
 
@@ -106,6 +106,7 @@ Tenant (org) ←── TenantUserMembership ──→ User
 - `SubscriptionStatus`: `INACTIVE`, `TRIALING`, `ACTIVE`, `PAST_DUE`, `CANCELED`, `UNPAID`
 - `ModuleKey`: `DASHBOARD`, `USERS`, `WORKERS`, `FIELD`, `INVENTORY`, `MACHINERY`, `PACKAGING`, `SALES`, `SETTINGS`
 - `InventoryMovementType`: `INCOME`, `TRANSFER`, `CONSUMPTION`, `ADJUSTMENT`
+- `MachineMovementType`: `USE`, `SERVICE`, `MAINTENANCE`
 
 ---
 
@@ -466,6 +467,7 @@ Uses `StripeEvent` model in DB. Each webhook checks if event ID was already proc
 | **Usuarios** | `/dashboard/usuarios` | ADMIN only | User, Invitation, TenantUserMembership |
 | **Inventario** | `/dashboard/inventario` | ADMIN, SUPERVISOR | Warehouse, InventoryItem, WarehouseStock, InventoryMovement |
 | **Empaque** | `/dashboard/empaque` | ADMIN, SUPERVISOR | 6 sub-routes (see below) |
+| **Maquinaria** | `/dashboard/maquinaria` | ADMIN, SUPERVISOR | Machine, MachineMovement, MachineMovementWorker, MachineMovementSparePart, MachineInventoryUsage |
 
 ### Empaque Sub-Routes (Packing Pipeline)
 
@@ -478,14 +480,23 @@ Uses `StripeEvent` model in DB. Each webhook checks if event ID was already proc
 | **Pallets** | `/dashboard/empaque/pallets` | Box grouping into pallets |
 | **Despacho** | `/dashboard/empaque/despacho` | Dispatch management |
 
+### Maquinaria Features
+
+| Feature | Description |
+|---|---|
+| **Machine list** | Filterable/sortable table with KPI cards (fleet size, total cost, pending services) |
+| **Machine detail** | Info card with image, service progress bar, movement history table |
+| **Usage registration** | Hours tracking with optional inventory consumption (auto-deducts stock) |
+| **Service registration** | Resets service counters (hour meter + date), logs spare parts + workers |
+| **Maintenance registration** | Minor repairs, does NOT reset service counters, logs spare parts + workers |
+| **Service status** | Computed from `serviceIntervalHours` / `serviceIntervalDays` — OK, SERVICE_SOON (≥80%), SERVICE_OVERDUE (≥100%), NO_INTERVAL |
+
 ### Placeholder Modules (Not Yet Implemented)
 
 | Module | Route | Status |
 |---|---|---|
 | Configuración | `/dashboard/configuracion` | Client-only, static tabs |
-| Maquinaria | `/dashboard/maquinaria` | Client-only, mock data from `seedorData.ts` |
 | Ventas | `/dashboard/ventas` | Client-only, mock data |
-| Integraciones | `/dashboard/integraciones` | Static UI (n8n, WhatsApp, Supabase) |
 
 ---
 
@@ -684,6 +695,7 @@ npx vitest               # Run tests
 | Trabajadores | ✅ | ✅ |
 | Inventario | ✅ | ✅ |
 | Empaque | ✅ | ✅ |
+| Maquinaria | ✅ | ✅ |
 | Usuarios (user management) | ✅ | ❌ |
 | Ventas | ✅ | ❌ |
 | Configuración | ✅ | ❌ |
