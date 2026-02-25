@@ -132,19 +132,19 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row items-start gap-3 sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Gestión de Cámaras</h2>
-          <p className="text-sm text-gray-600">
+          <h2 className="text-lg md:text-xl font-semibold text-gray-900">Gestión de Cámaras</h2>
+          <p className="text-xs md:text-sm text-gray-600">
             {totalBins} bines en cámara · {totalKg.toLocaleString('es-AR')} kg
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => setShowCreateChamber(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 justify-center"
           >
             <Plus className="h-4 w-4" />
             Nueva Cámara
@@ -152,7 +152,7 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
           <button
             onClick={() => setShowTaskModal(true)}
             disabled={chambers.length === 0}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed justify-center"
           >
             <ClipboardList className="h-4 w-4" />
             Registrar Tarea
@@ -160,7 +160,7 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
           <button
             onClick={() => setShowIngressModal(true)}
             disabled={chambers.length === 0}
-            className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed justify-center"
           >
             <Plus className="h-4 w-4" />
             Ingresar Bines
@@ -532,7 +532,7 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
 
       {/* Create Chamber Modal */}
       <Dialog open={showCreateChamber} onOpenChange={setShowCreateChamber}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Warehouse className="h-5 w-5 text-green-600" />
@@ -584,7 +584,7 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
 
       {/* Ingress Bins Modal */}
       <Dialog open={showIngressModal} onOpenChange={setShowIngressModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="h-5 w-5 text-green-600" />
@@ -681,7 +681,7 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
 
       {/* Register Task Modal */}
       <Dialog open={showTaskModal} onOpenChange={setShowTaskModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardList className="h-5 w-5 text-gray-600" />

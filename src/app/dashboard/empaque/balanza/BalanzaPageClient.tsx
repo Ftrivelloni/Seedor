@@ -196,16 +196,16 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
   const totalBinDrafts = binDrafts.reduce((acc, d) => acc + d.quantity, 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row items-start gap-3 sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Balanza - Ingreso de Fruta</h2>
-          <p className="text-sm text-gray-600">Registro de camiones y creación de bines para trazabilidad</p>
+          <h2 className="text-lg md:text-xl font-semibold text-gray-900">Balanza - Ingreso de Fruta</h2>
+          <p className="text-xs md:text-sm text-gray-600">Registro de camiones y creación de bines para trazabilidad</p>
         </div>
         <button
           onClick={() => setShowNewEntryModal(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition-colors"
+          className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition-colors w-full sm:w-auto justify-center"
         >
           <Plus className="h-4 w-4" />
           Nuevo Ingreso
@@ -221,7 +221,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
       </section>
 
       {/* Search & Filters */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
@@ -235,7 +235,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm w-full sm:w-auto"
         >
           <option value="">Todos los estados</option>
           <option value="PENDING">Pendiente</option>
@@ -404,7 +404,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
 
       {/* ═══ Entry Detail Modal ═══ */}
       <Dialog open={showEntryDetail} onOpenChange={setShowEntryDetail}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Truck className="h-5 w-5 text-green-600" />
@@ -413,7 +413,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
           </DialogHeader>
           {selectedEntry && (
             <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">Remito</p>
                   <p className="font-medium text-gray-900">{selectedEntry.remitoNumber}</p>
@@ -497,7 +497,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
 
       {/* ═══ Bin Detail Modal ═══ */}
       <Dialog open={showBinDetail} onOpenChange={setShowBinDetail}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="h-5 w-5 text-green-600" />
@@ -514,7 +514,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
                   {binStatusLabels[selectedBin.status] || selectedBin.status}
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-gray-500">Campo</p>
                   <p className="font-medium text-gray-900">{selectedBin.fieldName}</p>
@@ -581,7 +581,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
 
       {/* ═══ Edit Entry Modal ═══ */}
       <Dialog open={showEditEntry} onOpenChange={setShowEditEntry}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="h-5 w-5 text-green-600" />
@@ -602,7 +602,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
               }}
               className="space-y-4"
             >
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Número de Remito *</label>
                   <input name="remitoNumber" defaultValue={selectedEntry.remitoNumber} required className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
@@ -612,7 +612,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
                   <input name="dtv" defaultValue={selectedEntry.dtv} required className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Transporte *</label>
                   <select name="transport" defaultValue={selectedEntry.transport} required className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
@@ -632,7 +632,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Patente Chasis</label>
                   <input name="chassis" defaultValue={selectedEntry.chassis || ''} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
@@ -642,7 +642,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
                   <input name="trailer" defaultValue={selectedEntry.trailer || ''} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Chofer *</label>
                   <input name="driverName" defaultValue={selectedEntry.driverName} required className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
@@ -666,7 +666,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
 
       {/* New Truck Entry Modal */}
       <Dialog open={showNewEntryModal} onOpenChange={setShowNewEntryModal}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Truck className="h-5 w-5 text-green-600" />
@@ -691,7 +691,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
             }}
             className="space-y-4"
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Número de Remito *</label>
                 <input name="remitoNumber" placeholder="R-2024-XXXX" required className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
@@ -701,7 +701,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
                 <input name="dtv" placeholder="DTV-XXXXX" required className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Transporte *</label>
                 <div className="flex gap-2">
@@ -722,7 +722,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Patente Chasis</label>
                 <input name="chassis" placeholder="ABC-123" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
@@ -732,7 +732,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
                 <input name="trailer" placeholder="XYZ-456" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Chofer *</label>
                 <input name="driverName" placeholder="Nombre completo" required className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
@@ -756,7 +756,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
 
       {/* ═══ Batch Bin Creation Modal ═══ */}
       <Dialog open={showBinModal} onOpenChange={setShowBinModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="h-5 w-5 text-green-600" />
@@ -795,7 +795,7 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-0.5">Campo *</label>
                       <select value={draft.fieldName} onChange={(e) => updateBinDraft(idx, 'fieldName', e.target.value)} className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
