@@ -1,22 +1,21 @@
 import { prisma } from '@/lib/prisma';
+import type { ModuleKey } from '@prisma/client';
 
 // ── Pricing Constants ──
 const BASE_PRICE_USD = 200;
 const MODULE_PRICE_USD = 20;
 
-/**
- * Calculates the monthly subscription price for a tenant.
- *
- * Formula: $200 USD base + ($20 USD × enabled modules)
- *
- * @param tenantId - The tenant to calculate pricing for
- * @returns Object with pricing breakdown and total
- */
+/** Modules that are NOT included in the base plan — each adds $20 USD/month. */
+const OPTIONAL_MODULES: ModuleKey[] = ['PACKAGING', 'MACHINERY', 'SALES'];
+
 export async function calculateSubscriptionPrice(tenantId: string) {
+  // Only count optional modules — base modules (DASHBOARD, USERS, FIELD,
+  // INVENTORY, WORKERS) are already included in the $200 USD base price.
   const enabledModules = await prisma.tenantModuleSetting.findMany({
     where: {
       tenantId,
       enabled: true,
+      module: { in: OPTIONAL_MODULES },
     },
     select: {
       module: true,

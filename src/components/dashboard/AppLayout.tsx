@@ -22,13 +22,15 @@ import {
   Users,
   Briefcase,
 } from 'lucide-react';
-import type { UserRole } from '@prisma/client';
+import type { UserRole, ModuleKey } from '@prisma/client';
 
 type MenuItem = {
   icon: React.ElementType;
   label: string;
   path: string;
   adminOnly?: boolean;
+  /** If set, this item is only visible when the module is enabled */
+  moduleKey?: ModuleKey;
 };
 
 const baseMenuItems: MenuItem[] = [
@@ -37,10 +39,10 @@ const baseMenuItems: MenuItem[] = [
   { icon: Map, label: 'Campo', path: '/dashboard/campo' },
   { icon: Package, label: 'Inventario', path: '/dashboard/inventario' },
   { icon: Briefcase, label: 'Trabajadores', path: '/dashboard/trabajadores' },
-  { icon: Truck, label: 'Maquinaria', path: '/dashboard/maquinaria' },
-  { icon: Package, label: 'Empaque', path: '/dashboard/empaque' },
-  { icon: ShoppingCart, label: 'Ventas', path: '/dashboard/ventas', adminOnly: true },
-  { icon: Settings, label: 'Configuración', path: '/dashboard/configuracion', adminOnly: true },
+  { icon: Truck, label: 'Maquinaria', path: '/dashboard/maquinaria', moduleKey: 'MACHINERY' },
+  { icon: Package, label: 'Empaque', path: '/dashboard/empaque', moduleKey: 'PACKAGING' },
+  { icon: ShoppingCart, label: 'Ventas', path: '/dashboard/ventas', adminOnly: true, moduleKey: 'SALES' },
+  { icon: Settings, label: 'Configuración', path: '/dashboard/configuracion' },
   { icon: Zap, label: 'Integraciones', path: '/dashboard/integraciones' },
 ];
 
@@ -51,9 +53,11 @@ interface AppLayoutProps {
     lastName: string;
     role: UserRole;
   };
+  /** Module keys that are currently enabled for the tenant */
+  enabledModules?: ModuleKey[];
 }
 
-export function AppLayout({ children, user }: AppLayoutProps) {
+export function AppLayout({ children, user, enabledModules }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -62,8 +66,15 @@ export function AppLayout({ children, user }: AppLayoutProps) {
   const [headerUserMenuOpen, setHeaderUserMenuOpen] = useState(false);
 
   const menuItems = useMemo(
-    () => baseMenuItems.filter((item) => !(item.adminOnly && user.role !== 'ADMIN')),
-    [user.role]
+    () =>
+      baseMenuItems.filter((item) => {
+        // Hide admin-only items for non-admins
+        if (item.adminOnly && user.role !== 'ADMIN') return false;
+        // Hide optional modules that are disabled
+        if (item.moduleKey && enabledModules && !enabledModules.includes(item.moduleKey)) return false;
+        return true;
+      }),
+    [user.role, enabledModules]
   );
 
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();

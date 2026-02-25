@@ -1,7 +1,12 @@
 @import "tailwindcss";
 
+/* Force light mode — dark: variants only apply with an explicit .dark class,
+   which is never added to <html>, so dark mode is permanently disabled. */
+@variant dark (&:where(.dark, .dark *));
+
 /* Theme CSS Variables for Dashboard Components */
 :root {
+  color-scheme: light;
   --font-size: 16px;
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);

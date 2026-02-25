@@ -1,196 +1,108 @@
-'use client';
+import { prisma } from '@/lib/prisma';
+import { requireAuthSession } from '@/lib/auth/auth';
+import { calculateSubscriptionPrice } from '@/lib/domain/subscription';
+import { ConfiguracionPageClient } from './ConfiguracionPageClient';
+import type { SerializedUser, SerializedTenant, SerializedModuleSetting, SubscriptionPricingInfo } from './types';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Settings, User, Bell, Shield } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
-import { Label } from '@/components/dashboard/ui/label';
-import { Input } from '@/components/dashboard/ui/input';
-import { Switch } from '@/components/dashboard/ui/switch';
-import { Button } from '@/components/dashboard/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/dashboard/ui/tabs';
-import { Separator } from '@/components/dashboard/ui/separator';
+export default async function ConfiguracionPage() {
+  const session = await requireAuthSession();
+  const isAdmin = session.role === 'ADMIN';
 
-export default function Configuracion() {
-    const router = useRouter();
-    const [checked, setChecked] = useState(false);
+  const [user, tenant, moduleSettings, pricing] = await Promise.all([
+    prisma.user.findUniqueOrThrow({
+      where: { id: session.userId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        role: true,
+        language: true,
+        dateFormat: true,
+        darkMode: true,
+        notifyEmail: true,
+        notifyWhatsApp: true,
+      },
+    }),
+    prisma.tenant.findUniqueOrThrow({
+      where: { id: session.tenantId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        cuit: true,
+        phone: true,
+        fiscalAddress: true,
+        subscriptionStatus: true,
+        planInterval: true,
+        currentPeriodEnd: true,
+        cancelAtPeriodEnd: true,
+        mpPayerEmail: true,
+        mpCardLastFour: true,
+        mpCardBrand: true,
+      },
+    }),
+    prisma.tenantModuleSetting.findMany({
+      where: { tenantId: session.tenantId },
+      select: { id: true, module: true, enabled: true },
+      orderBy: { module: 'asc' },
+    }),
+    calculateSubscriptionPrice(session.tenantId),
+  ]);
 
-    // Client-side role check — server-side guard is in layout/middleware
-    useEffect(() => {
-      fetch('/api/auth/me')
-        .then(r => r.json())
-        .then((data: { role?: string }) => {
-          if (data.role !== 'ADMIN') {
-            router.replace('/dashboard');
-          } else {
-            setChecked(true);
-          }
-        })
-        .catch(() => router.replace('/dashboard'));
-    }, [router]);
+  const serializedUser: SerializedUser = {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    language: user.language,
+    dateFormat: user.dateFormat,
+    darkMode: user.darkMode,
+    notifyEmail: user.notifyEmail,
+    notifyWhatsApp: user.notifyWhatsApp,
+  };
 
-    if (!checked) return null;
+  const serializedTenant: SerializedTenant = {
+    id: tenant.id,
+    name: tenant.name,
+    slug: tenant.slug,
+    cuit: tenant.cuit,
+    phone: tenant.phone,
+    fiscalAddress: tenant.fiscalAddress,
+    subscriptionStatus: tenant.subscriptionStatus,
+    planInterval: tenant.planInterval,
+    currentPeriodEnd: tenant.currentPeriodEnd?.toISOString() ?? null,
+    cancelAtPeriodEnd: tenant.cancelAtPeriodEnd,
+    mpPayerEmail: tenant.mpPayerEmail,
+    mpCardLastFour: tenant.mpCardLastFour,
+    mpCardBrand: tenant.mpCardBrand,
+  };
 
-    return (
-        <div className="mx-auto max-w-4xl space-y-6">
-            <div>
-                <h1 className="text-3xl font-semibold text-gray-900">Configuración</h1>
-                <p className="mt-1 text-sm text-gray-600">
-                    Personaliza tu experiencia en Seedor
-                </p>
-            </div>
+  const serializedModules: SerializedModuleSetting[] = moduleSettings.map((m) => ({
+    id: m.id,
+    module: m.module,
+    enabled: m.enabled,
+  }));
 
-            <Tabs defaultValue="perfil">
-                <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="perfil">
-                        <User className="mr-2 h-4 w-4" />
-                        Perfil
-                    </TabsTrigger>
-                    <TabsTrigger value="notificaciones">
-                        <Bell className="mr-2 h-4 w-4" />
-                        Notificaciones
-                    </TabsTrigger>
-                    <TabsTrigger value="seguridad">
-                        <Shield className="mr-2 h-4 w-4" />
-                        Seguridad
-                    </TabsTrigger>
-                    <TabsTrigger value="general">
-                        <Settings className="mr-2 h-4 w-4" />
-                        General
-                    </TabsTrigger>
-                </TabsList>
+  const pricingInfo: SubscriptionPricingInfo = {
+    basePriceUsd: pricing.basePriceUsd,
+    modulePriceUsd: pricing.modulePriceUsd,
+    enabledModuleCount: pricing.enabledModuleCount,
+    enabledModules: pricing.enabledModules,
+    modulesTotalUsd: pricing.modulesTotalUsd,
+    totalUsd: pricing.totalUsd,
+  };
 
-                <TabsContent value="perfil" className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Información personal</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="nombre">Nombre completo</Label>
-                                    <Input id="nombre" defaultValue="Juan Pérez" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Email</Label>
-                                    <Input id="email" type="email" defaultValue="juan.perez@seedor.com" />
-                                </div>
-                            </div>
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="telefono">Teléfono</Label>
-                                    <Input id="telefono" defaultValue="+54 351 1234567" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="rol">Rol</Label>
-                                    <Input id="rol" defaultValue="Encargado" disabled />
-                                </div>
-                            </div>
-                            <Separator />
-                            <Button>Guardar cambios</Button>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="notificaciones" className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Preferencias de notificaciones</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <p className="font-medium">Alertas de stock</p>
-                                    <p className="text-sm text-gray-600">
-                                        Recibir notificaciones cuando el stock esté bajo
-                                    </p>
-                                </div>
-                                <Switch defaultChecked />
-                            </div>
-                            <Separator />
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <p className="font-medium">Tareas próximas</p>
-                                    <p className="text-sm text-gray-600">
-                                        Recordatorios de tareas programadas
-                                    </p>
-                                </div>
-                                <Switch defaultChecked />
-                            </div>
-                            <Separator />
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <p className="font-medium">Mantenimiento maquinaria</p>
-                                    <p className="text-sm text-gray-600">
-                                        Alertas de service y mantenimientos
-                                    </p>
-                                </div>
-                                <Switch defaultChecked />
-                            </div>
-                            <Separator />
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <p className="font-medium">Ventas y pagos</p>
-                                    <p className="text-sm text-gray-600">
-                                        Notificaciones de órdenes y cobros
-                                    </p>
-                                </div>
-                                <Switch />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="seguridad" className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Seguridad de la cuenta</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="password-actual">Contraseña actual</Label>
-                                <Input id="password-actual" type="password" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="password-nueva">Nueva contraseña</Label>
-                                <Input id="password-nueva" type="password" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="password-confirmar">Confirmar contraseña</Label>
-                                <Input id="password-confirmar" type="password" />
-                            </div>
-                            <Separator />
-                            <Button>Cambiar contraseña</Button>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="general" className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Configuración general</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <p className="font-medium">Modo oscuro</p>
-                                    <p className="text-sm text-gray-600">
-                                        Activar tema oscuro en la interfaz
-                                    </p>
-                                </div>
-                                <Switch />
-                            </div>
-                            <Separator />
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <p className="font-medium">Idioma</p>
-                                    <p className="text-sm text-gray-600">Español (Argentina)</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
-        </div>
-    );
+  return (
+    <ConfiguracionPageClient
+      user={serializedUser}
+      tenant={serializedTenant}
+      moduleSettings={serializedModules}
+      pricing={pricingInfo}
+      isAdmin={isAdmin}
+    />
+  );
 }

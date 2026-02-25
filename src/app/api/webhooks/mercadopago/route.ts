@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { mpPreApproval } from '@/lib/mercadopago';
+import { calculateSubscriptionPrice } from '@/lib/domain/subscription';
 import type { SubscriptionStatus } from '@prisma/client';
 
 // ── Mapping: MP preapproval status → Seedor SubscriptionStatus ──
@@ -199,6 +200,14 @@ async function handlePreapprovalEvent(preapprovalId: string) {
 /**
  * Handles payment events associated with a subscription.
  * Updates mpLastPaymentId for idempotency tracking.
+ *
+ * **Post-payment price recalculation (deferred deactivation sync):**
+ * When a module is deactivated, the DB is updated immediately (the user loses
+ * access at once) but the MP `transaction_amount` is intentionally left
+ * unchanged so the current-period charge still covers the month the module
+ * was active.  After each successful payment we recalculate the correct
+ * amount based on the modules that are currently `enabled` and push it to
+ * MP — this is the only moment the price decrease takes effect.
  */
 async function handlePaymentEvent(paymentId: string) {
   if (!paymentId) return;
@@ -220,7 +229,7 @@ async function handlePaymentEvent(paymentId: string) {
   }
 
   const payment = await response.json();
-  const preapprovalId = payment.metadata?.preapproval_id;
+  const preapprovalId = payment.metadata?.preapproval_id ?? payment.preapproval_id;
 
   if (!preapprovalId) {
     // Not a subscription payment, skip
@@ -229,7 +238,7 @@ async function handlePaymentEvent(paymentId: string) {
 
   const tenant = await prisma.tenant.findFirst({
     where: { mpPreapprovalId: preapprovalId },
-    select: { id: true, mpLastPaymentId: true },
+    select: { id: true, mpLastPaymentId: true, subscriptionStatus: true, mpPreapprovalId: true },
   });
 
   if (!tenant) return;
@@ -237,13 +246,82 @@ async function handlePaymentEvent(paymentId: string) {
   // Idempotency: skip if we already processed this payment
   if (tenant.mpLastPaymentId === paymentId) return;
 
+  // Extract card data if present
+  const card = payment.card as Record<string, unknown> | undefined;
+  const cardLastFour = typeof card?.last_four_digits === 'string' ? card.last_four_digits : undefined;
+  const cardBrand = typeof payment.payment_method_id === 'string' ? (payment.payment_method_id as string) : undefined;
+
   await prisma.tenant.update({
     where: { id: tenant.id },
     data: {
       mpLastPaymentId: paymentId,
       mpLastEventAt: new Date(),
+      ...(cardLastFour && { mpCardLastFour: cardLastFour }),
+      ...(cardBrand && { mpCardBrand: cardBrand }),
     },
   });
 
-  console.log(`[MP Webhook] Payment ${paymentId} registrado para Tenant ${tenant.id}`);
+  console.log(`[MP Webhook] Payment ${paymentId} registrado para Tenant ${tenant.id}${cardLastFour ? ` (tarjeta ····${cardLastFour})` : ''}`);
+
+  // ── Post-payment price recalculation ──────────────────────────────
+  // Only recalculate for approved payments on active subscriptions.
+  // This is where deactivated-module price reductions finally take effect.
+  const paymentStatus: string | undefined = payment.status;
+
+  if (paymentStatus === 'approved' && tenant.mpPreapprovalId && tenant.subscriptionStatus === 'ACTIVE') {
+    console.log(`[MP Webhook] Pago aprobado para Tenant ${tenant.id} → recalculando precio de suscripción post-cobro...`);
+    try {
+      await recalculateSubscriptionPrice(tenant.id, tenant.mpPreapprovalId);
+    } catch (err) {
+      // Log but don't fail — the payment was already recorded successfully.
+      console.error(`[MP Webhook] Error recalculando precio post-pago para Tenant ${tenant.id}:`, err);
+    }
+  }
+}
+
+/**
+ * Recalculates the subscription price based on currently-enabled modules
+ * and updates the Mercado Pago preapproval's `transaction_amount`.
+ *
+ * Called after each successful payment so that any modules disabled during
+ * the previous cycle (whose cost was kept until now) get their price
+ * reduction applied for the *next* billing cycle.
+ *
+ * Formula:  $200 (base) + $20 × (enabled optional modules)
+ */
+async function recalculateSubscriptionPrice(tenantId: string, preapprovalId: string) {
+  const pricing = await calculateSubscriptionPrice(tenantId);
+
+  console.log(`[MP Webhook] recalculateSubscriptionPrice → Tenant ${tenantId}:`, {
+    enabledModules: pricing.enabledModules,
+    enabledCount: pricing.enabledModuleCount,
+    calculatedTotal: pricing.totalUsd,
+  });
+
+  // Fetch current MP amount to avoid a no-op update
+  const preapproval = await mpPreApproval.get({ id: preapprovalId });
+  const autoRecurring = preapproval.auto_recurring as Record<string, unknown> | undefined;
+  const currentAmount = typeof autoRecurring?.transaction_amount === 'number'
+    ? autoRecurring.transaction_amount
+    : 0;
+
+  if (currentAmount === pricing.totalUsd) {
+    console.log(
+      `[MP Webhook] Precio sin cambios para Tenant ${tenantId}: $${currentAmount}. Sin actualización en MP.`
+    );
+    return;
+  }
+
+  await mpPreApproval.update({
+    id: preapprovalId,
+    body: {
+      auto_recurring: {
+        transaction_amount: pricing.totalUsd,
+      },
+    } as unknown as Parameters<typeof mpPreApproval.update>[0]['body'],
+  });
+
+  console.log(
+    `[MP Webhook] Precio recalculado para Tenant ${tenantId}: $${currentAmount} → $${pricing.totalUsd} (${pricing.enabledModuleCount} módulo(s) opcional(es)).`
+  );
 }

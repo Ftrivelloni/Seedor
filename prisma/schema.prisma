@@ -23,6 +23,12 @@ model Tenant {
   mpPayerEmail              String?
   mpLastPaymentId           String?
   mpLastEventAt             DateTime?
+  mpCardLastFour            String?
+  mpCardBrand               String?
+  // ── Tenant Profile Fields ──
+  cuit                      String?
+  phone                     String?
+  fiscalAddress             String?
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
   dashboardPreferences      DashboardPreference[]
@@ -65,6 +71,12 @@ model User {
   status                    UserStatus                 @default(INVITED)
   lastAccessAt              DateTime?
   invitedById               String?
+  // ── User Preferences ──
+  language                  String                     @default("es")
+  dateFormat                String                     @default("dd/MM/yyyy")
+  darkMode                  Boolean                    @default(false)
+  notifyEmail               Boolean                    @default(true)
+  notifyWhatsApp            Boolean                    @default(false)
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
   dashboardPreferences      DashboardPreference[]
