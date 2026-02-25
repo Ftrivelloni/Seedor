@@ -41,32 +41,34 @@ export default function Configuracion() {
             </div>
 
             <Tabs defaultValue="perfil">
-                <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="perfil">
-                        <User className="mr-2 h-4 w-4" />
-                        Perfil
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 p-1">
+                    <TabsTrigger value="perfil" className="gap-1.5">
+                        <User className="h-4 w-4 shrink-0" />
+                        <span>Perfil</span>
                     </TabsTrigger>
-                    <TabsTrigger value="notificaciones">
-                        <Bell className="mr-2 h-4 w-4" />
-                        Notificaciones
+                    <TabsTrigger value="notificaciones" className="gap-1.5">
+                        <Bell className="h-4 w-4 shrink-0" />
+                        <span className="hidden xs:inline sm:inline">Notificaciones</span>
+                        <span className="sm:hidden">Notificaciones</span>
                     </TabsTrigger>
-                    <TabsTrigger value="seguridad">
-                        <Shield className="mr-2 h-4 w-4" />
-                        Seguridad
+                    <TabsTrigger value="seguridad" className="gap-1.5">
+                        <Shield className="h-4 w-4 shrink-0" />
+                        <span>Seguridad</span>
                     </TabsTrigger>
-                    <TabsTrigger value="general">
-                        <Settings className="mr-2 h-4 w-4" />
-                        General
+                    <TabsTrigger value="general" className="gap-1.5">
+                        <Settings className="h-4 w-4 shrink-0" />
+                        <span>General</span>
                     </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="perfil" className="space-y-6">
+                <TabsContent value="perfil" className="space-y-6 pt-7">
+                    <div className="mt-4 sm:mt-6">
                     <Card>
                         <CardHeader>
                             <CardTitle>Información personal</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="grid gap-4 md:grid-cols-2">
+                            <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label htmlFor="nombre">Nombre completo</Label>
                                     <Input id="nombre" defaultValue="Juan Pérez" />
@@ -76,7 +78,7 @@ export default function Configuracion() {
                                     <Input id="email" type="email" defaultValue="juan.perez@seedor.com" />
                                 </div>
                             </div>
-                            <div className="grid gap-4 md:grid-cols-2">
+                            <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label htmlFor="telefono">Teléfono</Label>
                                     <Input id="telefono" defaultValue="+54 351 1234567" />
@@ -90,9 +92,11 @@ export default function Configuracion() {
                             <Button>Guardar cambios</Button>
                         </CardContent>
                     </Card>
+                    </div>
                 </TabsContent>
 
-                <TabsContent value="notificaciones" className="space-y-6">
+                <TabsContent value="notificaciones" className="space-y-6 pt-7">
+                    <div className="mt-4 sm:mt-6">
                     <Card>
                         <CardHeader>
                             <CardTitle>Preferencias de notificaciones</CardTitle>
@@ -139,9 +143,11 @@ export default function Configuracion() {
                             </div>
                         </CardContent>
                     </Card>
+                    </div>
                 </TabsContent>
 
-                <TabsContent value="seguridad" className="space-y-6">
+                <TabsContent value="seguridad" className="space-y-6 pt-7">
+                    <div className="mt-4 sm:mt-6">
                     <Card>
                         <CardHeader>
                             <CardTitle>Seguridad de la cuenta</CardTitle>
@@ -163,9 +169,11 @@ export default function Configuracion() {
                             <Button>Cambiar contraseña</Button>
                         </CardContent>
                     </Card>
+                    </div>
                 </TabsContent>
 
-                <TabsContent value="general" className="space-y-6">
+                <TabsContent value="general" className="space-y-6 pt-7">
+                    <div className="mt-4 sm:mt-6">
                     <Card>
                         <CardHeader>
                             <CardTitle>Configuración general</CardTitle>
@@ -189,6 +197,7 @@ export default function Configuracion() {
                             </div>
                         </CardContent>
                     </Card>
+                    </div>
                 </TabsContent>
             </Tabs>
         </div>
