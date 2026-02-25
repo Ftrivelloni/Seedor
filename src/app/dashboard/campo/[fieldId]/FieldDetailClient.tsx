@@ -94,7 +94,7 @@ export function FieldDetailClient({ field, taskTypes, cropTypes, allFields, work
           <ChevronRight className="h-3.5 w-3.5" />
           <span className="text-gray-900 font-medium">{field.name}</span>
         </div>
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row items-start gap-3 sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">{field.name}</h1>
             <p className="text-sm text-gray-600">
@@ -102,7 +102,7 @@ export function FieldDetailClient({ field, taskTypes, cropTypes, allFields, work
               {field.description ? ` · ${field.description}` : ''}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/dashboard/campo"
               className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -147,8 +147,8 @@ export function FieldDetailClient({ field, taskTypes, cropTypes, allFields, work
       </section>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1">
             <button
               onClick={() => setViewMode('grid-large')}
@@ -209,14 +209,14 @@ export function FieldDetailClient({ field, taskTypes, cropTypes, allFields, work
           )}
         </div>
 
-        <div className="relative">
+        <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="search"
             placeholder="Buscar lote..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-64 rounded-lg border border-gray-300 pl-10 pr-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-shadow"
+            className="w-full rounded-lg border border-gray-300 pl-10 pr-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-shadow"
           />
         </div>
       </div>

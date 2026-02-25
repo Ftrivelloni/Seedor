@@ -93,33 +93,19 @@ export function CampoPageClient({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {isMobile ? (
-            <>
-              <CreateFieldModal />
-              <CreateTaskModal
-                fields={fields}
-                workers={workers}
-                inventoryItems={inventoryItems}
-                warehouses={warehouses}
-                taskTypes={taskTypes}
-              />
-              <CreateHarvestModal fields={fields} />
-            </>
-          ) : (
-            <>
-              <ManageCropTypesModal cropTypes={cropTypes} />
-              <ManageTaskTypesModal taskTypes={taskTypes} />
-              <CreateHarvestModal fields={fields} />
-              <CreateTaskModal
-                fields={fields}
-                workers={workers}
-                inventoryItems={inventoryItems}
-                warehouses={warehouses}
-                taskTypes={taskTypes}
-              />
-              <CreateFieldModal />
-            </>
-          )}
+          <>
+            <ManageCropTypesModal cropTypes={cropTypes} />
+            <ManageTaskTypesModal taskTypes={taskTypes} />
+            <CreateHarvestModal fields={fields} />
+            <CreateTaskModal
+              fields={fields}
+              workers={workers}
+              inventoryItems={inventoryItems}
+              warehouses={warehouses}
+              taskTypes={taskTypes}
+            />
+            <CreateFieldModal />
+          </>
         </div>
       </header>
 
