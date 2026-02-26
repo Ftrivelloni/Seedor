@@ -820,6 +820,24 @@ async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 # ═══════════════════════════════════════════════════════════
+# SYNC LOOP (replaces sync_service.py --daemon)
+# ═══════════════════════════════════════════════════════════
+
+async def _snapshot_refresh_loop() -> None:
+    """Periodically refresh snapshot from API (replaces sync_service.py --daemon)."""
+    SYNC_INTERVAL = int(os.environ.get("SEEDOR_SYNC_INTERVAL_SECONDS", "60"))
+    logger.info("📡 Snapshot sync loop started (every %ds)", SYNC_INTERVAL)
+    while True:
+        try:
+            success = _refresh_snapshot_from_api()
+            if success:
+                logger.info("📡 Snapshot refreshed OK")
+        except Exception as e:
+            logger.warning("📡 Snapshot refresh error: %s", e)
+        await asyncio.sleep(SYNC_INTERVAL)
+
+
+# ═══════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════
 
@@ -836,6 +854,7 @@ def main() -> None:
 
     async def _post_init(app: Application) -> None:
         app.create_task(_notification_poller(app))
+        app.create_task(_snapshot_refresh_loop())
 
     app = Application.builder().token(token).post_init(_post_init).build()
 
