@@ -99,7 +99,7 @@ export function InventoryPageClient({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <RegisterMovementModal warehouses={warehouses} items={items} />
-          {!isMobile && <CreateItemModal />}
+          <CreateItemModal />
           <CreateWarehouseModal />
         </div>
       </header>
@@ -141,7 +141,8 @@ export function InventoryPageClient({
 
       {/* ── Tabs ── */}
       <Tabs defaultValue="depositos" className="w-full">
-        <div className="flex items-center justify-between gap-4">
+        {/* Desktop: todo en una fila */}
+        <div className="hidden sm:flex items-center justify-between gap-4">
           <TabsList>
             <TabsTrigger value="depositos" className="gap-1.5">
               <WarehouseIcon className="h-4 w-4" />
@@ -174,7 +175,6 @@ export function InventoryPageClient({
               )}
             </TabsTrigger>
           </TabsList>
-
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
@@ -183,6 +183,55 @@ export function InventoryPageClient({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 w-64"
+            />
+          </div>
+        </div>
+        {/* Móvil: tabs principales arriba, secundarios y búsqueda abajo */}
+        <div className="flex flex-col gap-2 sm:hidden">
+          <TabsList className="w-full">
+            <TabsTrigger value="depositos" className="gap-1.5 flex-1">
+              <WarehouseIcon className="h-4 w-4" />
+              Depósitos
+            </TabsTrigger>
+            <TabsTrigger value="insumos" className="gap-1.5 flex-1">
+              <Package className="h-4 w-4" />
+              Insumos
+            </TabsTrigger>
+            <TabsTrigger value="movimientos" className="gap-1.5 flex-1">
+              <ArrowLeftRight className="h-4 w-4" />
+              Movimientos
+            </TabsTrigger>
+          </TabsList>
+          <div className="flex gap-2 w-full">
+            <TabsList className="w-full">
+              <TabsTrigger value="alertas" className="gap-1.5 flex-1">
+                <AlertTriangle className="h-4 w-4" />
+                Alertas
+                {alerts.length > 0 && (
+                  <Badge className="ml-1 bg-red-100 text-red-700 border-0 text-[10px] px-1.5">
+                    {alerts.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="extraordinarios" className="gap-1.5 flex-1">
+                <ListChecks className="h-4 w-4" />
+                Extraordinarios
+                {pendingExtraordinary > 0 && (
+                  <Badge className="ml-1 bg-amber-100 text-amber-700 border-0 text-[10px] px-1.5">
+                    {pendingExtraordinary}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input
+              type="search"
+              placeholder="Buscar..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 w-full"
             />
           </div>
         </div>
