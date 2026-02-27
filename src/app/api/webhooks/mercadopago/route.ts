@@ -194,7 +194,12 @@ async function handlePreapprovalEvent(preapprovalId: string) {
     },
   });
 
-  console.log(`[MP Webhook] Tenant ${tenant.id} actualizado: ${tenant.subscriptionStatus} → ${newStatus}`);
+  console.log(`[MP Webhook] Tenant ${tenant.id} actualizado:`, {
+    previousStatus: tenant.subscriptionStatus,
+    newStatus,
+    currentPeriodEnd: endDate ?? 'N/A',
+    mpPreapprovalId: preapprovalId,
+  });
 }
 
 /**
@@ -290,6 +295,19 @@ async function handlePaymentEvent(paymentId: string) {
  * Formula:  $200 (base) + $20 × (enabled optional modules)
  */
 async function recalculateSubscriptionPrice(tenantId: string, preapprovalId: string) {
+  // Fetch tenant data for period validation
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { currentPeriodEnd: true, name: true },
+  });
+
+  console.log('[MP Webhook] Validación de período antes de recalcular:', {
+    tenantId,
+    tenantName: tenant?.name,
+    currentPeriodEnd: tenant?.currentPeriodEnd?.toISOString() ?? 'N/A',
+    now: new Date().toISOString(),
+  });
+
   const pricing = await calculateSubscriptionPrice(tenantId);
 
   console.log(`[MP Webhook] recalculateSubscriptionPrice → Tenant ${tenantId}:`, {

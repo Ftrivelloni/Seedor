@@ -215,6 +215,12 @@ export async function updatePlanModulesAction(
       )
     );
 
+    console.log('[updatePlanModulesAction] TenantModuleSetting actualizado en DB:', {
+      tenantId: session.tenantId,
+      enabledModules,
+      timestamp: new Date().toISOString(),
+    });
+
     // ── 3. Recalculate the *logical* new total (for UI display) ──
     const pricing = await calculateSubscriptionPrice(session.tenantId);
 
