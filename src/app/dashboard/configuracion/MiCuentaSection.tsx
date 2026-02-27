@@ -197,13 +197,15 @@ function NotificationsCard({ user }: { user: SerializedUser }) {
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [notifyEmail, setNotifyEmail] = useState(user.notifyEmail);
-  const [notifyWhatsApp, setNotifyWhatsApp] = useState(user.notifyWhatsApp);
+  const [emailNotifications, setEmailNotifications] = useState(user.emailNotifications);
+  const [whatsappNotifications, setWhatsappNotifications] = useState(user.whatsappNotifications);
+  const [dailySummary, setDailySummary] = useState(user.dailySummary);
   const router = useRouter();
 
   function handleCancel() {
-    setNotifyEmail(user.notifyEmail);
-    setNotifyWhatsApp(user.notifyWhatsApp);
+    setEmailNotifications(user.emailNotifications);
+    setWhatsappNotifications(user.whatsappNotifications);
+    setDailySummary(user.dailySummary);
     setError(null);
     setIsEditing(false);
   }
@@ -211,8 +213,9 @@ function NotificationsCard({ user }: { user: SerializedUser }) {
   function handleSave() {
     setError(null);
     const formData = new FormData();
-    formData.set('notifyEmail', String(notifyEmail));
-    formData.set('notifyWhatsApp', String(notifyWhatsApp));
+    formData.set('emailNotifications', String(emailNotifications));
+    formData.set('whatsappNotifications', String(whatsappNotifications));
+    formData.set('dailySummary', String(dailySummary));
     startTransition(async () => {
       try {
         await updateNotificationsAction(formData);
@@ -251,11 +254,11 @@ function NotificationsCard({ user }: { user: SerializedUser }) {
               <p className="text-xs text-gray-500">Alertas y recordatorios por correo electrónico</p>
             </div>
             {!isEditing ? (
-              <span className={`text-sm font-medium ${notifyEmail ? 'text-green-700' : 'text-gray-400'}`}>
-                {notifyEmail ? 'Activado' : 'Desactivado'}
+              <span className={`text-sm font-medium ${emailNotifications ? 'text-green-700' : 'text-gray-400'}`}>
+                {emailNotifications ? 'Activado' : 'Desactivado'}
               </span>
             ) : (
-              <Switch checked={notifyEmail} onCheckedChange={setNotifyEmail} />
+              <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
             )}
           </div>
           <div className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
@@ -264,11 +267,24 @@ function NotificationsCard({ user }: { user: SerializedUser }) {
               <p className="text-xs text-gray-500">Alertas y recordatorios por WhatsApp</p>
             </div>
             {!isEditing ? (
-              <span className={`text-sm font-medium ${notifyWhatsApp ? 'text-green-700' : 'text-gray-400'}`}>
-                {notifyWhatsApp ? 'Activado' : 'Desactivado'}
+              <span className={`text-sm font-medium ${whatsappNotifications ? 'text-green-700' : 'text-gray-400'}`}>
+                {whatsappNotifications ? 'Activado' : 'Desactivado'}
               </span>
             ) : (
-              <Switch checked={notifyWhatsApp} onCheckedChange={setNotifyWhatsApp} />
+              <Switch checked={whatsappNotifications} onCheckedChange={setWhatsappNotifications} />
+            )}
+          </div>
+          <div className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Resumen Diario</p>
+              <p className="text-xs text-gray-500">Recibí un resumen diario de actividades</p>
+            </div>
+            {!isEditing ? (
+              <span className={`text-sm font-medium ${dailySummary ? 'text-green-700' : 'text-gray-400'}`}>
+                {dailySummary ? 'Activado' : 'Desactivado'}
+              </span>
+            ) : (
+              <Switch checked={dailySummary} onCheckedChange={setDailySummary} />
             )}
           </div>
         </div>

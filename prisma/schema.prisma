@@ -12,52 +12,46 @@ model Tenant {
   id                        String                     @id @default(cuid())
   name                      String
   slug                      String                     @unique
-  subscriptionStatus        SubscriptionStatus         @default(INACTIVE)
-  planInterval              PlanInterval               @default(MONTHLY)
-  currentPeriodEnd          DateTime?
-  cancelAtPeriodEnd         Boolean                    @default(false)
-  // ── Mercado Pago Subscription Fields ──
-  mpCustomerId              String?
-  mpPreapprovalPlanId       String?
-  mpPreapprovalId           String?
-  mpPayerEmail              String?
-  mpLastPaymentId           String?
-  mpLastEventAt             DateTime?
-  mpCardLastFour            String?
-  mpCardBrand               String?
-  // ── Tenant Profile Fields ──
-  cuit                      String?
-  phone                     String?
-  fiscalAddress             String?
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
+  cancelAtPeriodEnd         Boolean                    @default(false)
+  currentPeriodEnd          DateTime?
+  planInterval              PlanInterval               @default(MONTHLY)
+  subscriptionStatus        SubscriptionStatus         @default(INACTIVE)
+  cuit                      String?
+  companyAddress            String?
+  companyPhone              String?
+  legalName                 String?
+  stripeCustomerId          String?                    @unique
+  stripeSubscriptionId      String?                    @unique
+  chambers                  Chamber[]
+  cropTypes                 CropType[]
   dashboardPreferences      DashboardPreference[]
+  dispatches                Dispatch[]
+  dispatchClients           DispatchClient[]
   extraordinaryItemRequests ExtraordinaryItemRequest[]
   fields                    Field[]
   harvestRecords            HarvestRecord[]
   inventoryItems            InventoryItem[]
   inventoryMovements        InventoryMovement[]
+  invitations               Invitation[]
   lots                      Lot[]
+  Machine                   Machine[]
+  MachineMovement           MachineMovement[]
+  packingBins               PackingBin[]
+  packingBoxes              PackingBox[]
+  packingTransports         PackingTransport[]
+  packingTruckEntries       PackingTruckEntry[]
+  pallets                   Pallet[]
+  preselectionSessions      PreselectionSession[]
+  processDestinations       ProcessDestination[]
+  processSessions           ProcessSession[]
   tasks                     Task[]
   taskTypes                 TaskType[]
-  cropTypes                 CropType[]
   moduleSettings            TenantModuleSetting[]
-  invitations               Invitation[]
   memberships               TenantUserMembership[]
   warehouses                Warehouse[]
   workers                   Worker[]
-  // Empaque relations
-  packingTransports         PackingTransport[]
-  packingTruckEntries       PackingTruckEntry[]
-  packingBins               PackingBin[]
-  preselectionSessions      PreselectionSession[]
-  chambers                  Chamber[]
-  processSessions           ProcessSession[]
-  packingBoxes              PackingBox[]
-  pallets                   Pallet[]
-  dispatches                Dispatch[]
-  processDestinations       ProcessDestination[]
-  dispatchClients           DispatchClient[]
 }
 
 model User {
@@ -71,22 +65,23 @@ model User {
   status                    UserStatus                 @default(INVITED)
   lastAccessAt              DateTime?
   invitedById               String?
-  // ── User Preferences ──
-  language                  String                     @default("es")
-  dateFormat                String                     @default("dd/MM/yyyy")
-  darkMode                  Boolean                    @default(false)
-  notifyEmail               Boolean                    @default(true)
-  notifyWhatsApp            Boolean                    @default(false)
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
+  darkMode                  Boolean                    @default(false)
+  dateFormat                String                     @default("DD/MM/YYYY")
+  dailySummary              Boolean                    @default(true)
+  emailNotifications        Boolean                    @default(true)
+  locale                    String                     @default("es-AR")
+  whatsappNotifications     Boolean                    @default(true)
   dashboardPreferences      DashboardPreference[]
   extraordinaryItemRequests ExtraordinaryItemRequest[] @relation("ExtraordinaryRequestedBy")
   inventoryMovements        InventoryMovement[]        @relation("InventoryMovementCreatedBy")
+  sentInvitations           Invitation[]               @relation("InvitationsSent")
+  MachineMovement           MachineMovement[]
   createdTasks              Task[]                     @relation("TaskCreatedBy")
   memberships               TenantUserMembership?
   invitedBy                 User?                      @relation("UserInvitations", fields: [invitedById], references: [id])
   invitedUsers              User[]                     @relation("UserInvitations")
-  sentInvitations           Invitation[]               @relation("InvitationsSent")
 }
 
 model TenantUserMembership {
@@ -113,8 +108,8 @@ model Invitation {
   invitedBy String
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
-  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   inviter   User             @relation("InvitationsSent", fields: [invitedBy], references: [id])
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([token])
@@ -148,9 +143,9 @@ model Lot {
   createdAt                DateTime        @default(now())
   updatedAt                DateTime        @updatedAt
   harvestRecords           HarvestRecord[]
-  lotCrops                 LotCrop[]
   field                    Field           @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   tenant                   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lotCrops                 LotCrop[]
   taskLinks                TaskLot[]
 
   @@unique([fieldId, name])
@@ -241,26 +236,27 @@ model LotCrop {
 }
 
 model Worker {
-  id                  String               @id @default(cuid())
-  tenantId            String
-  firstName           String
-  lastName            String
-  dni                 String
-  phone               String
-  email               String?
-  paymentType         WorkerPaymentType
-  functionType        String
-  hourlyRate          Float?
-  taskRate            Float?
-  fixedSalary         Float?
-  paymentStatus       WorkerPaymentStatus  @default(PENDING)
-  active              Boolean              @default(true)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  taskAssignments     TaskAssignment[]
-  workLogs            TaskWorkLog[]
-  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  preselectionWorkers PreselectionWorker[]
+  id                    String                  @id @default(cuid())
+  tenantId              String
+  firstName             String
+  lastName              String
+  dni                   String
+  phone                 String
+  email                 String?
+  paymentType           WorkerPaymentType
+  functionType          String
+  hourlyRate            Float?
+  taskRate              Float?
+  fixedSalary           Float?
+  paymentStatus         WorkerPaymentStatus     @default(PENDING)
+  active                Boolean                 @default(true)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  MachineMovementWorker MachineMovementWorker[]
+  preselectionWorkers   PreselectionWorker[]
+  taskAssignments       TaskAssignment[]
+  workLogs              TaskWorkLog[]
+  tenant                Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, dni])
   @@index([tenantId])
@@ -310,35 +306,37 @@ model HarvestRecord {
 }
 
 model Warehouse {
-  id                   String               @id @default(cuid())
-  tenantId             String
-  name                 String
-  description          String?
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  destinationMovements InventoryMovement[]  @relation("DestinationWarehouse")
-  sourceMovements      InventoryMovement[]  @relation("SourceWarehouse")
-  taskUsages           TaskInventoryUsage[]
-  tenant               Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  stocks               WarehouseStock[]
+  id                    String                  @id @default(cuid())
+  tenantId              String
+  name                  String
+  description           String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  destinationMovements  InventoryMovement[]     @relation("DestinationWarehouse")
+  sourceMovements       InventoryMovement[]     @relation("SourceWarehouse")
+  MachineInventoryUsage MachineInventoryUsage[]
+  taskUsages            TaskInventoryUsage[]
+  tenant                Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stocks                WarehouseStock[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
 }
 
 model InventoryItem {
-  id          String               @id @default(cuid())
-  tenantId    String
-  code        String
-  name        String
-  description String
-  unit        String
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  movements   InventoryMovement[]
-  taskUsages  TaskInventoryUsage[]
-  stocks      WarehouseStock[]
+  id                    String                  @id @default(cuid())
+  tenantId              String
+  code                  String
+  name                  String
+  description           String
+  unit                  String
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  tenant                Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  movements             InventoryMovement[]
+  MachineInventoryUsage MachineInventoryUsage[]
+  taskUsages            TaskInventoryUsage[]
+  stocks                WarehouseStock[]
 
   @@unique([tenantId, code])
   @@index([tenantId, name])
@@ -360,7 +358,7 @@ model WarehouseStock {
 }
 
 model InventoryMovement {
-  id                     String                @id @default(cuid())
+  id                     String                 @id @default(cuid())
   tenantId               String
   type                   InventoryMovementType
   itemId                 String
@@ -370,13 +368,14 @@ model InventoryMovement {
   referenceTaskId        String?
   notes                  String?
   createdByUserId        String?
-  createdAt              DateTime              @default(now())
-  createdByUser          User?                 @relation("InventoryMovementCreatedBy", fields: [createdByUserId], references: [id])
-  destinationWarehouse   Warehouse?            @relation("DestinationWarehouse", fields: [destinationWarehouseId], references: [id])
-  item                   InventoryItem         @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  referenceTask          Task?                 @relation("TaskInventoryReference", fields: [referenceTaskId], references: [id])
-  sourceWarehouse        Warehouse?            @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id])
-  tenant                 Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt              DateTime               @default(now())
+  createdByUser          User?                  @relation("InventoryMovementCreatedBy", fields: [createdByUserId], references: [id])
+  destinationWarehouse   Warehouse?             @relation("DestinationWarehouse", fields: [destinationWarehouseId], references: [id])
+  item                   InventoryItem          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  referenceTask          Task?                  @relation("TaskInventoryReference", fields: [referenceTaskId], references: [id])
+  sourceWarehouse        Warehouse?             @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id])
+  tenant                 Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  MachineInventoryUsage  MachineInventoryUsage?
   taskUsage              TaskInventoryUsage?
 
   @@index([tenantId, createdAt])
@@ -433,128 +432,17 @@ model DashboardPreference {
 }
 
 model TenantModuleSetting {
-  id        String    @id @default(cuid())
-  tenantId  String
-  module    ModuleKey
-  enabled   Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                       String    @id @default(cuid())
+  tenantId                 String
+  module                   ModuleKey
+  enabled                  Boolean   @default(true)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  stripePriceId            String?
+  stripeSubscriptionItemId String?
+  tenant                   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, module])
-}
-
-enum InvitationStatus {
-  PENDING
-  ACCEPTED
-  EXPIRED
-  REVOKED
-}
-
-enum UserRole {
-  ADMIN
-  SUPERVISOR
-}
-
-enum UserStatus {
-  INVITED
-  ACTIVE
-  INACTIVE
-}
-
-enum WorkerPaymentType {
-  HOURLY
-  PER_TASK
-  FIXED_SALARY
-}
-
-enum WorkerPaymentStatus {
-  PENDING
-  PARTIAL
-  PAID
-}
-
-enum TaskStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  LATE
-}
-
-enum InventoryMovementType {
-  INCOME
-  TRANSFER
-  CONSUMPTION
-  ADJUSTMENT
-}
-
-enum ExtraordinaryItemStatus {
-  PENDING
-  DELIVERED
-}
-
-enum SubscriptionStatus {
-  INACTIVE // No subscription yet
-  TRIALING // In free trial
-  ACTIVE // Paid and active
-  PAST_DUE // Payment failed, grace period
-  CANCELED // Subscription canceled
-  UNPAID // Multiple payment failures
-}
-
-enum PlanInterval {
-  MONTHLY
-  ANNUAL
-}
-
-enum ModuleKey {
-  DASHBOARD
-  USERS
-  WORKERS
-  FIELD
-  INVENTORY
-  MACHINERY
-  PACKAGING
-  SALES
-  SETTINGS
-}
-
-// ═══════════════════════════════════════════════════════
-// EMPAQUE MODULE MODELS
-// ═══════════════════════════════════════════════════════
-
-enum BinStatus {
-  IN_YARD
-  IN_PRESELECTION
-  IN_CHAMBER
-  READY_FOR_PROCESS
-  IN_PROCESS
-  PROCESSED
-  DISCARDED
-}
-
-enum PreselectionStatus {
-  IN_PROGRESS
-  PAUSED
-  COMPLETED
-}
-
-enum ProcessSessionStatus {
-  IN_PROGRESS
-  PAUSED
-  COMPLETED
-}
-
-enum PalletStatus {
-  ON_FLOOR
-  DISPATCHED
-}
-
-enum DispatchStatus {
-  PREPARING
-  LOADED
-  IN_TRANSIT
-  DELIVERED
 }
 
 model PackingTransport {
@@ -586,8 +474,8 @@ model PackingTruckEntry {
   status       String       @default("PENDING")
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
-  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   bins         PackingBin[]
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, entryDate])
 }
@@ -619,12 +507,12 @@ model PackingBin {
   parentBinId           String?
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
-  tenant                Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  truckEntry            PackingTruckEntry?   @relation(fields: [truckEntryId], references: [id])
-  preselection          PreselectionSession? @relation("PreselectionOutputBins", fields: [preselectionId], references: [id])
   chamber               Chamber?             @relation(fields: [chamberId], references: [id])
   parentBin             PackingBin?          @relation("BinHierarchy", fields: [parentBinId], references: [id])
   childBins             PackingBin[]         @relation("BinHierarchy")
+  preselection          PreselectionSession? @relation("PreselectionOutputBins", fields: [preselectionId], references: [id])
+  tenant                Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  truckEntry            PackingTruckEntry?   @relation(fields: [truckEntryId], references: [id])
   preselectionInputBins PreselectionBin[]
   processInputBins      ProcessBin[]
 
@@ -639,7 +527,6 @@ model PreselectionSession {
   status             PreselectionStatus         @default(IN_PROGRESS)
   startTime          DateTime                   @default(now())
   endTime            DateTime?
-  pausedAt           DateTime?
   totalDurationHours Float?
   pauseCount         Int                        @default(0)
   totalPauseHours    Float?                     @default(0)
@@ -647,12 +534,13 @@ model PreselectionSession {
   notes              String?
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
-  tenant             Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  inputBins          PreselectionBin[]
+  pausedAt           DateTime?
   outputBins         PackingBin[]               @relation("PreselectionOutputBins")
-  workers            PreselectionWorker[]
+  inputBins          PreselectionBin[]
   inputs             PreselectionInput[]
   outputConfig       PreselectionOutputConfig[]
+  tenant             Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workers            PreselectionWorker[]
 
   @@unique([tenantId, code])
   @@index([tenantId, startTime])
@@ -663,8 +551,8 @@ model PreselectionBin {
   preselectionId String
   binId          String
   addedAt        DateTime            @default(now())
-  preselection   PreselectionSession @relation(fields: [preselectionId], references: [id], onDelete: Cascade)
   bin            PackingBin          @relation(fields: [binId], references: [id])
+  preselection   PreselectionSession @relation(fields: [preselectionId], references: [id], onDelete: Cascade)
 
   @@unique([preselectionId, binId])
 }
@@ -710,15 +598,15 @@ model Chamber {
   id          String        @id @default(cuid())
   tenantId    String
   name        String
-  type        String? // e.g. "cold", "ethylene"
-  capacity    Int           @default(0)
-  temperature Float?
-  humidity    Float?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+  capacity    Int           @default(0)
+  humidity    Float?
+  temperature Float?
+  type        String?
   tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  bins        PackingBin[]
   tasks       ChamberTask[]
+  bins        PackingBin[]
 
   @@unique([tenantId, name])
 }
@@ -742,7 +630,6 @@ model ProcessSession {
   status                ProcessSessionStatus @default(IN_PROGRESS)
   startTime             DateTime             @default(now())
   endTime               DateTime?
-  pausedAt              DateTime?
   totalDurationHours    Float?
   pauseCount            Int                  @default(0)
   totalPauseHours       Float?               @default(0)
@@ -751,10 +638,11 @@ model ProcessSession {
   notes                 String?
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
-  tenant                Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  inputBins             ProcessBin[]
+  pausedAt              DateTime?
   boxes                 PackingBox[]
+  inputBins             ProcessBin[]
   products              ProcessProduct[]
+  tenant                Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, code])
   @@index([tenantId, startTime])
@@ -765,8 +653,8 @@ model ProcessBin {
   processSessionId String
   binId            String
   addedAt          DateTime       @default(now())
-  processSession   ProcessSession @relation(fields: [processSessionId], references: [id], onDelete: Cascade)
   bin              PackingBin     @relation(fields: [binId], references: [id])
+  processSession   ProcessSession @relation(fields: [processSessionId], references: [id], onDelete: Cascade)
 
   @@unique([processSessionId, binId])
 }
@@ -797,9 +685,9 @@ model PackingBox {
   palletId         String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
-  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  processSession   ProcessSession? @relation(fields: [processSessionId], references: [id])
   pallet           Pallet?         @relation(fields: [palletId], references: [id])
+  processSession   ProcessSession? @relation(fields: [processSessionId], references: [id])
+  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, code])
   @@index([tenantId, palletId])
@@ -811,13 +699,13 @@ model Pallet {
   number          Int
   code            String
   status          PalletStatus     @default(ON_FLOOR)
-  destination     String?
   operatorName    String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  boxes           PackingBox[]
+  destination     String?
   dispatchPallets DispatchPallet[]
+  boxes           PackingBox[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
@@ -885,4 +773,214 @@ model DispatchClient {
 
   @@unique([tenantId, name])
   @@index([tenantId])
+}
+
+model Machine {
+  id                   String            @id
+  tenantId             String
+  name                 String
+  description          String?
+  type                 String
+  location             String?
+  imageUrl             String?
+  acquisitionDate      DateTime?
+  hourMeter            Float             @default(0)
+  totalCost            Float             @default(0)
+  serviceIntervalHours Float?
+  serviceIntervalDays  Int?
+  lastServiceAt        DateTime?
+  lastServiceHourMeter Float             @default(0)
+  active               Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime
+  Tenant               Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  MachineMovement      MachineMovement[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model MachineInventoryUsage {
+  id                  String             @id
+  movementId          String
+  itemId              String
+  warehouseId         String
+  quantity            Float
+  inventoryMovementId String?            @unique
+  createdAt           DateTime           @default(now())
+  InventoryMovement   InventoryMovement? @relation(fields: [inventoryMovementId], references: [id])
+  InventoryItem       InventoryItem      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  MachineMovement     MachineMovement    @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  Warehouse           Warehouse          @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@index([movementId])
+}
+
+model MachineMovement {
+  id                       String                     @id
+  tenantId                 String
+  machineId                String
+  type                     MachineMovementType
+  date                     DateTime                   @default(now())
+  description              String?
+  hoursUsed                Float?
+  cost                     Float                      @default(0)
+  notes                    String?
+  createdByUserId          String?
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime
+  MachineInventoryUsage    MachineInventoryUsage[]
+  User                     User?                      @relation(fields: [createdByUserId], references: [id])
+  Machine                  Machine                    @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  Tenant                   Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  MachineMovementSparePart MachineMovementSparePart[]
+  MachineMovementWorker    MachineMovementWorker[]
+
+  @@index([machineId, date])
+  @@index([tenantId])
+}
+
+model MachineMovementSparePart {
+  id              String          @id
+  movementId      String
+  name            String
+  quantity        Float           @default(1)
+  cost            Float           @default(0)
+  MachineMovement MachineMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+
+  @@index([movementId])
+}
+
+model MachineMovementWorker {
+  id              String          @id
+  movementId      String
+  workerId        String
+  cost            Float           @default(0)
+  MachineMovement MachineMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  Worker          Worker          @relation(fields: [workerId], references: [id])
+
+  @@unique([movementId, workerId])
+}
+
+model StripeEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now())
+
+  @@index([type])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum UserRole {
+  ADMIN
+  SUPERVISOR
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  INACTIVE
+}
+
+enum WorkerPaymentType {
+  HOURLY
+  PER_TASK
+  FIXED_SALARY
+}
+
+enum WorkerPaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  LATE
+}
+
+enum InventoryMovementType {
+  INCOME
+  TRANSFER
+  CONSUMPTION
+  ADJUSTMENT
+}
+
+enum ExtraordinaryItemStatus {
+  PENDING
+  DELIVERED
+}
+
+enum SubscriptionStatus {
+  INACTIVE
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+}
+
+enum PlanInterval {
+  MONTHLY
+  ANNUAL
+}
+
+enum ModuleKey {
+  DASHBOARD
+  USERS
+  WORKERS
+  FIELD
+  INVENTORY
+  MACHINERY
+  PACKAGING
+  SALES
+  SETTINGS
+}
+
+enum BinStatus {
+  IN_YARD
+  IN_PRESELECTION
+  IN_CHAMBER
+  READY_FOR_PROCESS
+  IN_PROCESS
+  PROCESSED
+  DISCARDED
+}
+
+enum PreselectionStatus {
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+}
+
+enum ProcessSessionStatus {
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+}
+
+enum PalletStatus {
+  ON_FLOOR
+  DISPATCHED
+}
+
+enum DispatchStatus {
+  PREPARING
+  LOADED
+  IN_TRANSIT
+  DELIVERED
+}
+
+enum MachineMovementType {
+  USE
+  SERVICE
+  MAINTENANCE
 }

@@ -10,7 +10,7 @@ import type { ConfiguracionPageProps, ConfigTab } from './types';
 
 const TABS: { key: ConfigTab; label: string; icon: typeof User; adminOnly: boolean }[] = [
   { key: 'mi-cuenta', label: 'Mi Cuenta', icon: User, adminOnly: false },
-  { key: 'empresa', label: 'Empresa', icon: Building2, adminOnly: true },
+  { key: 'empresa', label: 'Empresa', icon: Building2, adminOnly: false },
   { key: 'suscripcion', label: 'Suscripción', icon: CreditCard, adminOnly: true },
 ];
 
@@ -57,7 +57,7 @@ export function ConfiguracionPageClient({ user, tenant, moduleSettings, pricing,
       {/* Content area */}
       <div>
         {activeTab === 'mi-cuenta' && <MiCuentaSection user={user} />}
-        {activeTab === 'empresa' && isAdmin && <EmpresaSection tenant={tenant} />}
+        {activeTab === 'empresa' && <EmpresaSection tenant={tenant} isAdmin={isAdmin} />}
         {activeTab === 'suscripcion' && isAdmin && (
           <SuscripcionSection tenant={tenant} pricing={pricing} moduleSettings={moduleSettings} />
         )}

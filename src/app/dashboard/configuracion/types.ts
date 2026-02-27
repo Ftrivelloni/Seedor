@@ -8,11 +8,12 @@ export interface SerializedUser {
   email: string;
   phone: string;
   role: UserRole;
-  language: string;
+  locale: string;
   dateFormat: string;
   darkMode: boolean;
-  notifyEmail: boolean;
-  notifyWhatsApp: boolean;
+  emailNotifications: boolean;
+  whatsappNotifications: boolean;
+  dailySummary: boolean;
 }
 
 // ── Tenant data for "Empresa" y "Suscripción" ──
@@ -21,16 +22,16 @@ export interface SerializedTenant {
   name: string;
   slug: string;
   cuit: string | null;
-  phone: string | null;
-  fiscalAddress: string | null;
+  legalName: string | null;
+  companyPhone: string | null;
+  companyAddress: string | null;
   subscriptionStatus: SubscriptionStatus;
   planInterval: PlanInterval;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
-  // Mercado Pago card info (populated by webhook on each payment)
-  mpPayerEmail: string | null;
-  mpCardLastFour: string | null;
-  mpCardBrand: string | null;
+  // Stripe subscription info (legacy)
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
 }
 
 // ── Module setting for "Módulos" ──

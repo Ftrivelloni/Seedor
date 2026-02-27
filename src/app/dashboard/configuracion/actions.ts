@@ -49,12 +49,13 @@ export async function updateProfileAction(formData: FormData) {
 export async function updateNotificationsAction(formData: FormData) {
   const session = await requireAuthSession();
 
-  const notifyEmail = formData.get('notifyEmail') === 'true';
-  const notifyWhatsApp = formData.get('notifyWhatsApp') === 'true';
+  const emailNotifications = formData.get('emailNotifications') === 'true';
+  const whatsappNotifications = formData.get('whatsappNotifications') === 'true';
+  const dailySummary = formData.get('dailySummary') === 'true';
 
   await prisma.user.update({
     where: { id: session.userId },
-    data: { notifyEmail, notifyWhatsApp },
+    data: { emailNotifications, whatsappNotifications, dailySummary },
   });
 
   revalidatePath('/dashboard/configuracion');
@@ -72,8 +73,8 @@ export async function updateTenantAction(formData: FormData) {
 
   const name = String(formData.get('name') || '').trim();
   const cuit = String(formData.get('cuit') || '').trim() || null;
-  const phone = String(formData.get('phone') || '').trim() || null;
-  const fiscalAddress = String(formData.get('fiscalAddress') || '').trim() || null;
+  const companyPhone = String(formData.get('companyPhone') || '').trim() || null;
+  const companyAddress = String(formData.get('companyAddress') || '').trim() || null;
 
   if (!name) throw new Error('El nombre de la empresa es obligatorio.');
   if (name.length > 200) throw new Error('El nombre no puede superar los 200 caracteres.');
@@ -81,7 +82,7 @@ export async function updateTenantAction(formData: FormData) {
 
   await prisma.tenant.update({
     where: { id: session.tenantId },
-    data: { name, cuit, phone, fiscalAddress },
+    data: { name, cuit, companyPhone, companyAddress },
   });
 
   revalidatePath('/dashboard/configuracion');

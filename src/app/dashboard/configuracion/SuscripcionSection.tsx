@@ -471,19 +471,8 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
                 <CreditCard className="h-5 w-5 text-gray-400" />
               </div>
               <div>
-                {tenant.mpCardLastFour ? (
-                  <>
-                    <p className="text-sm font-medium text-gray-900">
-                      {tenant.mpCardBrand
-                        ? (CARD_BRAND_LABELS[tenant.mpCardBrand.toLowerCase()] ?? tenant.mpCardBrand)
-                        : 'Tarjeta'}{' '}
-                      ···· {tenant.mpCardLastFour}
-                    </p>
-                    {tenant.mpPayerEmail && <p className="text-xs text-gray-500">{tenant.mpPayerEmail}</p>}
-                  </>
-                ) : (
-                  <p className="text-sm text-gray-500">Sin información de tarjeta registrada</p>
-                )}
+                <p className="text-sm text-gray-500">Sin información de tarjeta registrada</p>
+                <p className="text-xs text-gray-400">Los datos de pago se gestionan a través de Mercado Pago</p>
               </div>
             </div>
             <button

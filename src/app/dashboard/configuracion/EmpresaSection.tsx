@@ -12,6 +12,7 @@ import type { SerializedTenant } from './types';
 
 interface EmpresaSectionProps {
   tenant: SerializedTenant;
+  isAdmin: boolean;
 }
 
 // ── Read-only field ──
@@ -26,7 +27,7 @@ function ReadField({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-export function EmpresaSection({ tenant }: EmpresaSectionProps) {
+export function EmpresaSection({ tenant, isAdmin }: EmpresaSectionProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export function EmpresaSection({ tenant }: EmpresaSectionProps) {
               <h3 className="text-sm font-semibold text-gray-900">Información de la empresa</h3>
               <p className="mt-0.5 text-sm text-gray-500">Datos fiscales y de contacto de tu organización.</p>
             </div>
-            {!isEditing ? (
+            {!isEditing && isAdmin ? (
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
@@ -67,7 +68,7 @@ export function EmpresaSection({ tenant }: EmpresaSectionProps) {
                 <Pencil className="h-3.5 w-3.5" />
                 Editar
               </button>
-            ) : (
+            ) : isEditing ? (
               <div className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
@@ -88,7 +89,7 @@ export function EmpresaSection({ tenant }: EmpresaSectionProps) {
                   {isPending ? 'Guardando...' : 'Guardar'}
                 </button>
               </div>
-            )}
+            ) : null}
           </div>
         </CardHeader>
         <CardContent>
@@ -102,10 +103,10 @@ export function EmpresaSection({ tenant }: EmpresaSectionProps) {
             <div className="grid gap-4 sm:grid-cols-2">
               <ReadField label="Nombre de la organización" value={tenant.name} />
               <ReadField label="CUIT" value={tenant.cuit} />
-              <ReadField label="Teléfono" value={tenant.phone} />
+              <ReadField label="Teléfono" value={tenant.companyPhone} />
               <ReadField label="Slug" value={tenant.slug} />
               <div className="sm:col-span-2">
-                <ReadField label="Dirección fiscal" value={tenant.fiscalAddress} />
+                <ReadField label="Dirección fiscal" value={tenant.companyAddress} />
               </div>
             </div>
           ) : (
@@ -134,8 +135,8 @@ export function EmpresaSection({ tenant }: EmpresaSectionProps) {
                 <Label htmlFor="tenant-phone">Teléfono</Label>
                 <Input
                   id="tenant-phone"
-                  name="phone"
-                  defaultValue={tenant.phone ?? ''}
+                  name="companyPhone"
+                  defaultValue={tenant.companyPhone ?? ''}
                   placeholder="+54 ..."
                 />
               </div>
@@ -147,8 +148,8 @@ export function EmpresaSection({ tenant }: EmpresaSectionProps) {
                 <Label htmlFor="tenant-address">Dirección fiscal</Label>
                 <Input
                   id="tenant-address"
-                  name="fiscalAddress"
-                  defaultValue={tenant.fiscalAddress ?? ''}
+                  name="companyAddress"
+                  defaultValue={tenant.companyAddress ?? ''}
                   placeholder="Av. Colón 1234, Córdoba, Argentina"
                   maxLength={500}
                 />
