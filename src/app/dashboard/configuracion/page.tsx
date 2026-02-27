@@ -41,7 +41,7 @@ export default function Configuracion() {
             </div>
 
             <Tabs defaultValue="perfil">
-                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 p-1">
                     <TabsTrigger value="perfil" className="gap-1.5">
                         <User className="h-4 w-4 shrink-0" />
                         <span>Perfil</span>
