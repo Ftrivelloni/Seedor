@@ -1,147 +1,196 @@
-import { prisma } from '@/lib/prisma';
-import { requireAuthSession } from '@/lib/auth/auth';
-import { stripe } from '@/lib/stripe';
-import { ConfiguracionPageClient } from './ConfiguracionPageClient';
-import type {
-  SerializedUserProfile,
-  SerializedTenantConfig,
-  SerializedModuleSetting,
-  StripeSubscriptionInfo,
-} from './types';
+'use client';
 
-export default async function ConfiguracionPage() {
-  const session = await requireAuthSession();
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Settings, User, Bell, Shield } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
+import { Label } from '@/components/dashboard/ui/label';
+import { Input } from '@/components/dashboard/ui/input';
+import { Switch } from '@/components/dashboard/ui/switch';
+import { Button } from '@/components/dashboard/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/dashboard/ui/tabs';
+import { Separator } from '@/components/dashboard/ui/separator';
 
-  // Obtener datos del usuario
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      phone: true,
-      role: true,
-      locale: true,
-      dateFormat: true,
-      darkMode: true,
-      emailNotifications: true,
-      whatsappNotifications: true,
-      dailySummary: true,
-    },
-  });
+export default function Configuracion() {
+    const router = useRouter();
+    const [checked, setChecked] = useState(false);
 
-  if (!user) {
-    throw new Error('Usuario no encontrado');
-  }
+    // Client-side role check — server-side guard is in layout/middleware
+    useEffect(() => {
+      fetch('/api/auth/me')
+        .then(r => r.json())
+        .then((data: { role?: string }) => {
+          if (data.role !== 'ADMIN') {
+            router.replace('/dashboard');
+          } else {
+            setChecked(true);
+          }
+        })
+        .catch(() => router.replace('/dashboard'));
+    }, [router]);
 
-  const userProfile: SerializedUserProfile = {
-    id: user.id,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    phone: user.phone,
-    role: user.role,
-    locale: user.locale,
-    dateFormat: user.dateFormat,
-    darkMode: user.darkMode,
-    emailNotifications: user.emailNotifications,
-    whatsappNotifications: user.whatsappNotifications,
-    dailySummary: user.dailySummary,
-  };
+    if (!checked) return null;
 
-  // Obtener datos del tenant
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: session.tenantId },
-    select: {
-      id: true,
-      name: true,
-      legalName: true,
-      cuit: true,
-      companyPhone: true,
-      companyAddress: true,
-      subscriptionStatus: true,
-      planInterval: true,
-      currentPeriodEnd: true,
-      cancelAtPeriodEnd: true,
-      stripeCustomerId: true,
-      stripeSubscriptionId: true,
-    },
-  });
+    return (
+        <div className="mx-auto max-w-4xl space-y-6">
+            <div>
+                <h1 className="text-3xl font-semibold text-gray-900">Configuración</h1>
+                <p className="mt-1 text-sm text-gray-600">
+                    Personaliza tu experiencia en Seedor
+                </p>
+            </div>
 
-  if (!tenant) {
-    throw new Error('Tenant no encontrado');
-  }
+            <Tabs defaultValue="perfil">
+                <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger value="perfil">
+                        <User className="mr-2 h-4 w-4" />
+                        Perfil
+                    </TabsTrigger>
+                    <TabsTrigger value="notificaciones">
+                        <Bell className="mr-2 h-4 w-4" />
+                        Notificaciones
+                    </TabsTrigger>
+                    <TabsTrigger value="seguridad">
+                        <Shield className="mr-2 h-4 w-4" />
+                        Seguridad
+                    </TabsTrigger>
+                    <TabsTrigger value="general">
+                        <Settings className="mr-2 h-4 w-4" />
+                        General
+                    </TabsTrigger>
+                </TabsList>
 
-  const tenantConfig: SerializedTenantConfig = {
-    id: tenant.id,
-    name: tenant.name,
-    legalName: tenant.legalName,
-    cuit: tenant.cuit,
-    companyPhone: tenant.companyPhone,
-    companyAddress: tenant.companyAddress,
-    subscriptionStatus: tenant.subscriptionStatus,
-    planInterval: tenant.planInterval,
-    currentPeriodEnd: tenant.currentPeriodEnd?.toISOString() ?? null,
-    cancelAtPeriodEnd: tenant.cancelAtPeriodEnd,
-  };
+                <TabsContent value="perfil" className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Información personal</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="nombre">Nombre completo</Label>
+                                    <Input id="nombre" defaultValue="Juan Pérez" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">Email</Label>
+                                    <Input id="email" type="email" defaultValue="juan.perez@seedor.com" />
+                                </div>
+                            </div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="telefono">Teléfono</Label>
+                                    <Input id="telefono" defaultValue="+54 351 1234567" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="rol">Rol</Label>
+                                    <Input id="rol" defaultValue="Encargado" disabled />
+                                </div>
+                            </div>
+                            <Separator />
+                            <Button>Guardar cambios</Button>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-  // Obtener información de suscripción de Stripe
-  let stripeInfo: StripeSubscriptionInfo | null = null;
-  if (tenant.stripeSubscriptionId) {
-    try {
-      const subscription = await stripe.subscriptions.retrieve(tenant.stripeSubscriptionId, {
-        expand: ['default_payment_method'],
-      });
+                <TabsContent value="notificaciones" className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Preferencias de notificaciones</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="font-medium">Alertas de stock</p>
+                                    <p className="text-sm text-gray-600">
+                                        Recibir notificaciones cuando el stock esté bajo
+                                    </p>
+                                </div>
+                                <Switch defaultChecked />
+                            </div>
+                            <Separator />
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="font-medium">Tareas próximas</p>
+                                    <p className="text-sm text-gray-600">
+                                        Recordatorios de tareas programadas
+                                    </p>
+                                </div>
+                                <Switch defaultChecked />
+                            </div>
+                            <Separator />
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="font-medium">Mantenimiento maquinaria</p>
+                                    <p className="text-sm text-gray-600">
+                                        Alertas de service y mantenimientos
+                                    </p>
+                                </div>
+                                <Switch defaultChecked />
+                            </div>
+                            <Separator />
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="font-medium">Ventas y pagos</p>
+                                    <p className="text-sm text-gray-600">
+                                        Notificaciones de órdenes y cobros
+                                    </p>
+                                </div>
+                                <Switch />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-      const paymentMethod =
-        subscription.default_payment_method &&
-        typeof subscription.default_payment_method === 'object'
-          ? subscription.default_payment_method
-          : null;
+                <TabsContent value="seguridad" className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Seguridad de la cuenta</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="password-actual">Contraseña actual</Label>
+                                <Input id="password-actual" type="password" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="password-nueva">Nueva contraseña</Label>
+                                <Input id="password-nueva" type="password" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="password-confirmar">Confirmar contraseña</Label>
+                                <Input id="password-confirmar" type="password" />
+                            </div>
+                            <Separator />
+                            <Button>Cambiar contraseña</Button>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-      stripeInfo = {
-        status: tenant.subscriptionStatus,
-        planName: subscription.items.data[0]?.plan.nickname || 'Standard',
-        planInterval: tenant.planInterval,
-        currentPeriodEnd: tenant.currentPeriodEnd?.toISOString() ?? null,
-        cancelAtPeriodEnd: tenant.cancelAtPeriodEnd,
-        paymentMethod:
-          paymentMethod && paymentMethod.type === 'card' && paymentMethod.card
-            ? {
-                last4: paymentMethod.card.last4,
-                brand: paymentMethod.card.brand,
-                expMonth: paymentMethod.card.exp_month,
-                expYear: paymentMethod.card.exp_year,
-              }
-            : null,
-      };
-    } catch (error) {
-      console.error('Error fetching Stripe subscription:', error);
-    }
-  }
-
-  // Obtener configuración de módulos
-  const moduleSettings = await prisma.tenantModuleSetting.findMany({
-    where: { tenantId: session.tenantId },
-    orderBy: { module: 'asc' },
-  });
-
-  // Los módulos opcionales son MACHINERY, PACKAGING, SALES
-  const optionalModules = ['MACHINERY', 'PACKAGING', 'SALES'];
-
-  const serializedModules: SerializedModuleSetting[] = moduleSettings.map((m) => ({
-    module: m.module,
-    enabled: m.enabled,
-    isOptional: optionalModules.includes(m.module),
-  }));
-
-  return (
-    <ConfiguracionPageClient
-      userProfile={userProfile}
-      tenantConfig={tenantConfig}
-      stripeInfo={stripeInfo}
-      moduleSettings={serializedModules}
-    />
-  );
+                <TabsContent value="general" className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Configuración general</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="font-medium">Modo oscuro</p>
+                                    <p className="text-sm text-gray-600">
+                                        Activar tema oscuro en la interfaz
+                                    </p>
+                                </div>
+                                <Switch />
+                            </div>
+                            <Separator />
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="font-medium">Idioma</p>
+                                    <p className="text-sm text-gray-600">Español (Argentina)</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
 }

@@ -12,10 +12,6 @@ model Tenant {
   id                        String                     @id @default(cuid())
   name                      String
   slug                      String                     @unique
-  legalName                 String?
-  cuit                      String?
-  companyPhone              String?
-  companyAddress            String?
   stripeCustomerId          String?                    @unique
   stripeSubscriptionId      String?                    @unique
   subscriptionStatus        SubscriptionStatus         @default(INACTIVE)
@@ -65,12 +61,6 @@ model User {
   passwordHash              String
   role                      UserRole                   @default(SUPERVISOR)
   status                    UserStatus                 @default(INVITED)
-  locale                    String                     @default("es-AR")
-  dateFormat                String                     @default("DD/MM/YYYY")
-  darkMode                  Boolean                    @default(false)
-  emailNotifications        Boolean                    @default(true)
-  whatsappNotifications     Boolean                    @default(true)
-  dailySummary              Boolean                    @default(true)
   lastAccessAt              DateTime?
   invitedById               String?
   createdAt                 DateTime                   @default(now())
