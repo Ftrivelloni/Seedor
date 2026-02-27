@@ -118,8 +118,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  console.log(`[MP Webhook] Notificación recibida: type=${notificationType} action=${action} dataId=${dataId}`);
-
   // ── 3. Handle subscription_preapproval events ──
   if (notificationType === 'subscription_preapproval') {
     try {
@@ -177,7 +175,6 @@ async function handlePreapprovalEvent(preapprovalId: string) {
 
   // Only update if the status actually changed
   if (tenant.subscriptionStatus === newStatus) {
-    console.log(`[MP Webhook] Tenant ${tenant.id} ya tiene status ${newStatus}, sin cambios.`);
     return;
   }
 
@@ -192,13 +189,6 @@ async function handlePreapprovalEvent(preapprovalId: string) {
       currentPeriodEnd: typeof endDate === 'string' ? new Date(endDate) : undefined,
       mpLastEventAt: new Date(),
     },
-  });
-
-  console.log(`[MP Webhook] Tenant ${tenant.id} actualizado:`, {
-    previousStatus: tenant.subscriptionStatus,
-    newStatus,
-    currentPeriodEnd: endDate ?? 'N/A',
-    mpPreapprovalId: preapprovalId,
   });
 }
 
@@ -266,15 +256,12 @@ async function handlePaymentEvent(paymentId: string) {
     },
   });
 
-  console.log(`[MP Webhook] Payment ${paymentId} registrado para Tenant ${tenant.id}${cardLastFour ? ` (tarjeta ····${cardLastFour})` : ''}`);
-
   // ── Post-payment price recalculation ──────────────────────────────
   // Only recalculate for approved payments on active subscriptions.
   // This is where deactivated-module price reductions finally take effect.
   const paymentStatus: string | undefined = payment.status;
 
   if (paymentStatus === 'approved' && tenant.mpPreapprovalId && tenant.subscriptionStatus === 'ACTIVE') {
-    console.log(`[MP Webhook] Pago aprobado para Tenant ${tenant.id} → recalculando precio de suscripción post-cobro...`);
     try {
       await recalculateSubscriptionPrice(tenant.id, tenant.mpPreapprovalId);
     } catch (err) {
@@ -295,26 +282,7 @@ async function handlePaymentEvent(paymentId: string) {
  * Formula:  $200 (base) + $20 × (enabled optional modules)
  */
 async function recalculateSubscriptionPrice(tenantId: string, preapprovalId: string) {
-  // Fetch tenant data for period validation
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { currentPeriodEnd: true, name: true },
-  });
-
-  console.log('[MP Webhook] Validación de período antes de recalcular:', {
-    tenantId,
-    tenantName: tenant?.name,
-    currentPeriodEnd: tenant?.currentPeriodEnd?.toISOString() ?? 'N/A',
-    now: new Date().toISOString(),
-  });
-
   const pricing = await calculateSubscriptionPrice(tenantId);
-
-  console.log(`[MP Webhook] recalculateSubscriptionPrice → Tenant ${tenantId}:`, {
-    enabledModules: pricing.enabledModules,
-    enabledCount: pricing.enabledModuleCount,
-    calculatedTotal: pricing.totalUsd,
-  });
 
   // Fetch current MP amount to avoid a no-op update
   const preapproval = await mpPreApproval.get({ id: preapprovalId });
@@ -324,9 +292,6 @@ async function recalculateSubscriptionPrice(tenantId: string, preapprovalId: str
     : 0;
 
   if (currentAmount === pricing.totalUsd) {
-    console.log(
-      `[MP Webhook] Precio sin cambios para Tenant ${tenantId}: $${currentAmount}. Sin actualización en MP.`
-    );
     return;
   }
 
@@ -338,8 +303,4 @@ async function recalculateSubscriptionPrice(tenantId: string, preapprovalId: str
       },
     } as unknown as Parameters<typeof mpPreApproval.update>[0]['body'],
   });
-
-  console.log(
-    `[MP Webhook] Precio recalculado para Tenant ${tenantId}: $${currentAmount} → $${pricing.totalUsd} (${pricing.enabledModuleCount} módulo(s) opcional(es)).`
-  );
 }

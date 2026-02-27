@@ -166,7 +166,6 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
     setIsLoadingPaymentUrl(true);
     getChangePaymentMethodUrlAction()
       .then((result) => {
-        console.log('[handleChangePaymentMethod] result:', JSON.stringify(result));
         if (result.success && result.url) {
           window.location.assign(result.url);
         } else {
@@ -491,10 +490,7 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
             <button
               type="button"
               className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
-              onClick={() => {
-                console.log('[Cambiar método] click!');
-                handleChangePaymentMethod();
-              }}
+              onClick={handleChangePaymentMethod}
               disabled={isLoadingPaymentUrl}
             >
               {isLoadingPaymentUrl ? 'Cargando...' : (<>Cambiar método<ExternalLink className="h-3.5 w-3.5" /></>)}

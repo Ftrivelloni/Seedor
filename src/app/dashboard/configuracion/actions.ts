@@ -195,15 +195,6 @@ export async function updatePlanModulesAction(
     const hasActivations = activatedModules.length > 0;
     const hasDeactivations = deactivatedModules.length > 0;
 
-    console.log('[updatePlanModulesAction] Cambios detectados:', {
-      activatedModules,
-      deactivatedModules,
-      hasActivations,
-      hasDeactivations,
-      previouslyEnabled: [...previouslyEnabled],
-      requestedEnabled: enabledModules,
-    });
-
     // ── 2. Upsert every optional module's enabled state in one TX ──
     await prisma.$transaction(
       OPTIONAL_MODULES.map((key) =>
@@ -214,12 +205,6 @@ export async function updatePlanModulesAction(
         })
       )
     );
-
-    console.log('[updatePlanModulesAction] TenantModuleSetting actualizado en DB:', {
-      tenantId: session.tenantId,
-      enabledModules,
-      timestamp: new Date().toISOString(),
-    });
 
     // ── 3. Recalculate the *logical* new total (for UI display) ──
     const pricing = await calculateSubscriptionPrice(session.tenantId);
@@ -233,7 +218,6 @@ export async function updatePlanModulesAction(
     });
 
     if (hasActivations && tenant?.mpPreapprovalId && tenant.subscriptionStatus === 'ACTIVE') {
-      console.log('[updatePlanModulesAction] ALTA detectada → llamando a MP para aumentar precio...');
       try {
         // Fetch the current preapproval to read the real transaction_amount
         const preapproval = await mpPreApproval.get({ id: tenant.mpPreapprovalId });
@@ -254,10 +238,6 @@ export async function updatePlanModulesAction(
             },
           } as unknown as Parameters<typeof mpPreApproval.update>[0]['body'],
         });
-
-        console.log(
-          `[updatePlanModulesAction] MP actualizado: $${currentAmount} → $${newAmount} (+${activatedModules.length} módulo(s))`
-        );
       } catch (mpErr) {
         console.error('[updatePlanModulesAction] Error actualizando monto en MP:', mpErr);
         revalidatePath('/dashboard/configuracion');
@@ -269,10 +249,6 @@ export async function updatePlanModulesAction(
           error: 'El plan se actualizó pero no se pudo sincronizar con Mercado Pago. Será aplicado en el próximo ciclo.',
         };
       }
-    }
-
-    if (hasDeactivations && !hasActivations) {
-      console.log('[updatePlanModulesAction] BAJA detectada → NO se llama a MP. El precio se mantiene hasta el próximo cobro.');
     }
 
     revalidatePath('/dashboard/configuracion');
@@ -325,13 +301,6 @@ export async function getChangePaymentMethodUrlAction(): Promise<{
     const fallbackUrl = `https://www.mercadopago.com.ar/subscriptions/manage/${tenant.mpPreapprovalId}`;
 
     const url = initPoint || sandboxInitPoint || fallbackUrl;
-
-    console.log('[getChangePaymentMethodUrlAction]', {
-      mpPreapprovalId: tenant.mpPreapprovalId,
-      initPoint,
-      sandboxInitPoint,
-      resolvedUrl: url,
-    });
 
     return { success: true, url };
   } catch (err) {
