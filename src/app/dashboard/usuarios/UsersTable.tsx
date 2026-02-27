@@ -97,7 +97,7 @@ function UserActionsMenu({
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
                     <MoreHorizontal className="h-4 w-4" />
                     <span className="sr-only">Acciones</span>
                 </Button>
@@ -146,7 +146,7 @@ export function UsersTable({ users }: UsersTableProps) {
         <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-white border-b-2 border-gray-200">
+                    <thead className="bg-gray-50">
                         <tr>
                             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                                 Usuario
@@ -169,11 +169,8 @@ export function UsersTable({ users }: UsersTableProps) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 bg-white">
-                        {users.map((entry, index) => (
-                            <tr 
-                                key={entry.id} 
-                                className="bg-white hover:bg-gray-50 transition-colors"
-                            >
+                        {users.map((entry) => (
+                            <tr key={entry.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-3">
                                         <Avatar className="h-9 w-9 bg-green-100 text-green-700">
