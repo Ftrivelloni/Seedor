@@ -15,6 +15,7 @@ import { Button } from '@/components/dashboard/ui/button';
 import { Input } from '@/components/dashboard/ui/input';
 import { Label } from '@/components/dashboard/ui/label';
 import { ListPlus } from 'lucide-react';
+import { toast } from 'sonner';
 import { createExtraordinaryItemAction } from './actions';
 
 function SubmitButton() {
@@ -30,8 +31,13 @@ export function CreateExtraordinaryModal() {
   const [open, setOpen] = useState(false);
 
   async function handleSubmit(formData: FormData) {
-    await createExtraordinaryItemAction(formData);
-    setOpen(false);
+    try {
+      await createExtraordinaryItemAction(formData);
+      setOpen(false);
+      toast.success('Pedido extraordinario registrado');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al registrar el pedido');
+    }
   }
 
   return (

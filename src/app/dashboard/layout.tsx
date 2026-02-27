@@ -1,5 +1,6 @@
 import { AppLayout } from '@/components/dashboard/AppLayout';
 import { requireAuthSession } from '@/lib/auth/auth';
+import { Toaster } from '@/components/dashboard/ui/sonner';
 
 export default async function DashboardLayout({
   children,
@@ -17,6 +18,7 @@ export default async function DashboardLayout({
       }}
     >
       {children}
+      <Toaster />
     </AppLayout>
   );
 }

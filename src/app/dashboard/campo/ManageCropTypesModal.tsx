@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Leaf, Trash2, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { createCropTypeAction, deleteCropTypeAction } from './actions';
 import type { SerializedCropType } from './types';
 
@@ -21,12 +22,18 @@ export function ManageCropTypesModal({ cropTypes }: ManageCropTypesModalProps) {
   async function handleCreate() {
     if (!name.trim()) return;
     startCreate(async () => {
-      const formData = new FormData();
-      formData.set('name', name.trim());
-      formData.set('color', color);
-      await createCropTypeAction(formData);
-      setName('');
-      router.refresh();
+      try {
+        const formData = new FormData();
+        formData.set('name', name.trim());
+        formData.set('color', color);
+        await createCropTypeAction(formData);
+        setName('');
+        toast.success('Tipo de cultivo creado exitosamente');
+        router.refresh();
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Error al crear el tipo de cultivo.';
+        toast.error(errorMessage);
+      }
     });
   }
 
@@ -34,7 +41,11 @@ export function ManageCropTypesModal({ cropTypes }: ManageCropTypesModalProps) {
     setDeleting(id);
     try {
       await deleteCropTypeAction(id);
+      toast.success('Tipo de cultivo eliminado');
       router.refresh();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al eliminar el tipo de cultivo.';
+      toast.error(errorMessage);
     } finally {
       setDeleting(null);
     }

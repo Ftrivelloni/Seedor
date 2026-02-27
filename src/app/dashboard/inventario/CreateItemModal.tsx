@@ -15,6 +15,7 @@ import { Button } from '@/components/dashboard/ui/button';
 import { Input } from '@/components/dashboard/ui/input';
 import { Label } from '@/components/dashboard/ui/label';
 import { PackagePlus } from 'lucide-react';
+import { toast } from 'sonner';
 import { createInventoryItemAction } from './actions';
 
 function SubmitButton() {
@@ -30,8 +31,13 @@ export function CreateItemModal() {
   const [open, setOpen] = useState(false);
 
   async function handleSubmit(formData: FormData) {
-    await createInventoryItemAction(formData);
-    setOpen(false);
+    try {
+      await createInventoryItemAction(formData);
+      setOpen(false);
+      toast.success('Insumo creado exitosamente');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al crear el insumo');
+    }
   }
 
   return (

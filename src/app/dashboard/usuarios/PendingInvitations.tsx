@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/dashboard/ui/dropdown-menu';
 import { Clock, Mail, MoreHorizontal, RefreshCw, XCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { resendInvitationAction, revokeInvitationAction } from './actions';
 
 type InvitationWithInviter = Invitation & {
@@ -33,15 +34,19 @@ function formatTimeLeft(expiresAt: Date): string {
 export function PendingInvitations({ invitations }: PendingInvitationsProps) {
   async function handleResend(invitationId: string) {
     const result = await resendInvitationAction(invitationId);
-    if (!result.success) {
-      console.error('Error resending invitation:', result.error);
+    if (result.success) {
+      toast.success('Invitación reenviada exitosamente');
+    } else {
+      toast.error(result.error || 'Error al reenviar invitación');
     }
   }
 
   async function handleRevoke(invitationId: string) {
     const result = await revokeInvitationAction(invitationId);
-    if (!result.success) {
-      console.error('Error revoking invitation:', result.error);
+    if (result.success) {
+      toast.success('Invitación revocada');
+    } else {
+      toast.error(result.error || 'Error al revocar invitación');
     }
   }
 

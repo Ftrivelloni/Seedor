@@ -15,6 +15,7 @@ import { Button } from '@/components/dashboard/ui/button';
 import { Input } from '@/components/dashboard/ui/input';
 import { Label } from '@/components/dashboard/ui/label';
 import { Warehouse } from 'lucide-react';
+import { toast } from 'sonner';
 import { createWarehouseAction } from './actions';
 
 function SubmitButton() {
@@ -30,8 +31,13 @@ export function CreateWarehouseModal() {
   const [open, setOpen] = useState(false);
 
   async function handleSubmit(formData: FormData) {
-    await createWarehouseAction(formData);
-    setOpen(false);
+    try {
+      await createWarehouseAction(formData);
+      setOpen(false);
+      toast.success('Depósito creado exitosamente');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al crear el depósito');
+    }
   }
 
   return (

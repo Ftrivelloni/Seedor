@@ -14,6 +14,7 @@ import { Textarea } from '@/components/dashboard/ui/textarea';
 import { Label } from '@/components/dashboard/ui/label';
 import { Alert, AlertDescription } from '@/components/dashboard/ui/alert';
 import { MessageCircle, Info } from 'lucide-react';
+import { toast } from 'sonner';
 import type { SerializedWorker } from './types';
 
 interface WhatsAppModalProps {
@@ -31,6 +32,7 @@ export function WhatsAppModal({ worker, open, onOpenChange }: WhatsAppModalProps
   function handleSend() {
     // Placeholder: In production, this would call a WhatsApp Business API
     setSent(true);
+    toast.success('Mensaje enviado (simulación)');
     setTimeout(() => {
       setSent(false);
       setMessage('');

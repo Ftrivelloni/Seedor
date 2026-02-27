@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/dashboard/ui/select';
 import { Wrench, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { registerServiceAction } from '../actions';
 
 function SubmitButton() {
@@ -115,8 +116,11 @@ export function RegisterServiceModal({
       setOpen(false);
       setSpareParts([]);
       setWorkerRows([]);
+      toast.success('Service registrado exitosamente');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al registrar el service.');
+      const errorMessage = err instanceof Error ? err.message : 'Error al registrar el service.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   }
 

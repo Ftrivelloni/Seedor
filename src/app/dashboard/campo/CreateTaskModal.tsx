@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Search, X, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { createTaskAction } from './actions';
 import type {
   SerializedLot,
@@ -177,9 +178,12 @@ export function CreateTaskModal({
       await createTaskAction(formData);
       setOpen(false);
       resetForm();
+      toast.success(`Tarea creada exitosamente en ${selectedLotIds.length} lote(s)`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear la tarea.');
+      const errorMessage = err instanceof Error ? err.message : 'Error al crear la tarea.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }

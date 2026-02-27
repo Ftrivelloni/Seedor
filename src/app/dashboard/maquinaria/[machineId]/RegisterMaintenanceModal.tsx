@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/dashboard/ui/select';
 import { Settings, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { registerMaintenanceAction } from '../actions';
 
 function SubmitButton() {
@@ -113,8 +114,11 @@ export function RegisterMaintenanceModal({
       setOpen(false);
       setSpareParts([]);
       setWorkerRows([]);
+      toast.success('Mantenimiento registrado exitosamente');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al registrar el mantenimiento.');
+      const errorMessage = err instanceof Error ? err.message : 'Error al registrar el mantenimiento.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   }
 

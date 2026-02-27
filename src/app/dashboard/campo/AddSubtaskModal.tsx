@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
+import { toast } from 'sonner';
 import { createSubtaskAction } from './actions';
 import type { SerializedTask, SerializedTaskType } from './types';
 
@@ -33,17 +34,23 @@ export function AddSubtaskModal({
 
   async function handleSubmit() {
     startTransition(async () => {
-      const formData = new FormData();
-      formData.set('parentTaskId', parentTask.id);
-      formData.set('description', description);
-      formData.set('taskType', taskType);
-      formData.set('costValue', costValue);
-      formData.set('costUnit', costUnit);
-      formData.set('dueDate', dueDate);
-      await createSubtaskAction(formData);
-      onOpenChange(false);
-      setDescription('');
-      router.refresh();
+      try {
+        const formData = new FormData();
+        formData.set('parentTaskId', parentTask.id);
+        formData.set('description', description);
+        formData.set('taskType', taskType);
+        formData.set('costValue', costValue);
+        formData.set('costUnit', costUnit);
+        formData.set('dueDate', dueDate);
+        await createSubtaskAction(formData);
+        onOpenChange(false);
+        setDescription('');
+        toast.success('Subtarea creada exitosamente');
+        router.refresh();
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Error al crear la subtarea.';
+        toast.error(errorMessage);
+      }
     });
   }
 

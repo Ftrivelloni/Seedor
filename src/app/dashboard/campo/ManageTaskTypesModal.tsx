@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Settings, Trash2, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { createTaskTypeAction, deleteTaskTypeAction } from './actions';
 import type { SerializedTaskType } from './types';
 
@@ -21,12 +22,18 @@ export function ManageTaskTypesModal({ taskTypes }: ManageTaskTypesModalProps) {
   async function handleCreate() {
     if (!name.trim()) return;
     startCreate(async () => {
-      const formData = new FormData();
-      formData.set('name', name.trim());
-      formData.set('color', color);
-      await createTaskTypeAction(formData);
-      setName('');
-      router.refresh();
+      try {
+        const formData = new FormData();
+        formData.set('name', name.trim());
+        formData.set('color', color);
+        await createTaskTypeAction(formData);
+        setName('');
+        toast.success('Tipo de tarea creado exitosamente');
+        router.refresh();
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Error al crear el tipo de tarea.';
+        toast.error(errorMessage);
+      }
     });
   }
 
@@ -34,7 +41,11 @@ export function ManageTaskTypesModal({ taskTypes }: ManageTaskTypesModalProps) {
     setDeleting(id);
     try {
       await deleteTaskTypeAction(id);
+      toast.success('Tipo de tarea eliminado');
       router.refresh();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al eliminar el tipo de tarea.';
+      toast.error(errorMessage);
     } finally {
       setDeleting(null);
     }

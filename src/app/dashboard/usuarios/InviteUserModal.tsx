@@ -22,6 +22,7 @@ import {
     SelectValue,
 } from '@/components/dashboard/ui/select';
 import { UserPlus, Mail, Phone, CheckCircle, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { inviteUserAction } from './actions';
 
 function SubmitButton() {
@@ -44,6 +45,7 @@ export function InviteUserModal() {
         const result = await inviteUserAction(formData);
         if (result.success) {
             setStatus('success');
+            toast.success('Invitación enviada exitosamente');
             setTimeout(() => {
                 setOpen(false);
                 setStatus('idle');
@@ -51,6 +53,7 @@ export function InviteUserModal() {
         } else {
             setStatus('error');
             setErrorMessage(result.error);
+            toast.error(result.error);
         }
     }
 

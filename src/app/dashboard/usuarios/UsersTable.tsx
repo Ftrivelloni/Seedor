@@ -13,6 +13,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/dashboard/ui/dropdown-menu';
 import { MoreHorizontal, UserCog, UserX, UserCheck, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { updateUserRoleAction, updateUserStatusAction } from './actions';
 
 type UserWithMembership = TenantUserMembership & {
@@ -70,17 +71,27 @@ function UserActionsMenu({
     user: User;
 }) {
     async function handleRoleChange(role: 'ADMIN' | 'SUPERVISOR') {
-        const formData = new FormData();
-        formData.set('userId', user.id);
-        formData.set('role', role);
-        await updateUserRoleAction(formData);
+        try {
+            const formData = new FormData();
+            formData.set('userId', user.id);
+            formData.set('role', role);
+            await updateUserRoleAction(formData);
+            toast.success(`Rol actualizado a ${role === 'ADMIN' ? 'Administrador' : 'Supervisor'}`);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Error al cambiar el rol');
+        }
     }
 
     async function handleStatusChange(status: 'ACTIVE' | 'INACTIVE') {
-        const formData = new FormData();
-        formData.set('userId', user.id);
-        formData.set('status', status);
-        await updateUserStatusAction(formData);
+        try {
+            const formData = new FormData();
+            formData.set('userId', user.id);
+            formData.set('status', status);
+            await updateUserStatusAction(formData);
+            toast.success(`Usuario ${status === 'ACTIVE' ? 'activado' : 'desactivado'}`);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Error al cambiar el estado');
+        }
     }
 
     return (

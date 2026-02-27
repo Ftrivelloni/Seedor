@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { MapPin } from 'lucide-react';
+import { toast } from 'sonner';
 import { createFieldAction } from './actions';
 
 export function CreateFieldModal() {
@@ -19,9 +20,12 @@ export function CreateFieldModal() {
       try {
         await createFieldAction(formData);
         setOpen(false);
+        toast.success('Campo creado exitosamente');
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al crear el campo.');
+        const errorMessage = err instanceof Error ? err.message : 'Error al crear el campo.';
+        setError(errorMessage);
+        toast.error(errorMessage);
       }
     });
   }

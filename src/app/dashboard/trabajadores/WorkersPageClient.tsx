@@ -36,6 +36,7 @@ import {
   AlertCircle,
   ClipboardList,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { updateWorkerActiveStatusAction } from './actions';
 import type { SerializedWorker } from './types';
@@ -152,10 +153,15 @@ export function WorkersPageClient({ workers }: WorkersPageClientProps) {
   }
 
   async function toggleActive(worker: SerializedWorker) {
-    const fd = new FormData();
-    fd.set('workerId', worker.id);
-    fd.set('active', String(!worker.active));
-    await updateWorkerActiveStatusAction(fd);
+    try {
+      const fd = new FormData();
+      fd.set('workerId', worker.id);
+      fd.set('active', String(!worker.active));
+      await updateWorkerActiveStatusAction(fd);
+      toast.success(`Trabajador ${!worker.active ? 'activado' : 'desactivado'}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al cambiar el estado');
+    }
   }
 
   return (

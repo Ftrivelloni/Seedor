@@ -22,6 +22,7 @@ import {
 } from '@/components/dashboard/ui/select';
 import { Checkbox } from '@/components/dashboard/ui/checkbox';
 import { UserPlus } from 'lucide-react';
+import { toast } from 'sonner';
 import { createWorkerAction } from './actions';
 
 export function AddWorkerModal() {
@@ -37,8 +38,11 @@ export function AddWorkerModal() {
       await createWorkerAction(formData);
       setOpen(false);
       setPaymentType('HOURLY');
+      toast.success('Trabajador agregado exitosamente');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear el trabajador.');
+      const errorMessage = err instanceof Error ? err.message : 'Error al crear el trabajador.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }

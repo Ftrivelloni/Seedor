@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
+import { toast } from 'sonner';
 import { updateTaskAction } from './actions';
 import type { SerializedTask, SerializedTaskType } from './types';
 
@@ -31,17 +32,23 @@ export function EditTaskModal({ task, taskTypes, open, onOpenChange }: EditTaskM
 
   async function handleSubmit() {
     startTransition(async () => {
-      const formData = new FormData();
-      formData.set('taskId', task.id);
-      formData.set('description', description);
-      formData.set('taskType', taskType);
-      formData.set('costValue', costValue);
-      formData.set('costUnit', costUnit);
-      formData.set('startDate', startDate);
-      formData.set('dueDate', dueDate);
-      await updateTaskAction(formData);
-      onOpenChange(false);
-      router.refresh();
+      try {
+        const formData = new FormData();
+        formData.set('taskId', task.id);
+        formData.set('description', description);
+        formData.set('taskType', taskType);
+        formData.set('costValue', costValue);
+        formData.set('costUnit', costUnit);
+        formData.set('startDate', startDate);
+        formData.set('dueDate', dueDate);
+        await updateTaskAction(formData);
+        onOpenChange(false);
+        toast.success('Tarea actualizada exitosamente');
+        router.refresh();
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Error al actualizar la tarea.';
+        toast.error(errorMessage);
+      }
     });
   }
 

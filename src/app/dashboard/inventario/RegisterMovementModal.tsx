@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/dashboard/ui/select';
 import { ArrowLeftRight } from 'lucide-react';
+import { toast } from 'sonner';
 import { createInventoryMovementAction } from './actions';
 import type { SerializedWarehouse, SerializedItem } from './types';
 
@@ -54,9 +55,14 @@ export function RegisterMovementModal({ warehouses, items }: RegisterMovementMod
   const needsDestination = movementType === 'INCOME' || movementType === 'TRANSFER' || movementType === 'ADJUSTMENT';
 
   async function handleSubmit(formData: FormData) {
-    await createInventoryMovementAction(formData);
-    setOpen(false);
-    setMovementType('INCOME');
+    try {
+      await createInventoryMovementAction(formData);
+      setOpen(false);
+      setMovementType('INCOME');
+      toast.success('Movimiento registrado exitosamente');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al registrar el movimiento');
+    }
   }
 
   return (
