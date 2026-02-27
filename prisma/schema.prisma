@@ -85,7 +85,7 @@ model User {
   MachineMovement           MachineMovement[]
   createdTasks              Task[]                     @relation("TaskCreatedBy")
   memberships               TenantUserMembership?
-  invitedBy                 User?                      @relation("UserInvitations", fields: [invitedById], references: [id])
+  invitedBy                 User?                      @relation("UserInvitations", fields: [invitedById], references: [id], onDelete: SetNull)
   invitedUsers              User[]                     @relation("UserInvitations")
 }
 
@@ -113,7 +113,7 @@ model Invitation {
   invitedBy String
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
-  inviter   User             @relation("InvitationsSent", fields: [invitedBy], references: [id])
+  inviter   User             @relation("InvitationsSent", fields: [invitedBy], references: [id], onDelete: Cascade)
   tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
