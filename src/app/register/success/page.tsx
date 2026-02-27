@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface RegistrationSuccess {
     companyName: string;
@@ -53,9 +54,9 @@ function SuccessContent() {
 
             if (!rawRegistration) {
                 setStatus('error');
-                setErrorMsg(
-                    'No se encontraron los datos de registro. Por favor, iniciá el proceso nuevamente desde la página de registro.'
-                );
+                const errorMsg = 'No se encontraron los datos de registro. Por favor, iniciá el proceso nuevamente desde la página de registro.';
+                setErrorMsg(errorMsg);
+                toast.error(errorMsg);
                 return;
             }
 
@@ -76,7 +77,9 @@ function SuccessContent() {
 
             if (!response.ok) {
                 setStatus('error');
-                setErrorMsg(data.error || 'No se pudo completar el registro.');
+                const errorMsg = data.error || 'No se pudo completar el registro.';
+                setErrorMsg(errorMsg);
+                toast.error(errorMsg);
                 return;
             }
 
@@ -89,9 +92,12 @@ function SuccessContent() {
                 selectedModules,
             });
             setStatus('success');
+            toast.success('¡Cuenta creada exitosamente! Bienvenido a Seedor.');
         } catch {
             setStatus('error');
-            setErrorMsg('Error inesperado al completar el registro. Por favor, contactá a soporte.');
+            const errorMsg = 'Error inesperado al completar el registro. Por favor, contactá a soporte.';
+            setErrorMsg(errorMsg);
+            toast.error(errorMsg);
         }
     }
 

@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useState, Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
+import NProgress from 'nprogress';
 
 function AcceptInvitationForm() {
   const router = useRouter();
@@ -81,16 +83,21 @@ function AcceptInvitationForm() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden.');
+      const errorMsg = 'Las contraseñas no coinciden.';
+      setError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
     if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
+      const errorMsg = 'La contraseña debe tener al menos 6 caracteres.';
+      setError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
     setIsSubmitting(true);
+    NProgress.start();
 
     try {
       const response = await fetch('/api/auth/accept-invitation', {
@@ -102,14 +109,21 @@ function AcceptInvitationForm() {
       const data = (await response.json()) as { ok?: boolean; error?: string };
 
       if (!response.ok) {
-        setError(data.error || 'No se pudo completar el registro.');
+        const errorMsg = data.error || 'No se pudo completar el registro.';
+        setError(errorMsg);
+        toast.error(errorMsg);
+        NProgress.done();
         return;
       }
 
+      toast.success('¡Cuenta creada exitosamente! Bienvenido a Seedor.');
       router.push('/dashboard');
       router.refresh();
     } catch {
-      setError('No se pudo completar el registro.');
+      const errorMsg = 'No se pudo completar el registro.';
+      setError(errorMsg);
+      toast.error(errorMsg);
+      NProgress.done();
     } finally {
       setIsSubmitting(false);
     }
@@ -417,8 +431,14 @@ function AcceptInvitationForm() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-4 px-6 rounded-xl font-semibold bg-[#73AC01] text-white hover:bg-[#5C8A01] disabled:opacity-70 shadow-[0_4px_14px_0_rgba(115,172,1,0.39)] hover:shadow-[0_6px_20px_rgba(115,172,1,0.5)] hover:scale-[1.02] transition-all duration-300"
+                className="w-full py-4 px-6 rounded-xl font-semibold bg-[#73AC01] text-white hover:bg-[#5C8A01] disabled:opacity-70 shadow-[0_4px_14px_0_rgba(115,172,1,0.39)] hover:shadow-[0_6px_20px_rgba(115,172,1,0.5)] hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2"
               >
+                {isSubmitting && (
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                )}
                 {isSubmitting ? 'Creando cuenta...' : 'Crear cuenta y entrar'}
               </button>
             </div>

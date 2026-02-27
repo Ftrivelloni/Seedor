@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import NProgress from 'nprogress';
 
 interface RegistrationData {
     firstName: string;
@@ -156,6 +157,7 @@ export default function SelectModulesPage() {
 
         setError(null);
         setIsSubmitting(true);
+        NProgress.start();
 
         try {
             if (selectedModules.length === 0) {
@@ -173,6 +175,7 @@ export default function SelectModulesPage() {
 
                 if (!response.ok) {
                     setError(data.error || 'No se pudo completar el registro.');
+                    NProgress.done();
                     return;
                 }
 
@@ -205,6 +208,7 @@ export default function SelectModulesPage() {
 
                 if (!response.ok || !data.url) {
                     setError(data.error || 'No se pudo crear la sesión de pago.');
+                    NProgress.done();
                     return;
                 }
 
@@ -213,6 +217,7 @@ export default function SelectModulesPage() {
             }
         } catch {
             setError('No se pudo completar el registro. Intentá de nuevo.');
+            NProgress.done();
         } finally {
             setIsSubmitting(false);
         }
