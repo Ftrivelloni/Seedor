@@ -60,7 +60,7 @@ export function InviteUserModal() {
     return (
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setStatus('idle'); setErrorMessage(''); } }}>
             <DialogTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700 gap-2">
+                <Button className="bg-green-600 hover:bg-green-700 gap-2 cursor-pointer">
                     <UserPlus className="h-4 w-4" />
                     Invitar usuario
                 </Button>
