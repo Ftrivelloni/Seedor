@@ -65,6 +65,8 @@ interface SuscripcionSectionProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; badgeClass: string }> = {
+  INACTIVE: { label: 'Inactiva', icon: XCircle, badgeClass: 'bg-gray-100 text-gray-800 border-gray-200' },
+  TRIALING: { label: 'Período de prueba', icon: Info, badgeClass: 'bg-blue-100 text-blue-800 border-blue-200' },
   ACTIVE: { label: 'Activa', icon: CheckCircle2, badgeClass: 'bg-green-100 text-green-800 border-green-200' },
   PAST_DUE: { label: 'Pago pendiente', icon: AlertTriangle, badgeClass: 'bg-amber-100 text-amber-800 border-amber-200' },
   CANCELED: { label: 'Cancelada', icon: XCircle, badgeClass: 'bg-red-100 text-red-800 border-red-200' },
@@ -471,8 +473,19 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
                 <CreditCard className="h-5 w-5 text-gray-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Sin información de tarjeta registrada</p>
-                <p className="text-xs text-gray-400">Los datos de pago se gestionan a través de Mercado Pago</p>
+                {tenant.mpCardLastFour && tenant.mpCardBrand ? (
+                  <>
+                    <p className="text-sm font-medium text-gray-900">
+                      {CARD_BRAND_LABELS[tenant.mpCardBrand.toLowerCase()] ?? tenant.mpCardBrand} ····{tenant.mpCardLastFour}
+                    </p>
+                    <p className="text-xs text-gray-400">Método de pago vinculado a Mercado Pago</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-500">Sin información de tarjeta registrada</p>
+                    <p className="text-xs text-gray-400">Los datos de pago se gestionan a través de Mercado Pago</p>
+                  </>
+                )}
               </div>
             </div>
             <button

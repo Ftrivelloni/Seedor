@@ -29,9 +29,10 @@ export interface SerializedTenant {
   planInterval: PlanInterval;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
-  // Stripe subscription info (legacy)
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
+  // Mercado Pago subscription info
+  mpPreapprovalId: string | null;
+  mpCardLastFour: string | null;
+  mpCardBrand: string | null;
 }
 
 // ── Module setting for "Módulos" ──

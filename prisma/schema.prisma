@@ -22,8 +22,13 @@ model Tenant {
   companyAddress            String?
   companyPhone              String?
   legalName                 String?
-  stripeCustomerId          String?                    @unique
-  stripeSubscriptionId      String?                    @unique
+  mpPreapprovalId           String?                    @unique
+  mpPreapprovalPlanId       String?
+  mpPayerEmail              String?
+  mpLastPaymentId           String?
+  mpLastEventAt             DateTime?
+  mpCardLastFour            String?
+  mpCardBrand               String?
   chambers                  Chamber[]
   cropTypes                 CropType[]
   dashboardPreferences      DashboardPreference[]
@@ -432,15 +437,13 @@ model DashboardPreference {
 }
 
 model TenantModuleSetting {
-  id                       String    @id @default(cuid())
-  tenantId                 String
-  module                   ModuleKey
-  enabled                  Boolean   @default(true)
-  createdAt                DateTime  @default(now())
-  updatedAt                DateTime  @updatedAt
-  stripePriceId            String?
-  stripeSubscriptionItemId String?
-  tenant                   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id        String    @id @default(cuid())
+  tenantId  String
+  module    ModuleKey
+  enabled   Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, module])
 }
@@ -860,14 +863,6 @@ model MachineMovementWorker {
   Worker          Worker          @relation(fields: [workerId], references: [id])
 
   @@unique([movementId, workerId])
-}
-
-model StripeEvent {
-  id          String   @id
-  type        String
-  processedAt DateTime @default(now())
-
-  @@index([type])
 }
 
 enum InvitationStatus {

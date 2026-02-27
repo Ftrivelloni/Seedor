@@ -40,8 +40,9 @@ export default async function ConfiguracionPage() {
         planInterval: true,
         currentPeriodEnd: true,
         cancelAtPeriodEnd: true,
-        stripeCustomerId: true,
-        stripeSubscriptionId: true,
+        mpPreapprovalId: true,
+        mpCardLastFour: true,
+        mpCardBrand: true,
       },
     }),
     prisma.tenantModuleSetting.findMany({
@@ -79,8 +80,9 @@ export default async function ConfiguracionPage() {
     planInterval: tenant.planInterval,
     currentPeriodEnd: tenant.currentPeriodEnd?.toISOString() ?? null,
     cancelAtPeriodEnd: tenant.cancelAtPeriodEnd,
-    stripeCustomerId: tenant.stripeCustomerId,
-    stripeSubscriptionId: tenant.stripeSubscriptionId,
+    mpPreapprovalId: tenant.mpPreapprovalId,
+    mpCardLastFour: tenant.mpCardLastFour,
+    mpCardBrand: tenant.mpCardBrand,
   };
 
   const serializedModules: SerializedModuleSetting[] = moduleSettings.map((m) => ({
