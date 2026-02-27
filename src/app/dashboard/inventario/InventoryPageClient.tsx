@@ -237,7 +237,7 @@ export function InventoryPageClient({
         </div>
 
         {/* ── TAB: Depósitos ── */}
-        <TabsContent value="depositos" className="mt-4 space-y-4">
+        <TabsContent value="depositos" className="mt-4">
           {warehouses.length === 0 ? (
             <EmptyCard
               title="Sin depósitos"
@@ -313,6 +313,7 @@ export function InventoryPageClient({
 /* ── Sub-components ── */
 
 function EmptyCard({ title, description }: { title: string; description: string }) {
+  const isMobile = useIsMobile();
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-white p-12">
       <Package className="h-10 w-10 text-gray-300" />
@@ -330,18 +331,19 @@ function matchSearch(text: string, search: string) {
 /* ── Warehouse card with stock table ── */
 
 function WarehouseCard({ warehouse, search }: { warehouse: SerializedWarehouse; search: string }) {
-  const [expanded, setExpanded] = useState(true);
+  const isMobile = useIsMobile();
+  const [expanded, setExpanded] = useState(false);
 
   const filteredStocks = warehouse.stocks.filter(
     (s) => matchSearch(s.itemName, search) || matchSearch(s.itemCode, search)
   );
 
   return (
-    <article className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+    <article className="overflow-hidden w-full max-w-full rounded-xl border border-gray-200 bg-white">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-gray-50"
+        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
       >
         <div>
           <h3 className="text-base font-semibold text-gray-900">{warehouse.name}</h3>
@@ -359,11 +361,11 @@ function WarehouseCard({ warehouse, search }: { warehouse: SerializedWarehouse; 
       {expanded && (
         <div className="border-t border-gray-200">
           {filteredStocks.length === 0 ? (
-            <p className="px-5 py-6 text-center text-sm text-gray-500">
+            <p className="px-4 py-3 text-center text-sm text-gray-500">
               No hay insumos que coincidan con la búsqueda.
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="w-full overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -405,6 +407,7 @@ function WarehouseCard({ warehouse, search }: { warehouse: SerializedWarehouse; 
 }
 
 function StockRow({ stock }: { stock: SerializedWarehouse['stocks'][number] }) {
+  const isMobile = useIsMobile();
   const [editing, setEditing] = useState(false);
   const [lowVal, setLowVal] = useState(String(stock.lowThreshold));
   const [critVal, setCritVal] = useState(String(stock.criticalThreshold));
