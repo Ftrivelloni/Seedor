@@ -83,29 +83,25 @@ export function CampoPageClient({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <header>
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Campo</h1>
-            <p className="text-sm text-gray-600">
-              Gestión de campos, lotes, cosecha y rendimiento operativo.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <CreateTaskModal
-              fields={fields}
-              workers={workers}
-              inventoryItems={inventoryItems}
-              warehouses={warehouses}
-              taskTypes={taskTypes}
-            />
-            <CreateFieldModal />
-          </div>
+      <header className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Campo</h1>
+          <p className="text-sm text-gray-600">
+            Gestión de campos, lotes, cosecha y rendimiento operativo.
+          </p>
         </div>
-        <div className="mt-4 flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <ManageCropTypesModal cropTypes={cropTypes} />
           <ManageTaskTypesModal taskTypes={taskTypes} />
           <CreateHarvestModal fields={fields} />
+          <CreateTaskModal
+            fields={fields}
+            workers={workers}
+            inventoryItems={inventoryItems}
+            warehouses={warehouses}
+            taskTypes={taskTypes}
+          />
+          <CreateFieldModal />
         </div>
       </header>
 
@@ -133,9 +129,9 @@ export function CampoPageClient({
           <div className="flex items-center gap-1 border-b border-gray-200">
             <button
               onClick={() => setActiveTab('campos')}
-              className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${activeTab === 'campos'
-                  ? 'border-green-600 text-green-700 bg-white'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 bg-white'
+              className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'campos'
+                  ? 'border-green-600 text-green-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
               <MapPin className="h-4 w-4" />
@@ -143,9 +139,9 @@ export function CampoPageClient({
             </button>
             <button
               onClick={() => setActiveTab('cosecha')}
-              className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${activeTab === 'cosecha'
-                  ? 'border-green-600 text-green-700 bg-white'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 bg-white'
+              className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'cosecha'
+                  ? 'border-green-600 text-green-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
               <Wheat className="h-4 w-4" />
@@ -161,7 +157,7 @@ export function CampoPageClient({
                 placeholder="Buscar..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-64 rounded-lg border border-gray-300 pl-10 pr-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-shadow bg-white"
+                className="w-64 rounded-lg border border-gray-300 pl-10 pr-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-shadow"
               />
             </div>
           </div>
@@ -174,21 +170,21 @@ export function CampoPageClient({
             <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1 w-fit">
               <button
                 onClick={() => setViewMode('grid-large')}
-                className={`p-1.5 rounded cursor-pointer ${viewMode === 'grid-large' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`p-1.5 rounded ${viewMode === 'grid-large' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
                 title="Íconos grandes"
               >
                 <LayoutGrid className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('grid-medium')}
-                className={`p-1.5 rounded cursor-pointer ${viewMode === 'grid-medium' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`p-1.5 rounded ${viewMode === 'grid-medium' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
                 title="Íconos medianos"
               >
                 <Grid3X3 className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded cursor-pointer ${viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
                 title="Lista"
               >
                 <List className="h-4 w-4" />
@@ -289,7 +285,7 @@ function FieldCard({
         </div>
         <Link
           href={`/dashboard/campo/${field.id}`}
-          className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 transition-colors"
         >
           Ver campo
           <ChevronRight className="h-4 w-4" />
@@ -307,7 +303,7 @@ function FieldCard({
               className="flex items-center justify-between py-2.5 px-1 hover:bg-gray-50 rounded transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50 text-green-700">
                   <Layers className="h-4 w-4" />
                 </div>
                 <div>
@@ -338,12 +334,12 @@ function FieldCard({
             <Link
               key={lot.id}
               href={`/dashboard/campo/${field.id}/${lot.id}`}
-              className={`group rounded-lg border border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/50 transition-colors ${viewMode === 'grid-large' ? 'p-4' : 'p-3'
+              className={`group rounded-lg border border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/50 transition-colors ${viewMode === 'grid-large' ? 'p-4' : 'p-3'
                 }`}
             >
               <div className="flex items-center gap-3">
                 <div
-                  className={`flex items-center justify-center rounded-lg bg-blue-100 text-blue-700 group-hover:bg-blue-200 transition-colors ${viewMode === 'grid-large' ? 'h-10 w-10' : 'h-8 w-8'
+                  className={`flex items-center justify-center rounded-lg bg-green-100 text-green-700 group-hover:bg-green-200 transition-colors ${viewMode === 'grid-large' ? 'h-10 w-10' : 'h-8 w-8'
                     }`}
                 >
                   <Layers className={viewMode === 'grid-large' ? 'h-5 w-5' : 'h-4 w-4'} />
