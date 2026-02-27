@@ -68,7 +68,7 @@ export function RegisterMovementModal({ warehouses, items }: RegisterMovementMod
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
+        <Button variant="outline" className="gap-2 !bg-white !border-gray-200 cursor-pointer">
           <ArrowLeftRight className="h-4 w-4" />
           Registrar movimiento
         </Button>
@@ -90,7 +90,7 @@ export function RegisterMovementModal({ warehouses, items }: RegisterMovementMod
               defaultValue="INCOME"
               onValueChange={(v) => setMovementType(v)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="cursor-pointer">
                 <SelectValue placeholder="Seleccionar tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -108,7 +108,7 @@ export function RegisterMovementModal({ warehouses, items }: RegisterMovementMod
               Insumo <span className="text-red-500">*</span>
             </Label>
             <Select name="itemId">
-              <SelectTrigger>
+              <SelectTrigger className="cursor-pointer">
                 <SelectValue placeholder="Seleccionar insumo" />
               </SelectTrigger>
               <SelectContent>
@@ -145,7 +145,7 @@ export function RegisterMovementModal({ warehouses, items }: RegisterMovementMod
                 )}
               </Label>
               <Select name="sourceWarehouseId">
-                <SelectTrigger>
+                <SelectTrigger className="cursor-pointer">
                   <SelectValue placeholder="Seleccionar depósito origen" />
                 </SelectTrigger>
                 <SelectContent>
@@ -168,7 +168,7 @@ export function RegisterMovementModal({ warehouses, items }: RegisterMovementMod
                 )}
               </Label>
               <Select name="destinationWarehouseId">
-                <SelectTrigger>
+                <SelectTrigger className="cursor-pointer">
                   <SelectValue placeholder="Seleccionar depósito destino" />
                 </SelectTrigger>
                 <SelectContent>

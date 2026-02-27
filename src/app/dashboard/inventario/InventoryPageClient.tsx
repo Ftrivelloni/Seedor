@@ -140,20 +140,20 @@ export function InventoryPageClient({
       {/* ── Tabs ── */}
       <Tabs defaultValue="depositos" className="w-full">
         <div className="flex items-center justify-between gap-4">
-          <TabsList>
-            <TabsTrigger value="depositos" className="gap-1.5">
+          <TabsList className="!bg-white border border-gray-200">
+            <TabsTrigger value="depositos" className="gap-1.5 cursor-pointer">
               <WarehouseIcon className="h-4 w-4" />
               Depósitos
             </TabsTrigger>
-            <TabsTrigger value="insumos" className="gap-1.5">
+            <TabsTrigger value="insumos" className="gap-1.5 cursor-pointer">
               <Package className="h-4 w-4" />
               Insumos
             </TabsTrigger>
-            <TabsTrigger value="movimientos" className="gap-1.5">
+            <TabsTrigger value="movimientos" className="gap-1.5 cursor-pointer">
               <ArrowLeftRight className="h-4 w-4" />
               Movimientos
             </TabsTrigger>
-            <TabsTrigger value="alertas" className="gap-1.5">
+            <TabsTrigger value="alertas" className="gap-1.5 cursor-pointer">
               <AlertTriangle className="h-4 w-4" />
               Alertas
               {alerts.length > 0 && (
@@ -162,7 +162,7 @@ export function InventoryPageClient({
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="extraordinarios" className="gap-1.5">
+            <TabsTrigger value="extraordinarios" className="gap-1.5 cursor-pointer">
               <ListChecks className="h-4 w-4" />
               Extraordinarios
               {pendingExtraordinary > 0 && (
@@ -180,7 +180,7 @@ export function InventoryPageClient({
               placeholder="Buscar..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 w-64"
+              className="pl-10 w-64 !bg-white border-gray-200"
             />
           </div>
         </div>
@@ -290,7 +290,7 @@ function WarehouseCard({ warehouse, search }: { warehouse: SerializedWarehouse; 
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-gray-50"
+        className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-gray-50 cursor-pointer"
       >
         <div>
           <h3 className="text-base font-semibold text-gray-900">{warehouse.name}</h3>
@@ -405,10 +405,10 @@ function StockRow({ stock }: { stock: SerializedWarehouse['stocks'][number] }) {
           </td>
           <td className="px-4 py-3 text-right">
             <div className="flex justify-end gap-1">
-              <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+              <Button size="sm" variant="ghost" onClick={() => setEditing(false)} className="cursor-pointer">
                 Cancelar
               </Button>
-              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleSave}>
+              <Button size="sm" className="bg-green-600 hover:bg-green-700 cursor-pointer" onClick={handleSave}>
                 Guardar
               </Button>
             </div>
@@ -423,7 +423,7 @@ function StockRow({ stock }: { stock: SerializedWarehouse['stocks'][number] }) {
             {formatNumber(stock.criticalThreshold)}
           </td>
           <td className="px-4 py-3 text-right">
-            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)} className="cursor-pointer">
               Editar umbrales
             </Button>
           </td>
@@ -775,7 +775,7 @@ function ExtraordinaryRow({ request }: { request: SerializedExtraordinaryRequest
       </td>
       <td className="px-4 py-3 text-right">
         {isPending ? (
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={handleDeliver}>
+          <Button size="sm" variant="outline" className="gap-1.5 cursor-pointer" onClick={handleDeliver}>
             <Check className="h-3.5 w-3.5" />
             Marcar entregado
           </Button>
