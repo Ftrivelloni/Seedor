@@ -105,7 +105,7 @@ export default async function UsuariosPage({
             type="search"
             placeholder="Buscar por nombre, email o teléfono..."
             defaultValue={params.q || ''}
-            className="pl-10"
+            className="pl-10 !bg-white border-gray-300"
           />
           <input type="hidden" name="role" value={params.role || 'ALL'} />
           <input type="hidden" name="status" value={params.status || 'ALL'} />
@@ -114,7 +114,7 @@ export default async function UsuariosPage({
         <form className="flex items-center gap-3" action="/dashboard/usuarios">
           <input type="hidden" name="q" value={params.q || ''} />
           <Select name="role" defaultValue={params.role || 'ALL'}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[160px] !bg-white border-gray-300 cursor-pointer">
               <SelectValue placeholder="Todos los roles" />
             </SelectTrigger>
             <SelectContent>
@@ -125,7 +125,7 @@ export default async function UsuariosPage({
           </Select>
 
           <Select name="status" defaultValue={params.status || 'ALL'}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-[140px] !bg-white border-gray-300 cursor-pointer">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
@@ -141,7 +141,7 @@ export default async function UsuariosPage({
           </Button>
         </form>
 
-        <Button variant="outline" className="gap-2" disabled>
+        <Button variant="outline" className="gap-2 !bg-white border-gray-300 cursor-pointer hover:!bg-gray-50" disabled>
           <Download className="h-4 w-4" />
           Exportar
         </Button>
