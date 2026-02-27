@@ -19,6 +19,9 @@ const MANDATORY_MODULES: ModuleKey[] = [
 // Optional modules that cost $20 each
 const OPTIONAL_MODULES: ModuleKey[] = ['MACHINERY', 'PACKAGING', 'SALES'];
 
+// Valid plan intervals — matches Prisma enum PlanInterval
+type PlanIntervalValue = 'MONTHLY' | 'ANNUAL';
+
 interface RegisterRequest {
     firstName?: string;
     lastName?: string;
@@ -27,6 +30,7 @@ interface RegisterRequest {
     password?: string;
     companyName?: string;
     selectedModules?: ModuleKey[];
+    planInterval?: PlanIntervalValue;
 }
 
 function generateSlug(name: string): string {
@@ -50,6 +54,8 @@ export async function POST(request: Request) {
         const password = body.password?.trim();
         const companyName = body.companyName?.trim();
         const selectedModules = body.selectedModules || [];
+        const planInterval: PlanIntervalValue =
+            body.planInterval === 'ANNUAL' ? 'ANNUAL' : 'MONTHLY';
 
         // Validate required fields
         if (!firstName || !lastName || !email || !password || !companyName) {
@@ -105,11 +111,12 @@ export async function POST(request: Request) {
 
         // Create tenant, user, membership, and module settings in a transaction
         const result = await prisma.$transaction(async (tx: any) => {
-            // Create tenant
+            // Create tenant with selected plan interval
             const tenant = await tx.tenant.create({
                 data: {
                     name: companyName,
                     slug,
+                    planInterval,
                 },
             });
 

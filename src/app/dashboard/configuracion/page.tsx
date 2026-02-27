@@ -92,12 +92,18 @@ export default async function ConfiguracionPage() {
   }));
 
   const pricingInfo: SubscriptionPricingInfo = {
+    planInterval: pricing.planInterval,
+    basePricePerMonth: pricing.basePricePerMonth,
+    modulePricePerMonth: pricing.modulePricePerMonth,
     basePriceUsd: pricing.basePriceUsd,
     modulePriceUsd: pricing.modulePriceUsd,
     enabledModuleCount: pricing.enabledModuleCount,
     enabledModules: pricing.enabledModules,
     modulesTotalUsd: pricing.modulesTotalUsd,
     totalUsd: pricing.totalUsd,
+    totalPerMonth: pricing.totalPerMonth,
+    yearlySavingsUsd: pricing.yearlySavingsUsd,
+    monthlySavingsPerModule: pricing.monthlySavingsPerModule,
   };
 
   return (

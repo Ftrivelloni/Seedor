@@ -273,16 +273,25 @@ async function handlePaymentEvent(paymentId: string) {
 
 /**
  * Recalculates the subscription price based on currently-enabled modules
- * and updates the Mercado Pago preapproval's `transaction_amount`.
+ * and the tenant's plan interval, then updates the Mercado Pago preapproval's
+ * `transaction_amount`.
  *
  * Called after each successful payment so that any modules disabled during
  * the previous cycle (whose cost was kept until now) get their price
  * reduction applied for the *next* billing cycle.
  *
- * Formula:  $200 (base) + $20 × (enabled optional modules)
+ * Both MONTHLY and ANNUAL plans charge the monthly amount to respect MP's limit.
+ * Annual plans charge 12 times (frequency=12 months) at the discounted rate.
+ *
+ * Monthly formula: $200 (base) + $20 × (enabled optional modules)
+ * Annual formula:  $200 (base) + $15 × (enabled modules) → charged monthly for 12 months
  */
 async function recalculateSubscriptionPrice(tenantId: string, preapprovalId: string) {
   const pricing = await calculateSubscriptionPrice(tenantId);
+
+  // Always charge the monthly amount to respect MP's $2M ARS limit.
+  // Annual plans use frequency=12 to indicate 12 monthly charges.
+  const desiredAmount = pricing.totalPerMonth;
 
   // Fetch current MP amount to avoid a no-op update
   const preapproval = await mpPreApproval.get({ id: preapprovalId });
@@ -291,7 +300,7 @@ async function recalculateSubscriptionPrice(tenantId: string, preapprovalId: str
     ? autoRecurring.transaction_amount
     : 0;
 
-  if (currentAmount === pricing.totalUsd) {
+  if (currentAmount === desiredAmount) {
     return;
   }
 
@@ -299,7 +308,7 @@ async function recalculateSubscriptionPrice(tenantId: string, preapprovalId: str
     id: preapprovalId,
     body: {
       auto_recurring: {
-        transaction_amount: pricing.totalUsd,
+        transaction_amount: desiredAmount,
       },
     } as unknown as Parameters<typeof mpPreApproval.update>[0]['body'],
   });

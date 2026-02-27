@@ -1,5 +1,7 @@
 import type { ModuleKey, SubscriptionStatus, PlanInterval, UserRole } from '@prisma/client';
 
+export type { PlanInterval } from '@prisma/client';
+
 // ── User data for "Mi Cuenta" ──
 export interface SerializedUser {
   id: string;
@@ -44,12 +46,18 @@ export interface SerializedModuleSetting {
 
 // ── Subscription pricing breakdown ──
 export interface SubscriptionPricingInfo {
+  planInterval: PlanInterval;
+  basePricePerMonth: number;
+  modulePricePerMonth: number;
   basePriceUsd: number;
   modulePriceUsd: number;
   enabledModuleCount: number;
   enabledModules: ModuleKey[];
   modulesTotalUsd: number;
   totalUsd: number;
+  totalPerMonth: number;
+  yearlySavingsUsd: number;
+  monthlySavingsPerModule: number;
 }
 
 // ── Props passed from server page to client ──

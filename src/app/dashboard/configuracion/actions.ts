@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireAuthSession, requireRole } from '@/lib/auth/auth';
 import { mpPreApproval } from '@/lib/mercadopago';
-import { calculateSubscriptionPrice } from '@/lib/domain/subscription';
+import { calculateSubscriptionPrice, convertUsdToArs } from '@/lib/domain/subscription';
+import { getUsdToArsRate } from '@/lib/utils/exchange-rate';
 
 // ═══════════════════════════════════════════════════════
 // MI CUENTA — Available to all authenticated users
@@ -214,27 +215,24 @@ export async function updatePlanModulesAction(
     //   • On deactivation → leave amount unchanged; webhook will reduce it after payment
     const tenant = await prisma.tenant.findUnique({
       where: { id: session.tenantId },
-      select: { mpPreapprovalId: true, subscriptionStatus: true },
+      select: { mpPreapprovalId: true, subscriptionStatus: true, planInterval: true },
     });
 
     if (hasActivations && tenant?.mpPreapprovalId && tenant.subscriptionStatus === 'ACTIVE') {
       try {
-        // Fetch the current preapproval to read the real transaction_amount
-        const preapproval = await mpPreApproval.get({ id: tenant.mpPreapprovalId });
-        const autoRecurring = preapproval.auto_recurring as Record<string, unknown> | undefined;
-        const currentAmount = typeof autoRecurring?.transaction_amount === 'number'
-          ? autoRecurring.transaction_amount
-          : 0;
-
-        // Increase by $20 for each newly activated module
-        const MODULE_PRICE_USD = 20;
-        const newAmount = currentAmount + activatedModules.length * MODULE_PRICE_USD;
+        // Get current exchange rate to convert the new price to ARS
+        const exchangeRate = await getUsdToArsRate();
+        
+        // Use the recalculated price (which already includes all enabled modules)
+        // and convert it to ARS for Mercado Pago.
+        // Both MONTHLY and ANNUAL plans charge the monthly amount.
+        const newAmountArs = convertUsdToArs(pricing.totalPerMonth, exchangeRate);
 
         await mpPreApproval.update({
           id: tenant.mpPreapprovalId,
           body: {
             auto_recurring: {
-              transaction_amount: newAmount,
+              transaction_amount: newAmountArs,
             },
           } as unknown as Parameters<typeof mpPreApproval.update>[0]['body'],
         });

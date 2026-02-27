@@ -39,12 +39,13 @@ import {
   updatePlanModulesAction,
   getChangePaymentMethodUrlAction,
 } from './actions';
-import type { SerializedTenant, SerializedModuleSetting, SubscriptionPricingInfo } from './types';
+import type { SerializedTenant, SerializedModuleSetting, SubscriptionPricingInfo, PlanInterval } from './types';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const BASE_PRICE_USD = 200;
-const MODULE_PRICE_USD = 20;
+const MODULE_PRICE_MONTHLY_USD = 20;
+const MODULE_PRICE_YEARLY_USD = 15;
 
 const OPTIONAL_MODULES = [
   { key: 'PACKAGING' as const, label: 'Empaque', description: 'Pipeline de 6 etapas de empaque de fruta.', icon: Package },
@@ -95,7 +96,11 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
   const statusInfo = STATUS_CONFIG[tenant.subscriptionStatus] ?? null;
   const canCancel = tenant.subscriptionStatus === 'ACTIVE';
   const hasActiveSubscription = canCancel;
-  const liveTotal = BASE_PRICE_USD + MODULE_PRICE_USD * enabledKeys.length;
+  const isYearly = tenant.planInterval === 'ANNUAL';
+  const modulePricePerMonth = isYearly ? MODULE_PRICE_YEARLY_USD : MODULE_PRICE_MONTHLY_USD;
+  const liveTotal = BASE_PRICE_USD + modulePricePerMonth * enabledKeys.length;
+  const intervalLabel = isYearly ? 'Anual' : 'Mensual';
+  const periodLabel = isYearly ? '/año' : '/mes';
 
   function handleToggle(key: string, value: boolean) {
     setEnabledKeys((prev) => (value ? [...prev, key] : prev.filter((k) => k !== key)));
@@ -231,7 +236,7 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Detalle del plan</h3>
-              <p className="mt-0.5 text-sm text-gray-500">Módulos incluidos en tu suscripción mensual.</p>
+              <p className="mt-0.5 text-sm text-gray-500">Módulos incluidos en tu suscripción {isYearly ? 'anual' : 'mensual'}.</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {/* Botón Más información */}
@@ -334,7 +339,10 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
           {/* Módulos opcionales */}
           <div className="space-y-2">
             <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-              Módulos opcionales — USD ${MODULE_PRICE_USD} c/u por mes
+              Módulos opcionales — USD ${modulePricePerMonth} c/u por mes
+              {isYearly && (
+                <span className="ml-1 text-green-600 normal-case">(ahorrás USD ${MODULE_PRICE_MONTHLY_USD - MODULE_PRICE_YEARLY_USD}/módulo vs. mensual)</span>
+              )}
             </p>
             <div className="divide-y divide-gray-100 rounded-lg border border-gray-200">
               {OPTIONAL_MODULES.map((mod) => {
@@ -354,7 +362,7 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
                     <div className="flex items-center gap-3">
                       {isEditingPlan ? (
                         <>
-                          {isEnabled && <span className="text-xs font-medium text-green-700">+ USD ${MODULE_PRICE_USD}</span>}
+                          {isEnabled && <span className="text-xs font-medium text-green-700">+ USD ${modulePricePerMonth}</span>}
                           <Switch
                             checked={isEnabled}
                             onCheckedChange={(val) => handleToggle(mod.key, val)}
@@ -377,15 +385,28 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
 
           {/* Total */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-900">Total mensual</span>
+            <span className="text-sm font-semibold text-gray-900">Total {isYearly ? 'mensual equivalente' : 'mensual'}</span>
             <div className="text-right">
               <span className="text-xl font-bold text-green-700">
-                USD ${isEditingPlan ? liveTotal : pricing.totalUsd}
+                USD ${isEditingPlan ? liveTotal : pricing.totalPerMonth}
               </span>
-              {isEditingPlan && liveTotal !== pricing.totalUsd && (
-                <p className="text-xs text-gray-400">Antes: USD ${pricing.totalUsd}</p>
+              <span className="text-sm text-gray-400 ml-1">/mes</span>
+              {isEditingPlan && liveTotal !== pricing.totalPerMonth && (
+                <p className="text-xs text-gray-400">Antes: USD ${pricing.totalPerMonth}/mes</p>
+              )}
+              {isYearly && (
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Cobro anual: USD ${(isEditingPlan ? liveTotal : pricing.totalPerMonth) * 12}
+                </p>
               )}
             </div>
+          </div>
+
+          {/* Aviso legal de no reembolso */}
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-xs text-amber-800 leading-relaxed">
+              <strong>Nota:</strong> Los cambios de plan o desactivación de módulos se aplicarán al finalizar el periodo actual. No se realizan reembolsos prorrateados por módulos desactivados antes del cierre del ciclo de facturación.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -424,9 +445,14 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
                 )}
                 <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
                   <p className="text-sm font-medium text-gray-800">
-                    Nuevo total mensual: <span className="text-green-700">USD ${liveTotal}</span>
-                    {liveTotal !== pricing.totalUsd && (
-                      <span className="ml-1 text-xs text-gray-400">(antes: USD ${pricing.totalUsd})</span>
+                    Nuevo total mensual: <span className="text-green-700">USD ${liveTotal}/mes</span>
+                    {liveTotal !== pricing.totalPerMonth && (
+                      <span className="ml-1 text-xs text-gray-400">(antes: USD ${pricing.totalPerMonth}/mes)</span>
+                    )}
+                    {isYearly && (
+                      <span className="block text-xs text-gray-500 mt-1">
+                        Cobro anual: USD ${liveTotal * 12}
+                      </span>
                     )}
                   </p>
                 </div>
