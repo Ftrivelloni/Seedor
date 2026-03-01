@@ -41,8 +41,8 @@ model Tenant {
   inventoryMovements        InventoryMovement[]
   invitations               Invitation[]
   lots                      Lot[]
-  Machine                   Machine[]
-  MachineMovement           MachineMovement[]
+  machines                  Machine[]
+  machineMovements          MachineMovement[]
   packingBins               PackingBin[]
   packingBoxes              PackingBox[]
   packingTransports         PackingTransport[]
@@ -82,7 +82,7 @@ model User {
   extraordinaryItemRequests ExtraordinaryItemRequest[] @relation("ExtraordinaryRequestedBy")
   inventoryMovements        InventoryMovement[]        @relation("InventoryMovementCreatedBy")
   sentInvitations           Invitation[]               @relation("InvitationsSent")
-  MachineMovement           MachineMovement[]
+  createdMachineMovements   MachineMovement[]          @relation("MachineMovementCreatedBy")
   createdTasks              Task[]                     @relation("TaskCreatedBy")
   memberships               TenantUserMembership?
   invitedBy                 User?                      @relation("UserInvitations", fields: [invitedById], references: [id], onDelete: SetNull)
@@ -241,27 +241,27 @@ model LotCrop {
 }
 
 model Worker {
-  id                    String                  @id @default(cuid())
-  tenantId              String
-  firstName             String
-  lastName              String
-  dni                   String
-  phone                 String
-  email                 String?
-  paymentType           WorkerPaymentType
-  functionType          String
-  hourlyRate            Float?
-  taskRate              Float?
-  fixedSalary           Float?
-  paymentStatus         WorkerPaymentStatus     @default(PENDING)
-  active                Boolean                 @default(true)
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  MachineMovementWorker MachineMovementWorker[]
-  preselectionWorkers   PreselectionWorker[]
-  taskAssignments       TaskAssignment[]
-  workLogs              TaskWorkLog[]
-  tenant                Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                     String                  @id @default(cuid())
+  tenantId               String
+  firstName              String
+  lastName               String
+  dni                    String
+  phone                  String
+  email                  String?
+  paymentType            WorkerPaymentType
+  functionType           String
+  hourlyRate             Float?
+  taskRate               Float?
+  fixedSalary            Float?
+  paymentStatus          WorkerPaymentStatus     @default(PENDING)
+  active                 Boolean                 @default(true)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  machineMovementWorkers MachineMovementWorker[]
+  preselectionWorkers    PreselectionWorker[]
+  taskAssignments        TaskAssignment[]
+  workLogs               TaskWorkLog[]
+  tenant                 Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, dni])
   @@index([tenantId])
@@ -311,37 +311,37 @@ model HarvestRecord {
 }
 
 model Warehouse {
-  id                    String                  @id @default(cuid())
-  tenantId              String
-  name                  String
-  description           String?
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  destinationMovements  InventoryMovement[]     @relation("DestinationWarehouse")
-  sourceMovements       InventoryMovement[]     @relation("SourceWarehouse")
-  MachineInventoryUsage MachineInventoryUsage[]
-  taskUsages            TaskInventoryUsage[]
-  tenant                Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  stocks                WarehouseStock[]
+  id                   String                  @id @default(cuid())
+  tenantId             String
+  name                 String
+  description          String?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  destinationMovements InventoryMovement[]     @relation("DestinationWarehouse")
+  sourceMovements      InventoryMovement[]     @relation("SourceWarehouse")
+  machineUsages        MachineInventoryUsage[]
+  taskUsages           TaskInventoryUsage[]
+  tenant               Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stocks               WarehouseStock[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
 }
 
 model InventoryItem {
-  id                    String                  @id @default(cuid())
-  tenantId              String
-  code                  String
-  name                  String
-  description           String
-  unit                  String
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  tenant                Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  movements             InventoryMovement[]
-  MachineInventoryUsage MachineInventoryUsage[]
-  taskUsages            TaskInventoryUsage[]
-  stocks                WarehouseStock[]
+  id            String                  @id @default(cuid())
+  tenantId      String
+  code          String
+  name          String
+  description   String
+  unit          String
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  tenant        Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  movements     InventoryMovement[]
+  machineUsages MachineInventoryUsage[]
+  taskUsages    TaskInventoryUsage[]
+  stocks        WarehouseStock[]
 
   @@unique([tenantId, code])
   @@index([tenantId, name])
@@ -380,7 +380,7 @@ model InventoryMovement {
   referenceTask          Task?                  @relation("TaskInventoryReference", fields: [referenceTaskId], references: [id])
   sourceWarehouse        Warehouse?             @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id])
   tenant                 Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  MachineInventoryUsage  MachineInventoryUsage?
+  machineUsage           MachineInventoryUsage?
   taskUsage              TaskInventoryUsage?
 
   @@index([tenantId, createdAt])
@@ -778,93 +778,6 @@ model DispatchClient {
   @@index([tenantId])
 }
 
-model Machine {
-  id                   String            @id
-  tenantId             String
-  name                 String
-  description          String?
-  type                 String
-  location             String?
-  imageUrl             String?
-  acquisitionDate      DateTime?
-  hourMeter            Float             @default(0)
-  totalCost            Float             @default(0)
-  serviceIntervalHours Float?
-  serviceIntervalDays  Int?
-  lastServiceAt        DateTime?
-  lastServiceHourMeter Float             @default(0)
-  active               Boolean           @default(true)
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime
-  Tenant               Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  MachineMovement      MachineMovement[]
-
-  @@unique([tenantId, name])
-  @@index([tenantId])
-}
-
-model MachineInventoryUsage {
-  id                  String             @id
-  movementId          String
-  itemId              String
-  warehouseId         String
-  quantity            Float
-  inventoryMovementId String?            @unique
-  createdAt           DateTime           @default(now())
-  InventoryMovement   InventoryMovement? @relation(fields: [inventoryMovementId], references: [id])
-  InventoryItem       InventoryItem      @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  MachineMovement     MachineMovement    @relation(fields: [movementId], references: [id], onDelete: Cascade)
-  Warehouse           Warehouse          @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-
-  @@index([movementId])
-}
-
-model MachineMovement {
-  id                       String                     @id
-  tenantId                 String
-  machineId                String
-  type                     MachineMovementType
-  date                     DateTime                   @default(now())
-  description              String?
-  hoursUsed                Float?
-  cost                     Float                      @default(0)
-  notes                    String?
-  createdByUserId          String?
-  createdAt                DateTime                   @default(now())
-  updatedAt                DateTime
-  MachineInventoryUsage    MachineInventoryUsage[]
-  User                     User?                      @relation(fields: [createdByUserId], references: [id])
-  Machine                  Machine                    @relation(fields: [machineId], references: [id], onDelete: Cascade)
-  Tenant                   Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  MachineMovementSparePart MachineMovementSparePart[]
-  MachineMovementWorker    MachineMovementWorker[]
-
-  @@index([machineId, date])
-  @@index([tenantId])
-}
-
-model MachineMovementSparePart {
-  id              String          @id
-  movementId      String
-  name            String
-  quantity        Float           @default(1)
-  cost            Float           @default(0)
-  MachineMovement MachineMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
-
-  @@index([movementId])
-}
-
-model MachineMovementWorker {
-  id              String          @id
-  movementId      String
-  workerId        String
-  cost            Float           @default(0)
-  MachineMovement MachineMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
-  Worker          Worker          @relation(fields: [workerId], references: [id])
-
-  @@unique([movementId, workerId])
-}
-
 enum InvitationStatus {
   PENDING
   ACCEPTED
@@ -978,4 +891,91 @@ enum MachineMovementType {
   USE
   SERVICE
   MAINTENANCE
+}
+
+model Machine {
+  id                   String            @id @default(cuid())
+  tenantId             String
+  name                 String
+  description          String?
+  type                 String
+  location             String?
+  imageUrl             String?
+  acquisitionDate      DateTime?
+  hourMeter            Float             @default(0)
+  totalCost            Float             @default(0)
+  serviceIntervalHours Float?
+  serviceIntervalDays  Int?
+  lastServiceAt        DateTime?
+  lastServiceHourMeter Float             @default(0)
+  active               Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  tenant               Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  movements            MachineMovement[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model MachineMovement {
+  id              String              @id @default(cuid())
+  tenantId        String
+  machineId       String
+  type            MachineMovementType
+  date            DateTime            @default(now())
+  description     String?
+  hoursUsed       Float?
+  cost            Float               @default(0)
+  notes           String?
+  createdByUserId String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  machine         Machine             @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdByUser   User?               @relation("MachineMovementCreatedBy", fields: [createdByUserId], references: [id])
+  workers         MachineMovementWorker[]
+  spareParts      MachineMovementSparePart[]
+  inventoryUsages MachineInventoryUsage[]
+
+  @@index([machineId, date])
+  @@index([tenantId])
+}
+
+model MachineMovementWorker {
+  id         String          @id @default(cuid())
+  movementId String
+  workerId   String
+  cost       Float           @default(0)
+  movement   MachineMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  worker     Worker          @relation(fields: [workerId], references: [id])
+
+  @@unique([movementId, workerId])
+}
+
+model MachineMovementSparePart {
+  id         String          @id @default(cuid())
+  movementId String
+  name       String
+  quantity   Float           @default(1)
+  cost       Float           @default(0)
+  movement   MachineMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+
+  @@index([movementId])
+}
+
+model MachineInventoryUsage {
+  id                  String             @id @default(cuid())
+  movementId          String
+  itemId              String
+  warehouseId         String
+  quantity            Float
+  inventoryMovementId String?            @unique
+  createdAt           DateTime           @default(now())
+  movement            MachineMovement    @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  item                InventoryItem      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  warehouse           Warehouse          @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  inventoryMovement   InventoryMovement? @relation(fields: [inventoryMovementId], references: [id])
+
+  @@index([movementId])
 }

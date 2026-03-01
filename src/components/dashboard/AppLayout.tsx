@@ -11,7 +11,6 @@ import {
   Truck,
   ShoppingCart,
   Settings,
-  Zap,
   Bell,
   Search,
   ChevronLeft,
@@ -43,7 +42,6 @@ const baseMenuItems: MenuItem[] = [
   { icon: Package, label: 'Empaque', path: '/dashboard/empaque', moduleKey: 'PACKAGING' },
   { icon: ShoppingCart, label: 'Ventas', path: '/dashboard/ventas', adminOnly: true, moduleKey: 'SALES' },
   { icon: Settings, label: 'Configuración', path: '/dashboard/configuracion' },
-  { icon: Zap, label: 'Integraciones', path: '/dashboard/integraciones' },
 ];
 
 interface AppLayoutProps {
