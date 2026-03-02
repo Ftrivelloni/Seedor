@@ -36,6 +36,9 @@ yarn-error.log*
 # Python virtual environments
 venv/
 
+# Telegram bot runtime data
+telegram-bot/data/
+
 # vercel
 .vercel
 
