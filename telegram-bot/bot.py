@@ -619,7 +619,7 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def handle_task_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle inline button: show confirmation before marking a task as completed."""
+    """Handle inline button: mark a task as completed."""
     query = update.callback_query
     await query.answer()
 
@@ -633,40 +633,6 @@ async def handle_task_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # Parse callback_data: "done:{task_id}"
     data = query.data
     if not data.startswith("done:"):
-        return
-
-    task_id = data.split(":", 1)[1]
-
-    # Show confirmation buttons instead of completing immediately
-    confirm_buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("✅ Sí, completar", callback_data=f"confirm_done:{task_id}"),
-            InlineKeyboardButton("❌ Cancelar", callback_data=f"cancel_done:{task_id}"),
-        ]
-    ])
-
-    await query.edit_message_text(
-        f"⚠️ *¿Confirmar completar esta tarea?*\n\n"
-        f"Esta acción marcará la tarea como completada.",
-        parse_mode="Markdown",
-        reply_markup=confirm_buttons,
-    )
-
-
-async def handle_confirm_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle confirmation: actually mark the task as completed."""
-    query = update.callback_query
-    await query.answer()
-
-    chat_id = query.message.chat_id
-    worker_id = _authenticated_workers.get(chat_id)
-
-    if not worker_id:
-        await query.edit_message_text("⚠️ Sesión expirada. Usá /start para volver a identificarte.")
-        return
-
-    data = query.data
-    if not data.startswith("confirm_done:"):
         return
 
     task_id = data.split(":", 1)[1]
@@ -687,18 +653,6 @@ async def handle_confirm_done(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.edit_message_text(
         f"✅ *Tarea completada:* Se registró correctamente.\n\n"
         f"Usá '📋 Mis Tareas' para ver las que quedan.",
-        parse_mode="Markdown",
-    )
-
-
-async def handle_cancel_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle cancellation: worker decided not to complete the task."""
-    query = update.callback_query
-    await query.answer()
-
-    await query.edit_message_text(
-        "↩️ *Cancelado.* La tarea no fue marcada como completada.\n\n"
-        "Usá '📋 Mis Tareas' para ver tus tareas.",
         parse_mode="Markdown",
     )
 
@@ -782,8 +736,6 @@ def main() -> None:
     app.add_handler(MessageHandler(filters.Regex(r"^📋 Mis Tareas$"), handle_my_tasks))
     app.add_handler(MessageHandler(filters.LOCATION, handle_location))
     app.add_handler(CallbackQueryHandler(handle_task_done, pattern=r"^done:"))
-    app.add_handler(CallbackQueryHandler(handle_confirm_done, pattern=r"^confirm_done:"))
-    app.add_handler(CallbackQueryHandler(handle_cancel_done, pattern=r"^cancel_done:"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unknown))
 
     logger.info("🌿 Seedor Bot starting… Press Ctrl+C to stop.")

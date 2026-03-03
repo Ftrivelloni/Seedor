@@ -11,7 +11,6 @@ import type {
   SerializedInventoryItem,
   SerializedWarehouse,
   SerializedTaskType,
-  SerializedCompletionLog,
 } from '../../types';
 
 interface LotPageProps {
@@ -22,7 +21,7 @@ export default async function LotPage({ params }: LotPageProps) {
   const { fieldId, lotId } = await params;
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
-  const [field, lot, tasks, harvests, workers, inventoryItems, warehouses, taskTypes, allFields, completionLogs] =
+  const [field, lot, tasks, harvests, workers, inventoryItems, warehouses, taskTypes, allFields] =
     await Promise.all([
       prisma.field.findFirst({
         where: { id: fieldId, tenantId: session.tenantId },
@@ -109,19 +108,6 @@ export default async function LotPage({ params }: LotPageProps) {
           },
         },
         orderBy: { name: 'asc' },
-      }),
-      prisma.taskCompletionLog.findMany({
-        where: {
-          task: {
-            tenantId: session.tenantId,
-            lotLinks: { some: { lotId } },
-          },
-        },
-        include: {
-          task: { select: { description: true } },
-          worker: { select: { firstName: true, lastName: true } },
-        },
-        orderBy: { completedAt: 'desc' },
       }),
     ]);
 
@@ -250,15 +236,6 @@ export default async function LotPage({ params }: LotPageProps) {
     color: tt.color,
   }));
 
-  /* ── Serialize completion logs ── */
-  const serializedCompletionLogs: SerializedCompletionLog[] = completionLogs.map((cl) => ({
-    id: cl.id,
-    taskDescription: cl.task.description,
-    workerName: `${cl.worker.firstName} ${cl.worker.lastName}`,
-    source: cl.source,
-    completedAt: cl.completedAt.toISOString(),
-  }));
-
   /* ── Serialize all fields for task modal ── */
   const serializedAllFields: SerializedField[] = allFields.map((f) => ({
     id: f.id,
@@ -292,7 +269,6 @@ export default async function LotPage({ params }: LotPageProps) {
       inventoryItems={serializedItems}
       warehouses={serializedWarehouses}
       taskTypes={serializedTaskTypes}
-      completionLogs={serializedCompletionLogs}
     />
   );
 }

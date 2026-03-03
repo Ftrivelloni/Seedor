@@ -70,23 +70,13 @@ export async function POST(request: Request) {
                         continue;
                     }
 
-                    await prisma.$transaction([
-                        prisma.task.update({
-                            where: { id: event.task_id },
-                            data: {
-                                status: 'COMPLETED',
-                                completedAt: new Date(event.timestamp),
-                            },
-                        }),
-                        prisma.taskCompletionLog.create({
-                            data: {
-                                taskId: event.task_id,
-                                workerId: event.worker_id,
-                                source: 'telegram',
-                                completedAt: new Date(event.timestamp),
-                            },
-                        }),
-                    ]);
+                    await prisma.task.update({
+                        where: { id: event.task_id },
+                        data: {
+                            status: 'COMPLETED',
+                            completedAt: new Date(event.timestamp),
+                        },
+                    });
 
                     revalidatePath('/dashboard');
                     revalidatePath('/dashboard/campo');
