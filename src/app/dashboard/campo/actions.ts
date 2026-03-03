@@ -540,13 +540,33 @@ export async function updateTaskStatusAction(taskId: string, status: TaskStatus)
 
   if (!task) throw new Error('Tarea no encontrada.');
 
-  await prisma.task.update({
-    where: { id: task.id },
-    data: {
-      status,
-      completedAt: status === 'COMPLETED' ? new Date() : null,
-    },
-  });
+  const now = new Date();
+
+  const operations = [
+    prisma.task.update({
+      where: { id: task.id },
+      data: {
+        status,
+        completedAt: status === 'COMPLETED' ? now : null,
+      },
+    }),
+  ];
+
+  // Log completion for audit trail when marking as COMPLETED from web
+  if (status === 'COMPLETED') {
+    operations.push(
+      prisma.taskCompletionLog.create({
+        data: {
+          taskId: task.id,
+          workerId: session.userId,
+          source: 'web',
+          completedAt: now,
+        },
+      }) as any,
+    );
+  }
+
+  await prisma.$transaction(operations);
 
   revalidatePath('/dashboard/campo');
   revalidatePath('/dashboard');

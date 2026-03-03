@@ -50,6 +50,14 @@ export interface SerializedTask {
   createdAt: string;
 }
 
+export interface SerializedCompletionLog {
+  id: string;
+  taskDescription: string;
+  workerName: string;
+  source: string;
+  completedAt: string;
+}
+
 export interface SerializedSubtask {
   id: string;
   description: string;
