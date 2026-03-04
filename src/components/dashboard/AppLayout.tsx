@@ -216,9 +216,6 @@ export function AppLayout({ children, user, enabledModules }: AppLayoutProps) {
                 className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <Bell className="h-5 w-5 text-gray-600" />
-                <span className="absolute top-1 right-1 h-4 w-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">
-                  3
-                </span>
               </button>
 
               {notificationsOpen && (
@@ -226,19 +223,8 @@ export function AppLayout({ children, user, enabledModules }: AppLayoutProps) {
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="font-medium text-gray-900">Notificaciones</p>
                   </div>
-                  <div className="py-1">
-                    <button className="w-full px-4 py-3 hover:bg-gray-50 text-left">
-                      <p className="text-sm font-medium text-gray-900">Stock bajo</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Fertilizante NPK por debajo del mínimo</p>
-                    </button>
-                    <button className="w-full px-4 py-3 hover:bg-gray-50 text-left">
-                      <p className="text-sm font-medium text-gray-900">Service próximo</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Control programado próximamente</p>
-                    </button>
-                    <button className="w-full px-4 py-3 hover:bg-gray-50 text-left">
-                      <p className="text-sm font-medium text-gray-900">Tarea pendiente</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Hay tareas para reasignar</p>
-                    </button>
+                  <div className="px-4 py-6 text-center">
+                    <p className="text-sm text-gray-500">No tenés notificaciones nuevas</p>
                   </div>
                 </div>
               )}

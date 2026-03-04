@@ -5,6 +5,21 @@ import { DashboardPageClient } from './DashboardPageClient';
 import type { DashboardData, TemplateKey } from './dashboard-types';
 import { DEFAULT_WIDGETS } from './dashboard-types';
 
+const SERIES_COLORS = ['#16a34a', '#2563eb', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#e11d48', '#65a30d'];
+
+function getMonthLabels(start: Date, count: number): string[] {
+  const labels: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+    labels.push(d.toLocaleDateString('es-AR', { month: 'short' }));
+  }
+  return labels;
+}
+
+function getMonthIndex(date: Date, start: Date): number {
+  return (date.getFullYear() - start.getFullYear()) * 12 + date.getMonth() - start.getMonth();
+}
+
 function parseWidgets(raw: string | null): string[] {
   if (!raw) return DEFAULT_WIDGETS;
   try {
@@ -22,6 +37,9 @@ export default async function DashboardPage() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const sixtyDaysAgo = new Date();
   sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  sixMonthsAgo.setDate(1);
 
   const [
     preference,
@@ -35,6 +53,11 @@ export default async function DashboardPage() {
     prevHarvestSum,
     recentMovements,
     inventoryItems,
+    harvestRecords6m,
+    tasksWithCosts6m,
+    alertTasksRaw,
+    packingBoxes6m,
+    pallets6m,
   ] = await Promise.all([
     prisma.dashboardPreference.findUnique({
       where: {
@@ -128,6 +151,31 @@ export default async function DashboardPage() {
       },
       orderBy: { name: 'asc' },
     }),
+    // Harvest records 6 months — yield by crop over time
+    prisma.harvestRecord.findMany({
+      where: { tenantId: session.tenantId, harvestDate: { gte: sixMonthsAgo } },
+      select: { cropType: true, kilos: true, harvestDate: true },
+    }),
+    // Tasks with costs 6 months — cost by lot over time
+    prisma.task.findMany({
+      where: { tenantId: session.tenantId, costValue: { not: null }, startDate: { gte: sixMonthsAgo } },
+      select: { costValue: true, startDate: true, lotLinks: { include: { lot: { select: { name: true } } } } },
+    }),
+    // Pending/late tasks linked to lots — lot task alerts
+    prisma.task.findMany({
+      where: { tenantId: session.tenantId, status: { in: ['PENDING', 'IN_PROGRESS', 'LATE'] }, lotLinks: { some: {} } },
+      select: { id: true, taskType: true, status: true, dueDate: true, lotLinks: { include: { lot: { select: { id: true, name: true } } } } },
+    }),
+    // PackingBox 6 months — empaque boxes by crop
+    prisma.packingBox.findMany({
+      where: { tenantId: session.tenantId, createdAt: { gte: sixMonthsAgo } },
+      select: { product: true, createdAt: true },
+    }),
+    // Pallet 6 months — empaque pallets by crop
+    prisma.pallet.findMany({
+      where: { tenantId: session.tenantId, createdAt: { gte: sixMonthsAgo } },
+      include: { boxes: { select: { product: true }, take: 1 } },
+    }),
   ]);
 
   const selectedWidgets = parseWidgets(preference?.widgetsJson || null);
@@ -185,6 +233,97 @@ export default async function DashboardPage() {
     unit: item.unit,
   }));
 
+  /* ── Yield by crop over time ── */
+  const monthLabels = getMonthLabels(sixMonthsAgo, 6);
+  const cropTimeMap = new Map<string, number[]>();
+  for (const hr of harvestRecords6m) {
+    const mi = getMonthIndex(hr.harvestDate, sixMonthsAgo);
+    if (mi < 0 || mi >= 6) continue;
+    if (!cropTimeMap.has(hr.cropType)) cropTimeMap.set(hr.cropType, new Array(6).fill(0));
+    cropTimeMap.get(hr.cropType)![mi] += hr.kilos;
+  }
+  const yieldByCropOverTime = {
+    months: monthLabels,
+    series: Array.from(cropTimeMap.entries()).slice(0, 8).map(([name, values], i) => ({
+      name,
+      color: SERIES_COLORS[i % SERIES_COLORS.length],
+      values,
+    })),
+  };
+
+  /* ── Cost by lot over time ── */
+  const lotCostTimeMap = new Map<string, number[]>();
+  for (const task of tasksWithCosts6m) {
+    const mi = getMonthIndex(task.startDate, sixMonthsAgo);
+    if (mi < 0 || mi >= 6) continue;
+    const cost = Number(task.costValue || 0);
+    for (const link of task.lotLinks) {
+      const lotName = link.lot.name;
+      if (!lotCostTimeMap.has(lotName)) lotCostTimeMap.set(lotName, new Array(6).fill(0));
+      lotCostTimeMap.get(lotName)![mi] += cost / task.lotLinks.length;
+    }
+  }
+  const costByLotOverTime = {
+    months: monthLabels,
+    series: Array.from(lotCostTimeMap.entries()).slice(0, 8).map(([name, values], i) => ({
+      name,
+      color: SERIES_COLORS[i % SERIES_COLORS.length],
+      values: values.map((v) => Math.round(v)),
+    })),
+  };
+
+  /* ── Lot task alerts ── */
+  const now = new Date();
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const lotTaskAlerts: DashboardData['lotTaskAlerts'] = [];
+  for (const task of alertTasksRaw) {
+    const isUrgent = task.status === 'LATE' || task.dueDate < now;
+    const isWarned = !isUrgent && task.dueDate <= sevenDaysFromNow;
+    if (!isUrgent && !isWarned) continue;
+    for (const link of task.lotLinks) {
+      const daysInfo = isUrgent
+        ? Math.max(1, Math.ceil((now.getTime() - task.dueDate.getTime()) / (1000 * 60 * 60 * 24)))
+        : Math.max(1, Math.ceil((task.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+      lotTaskAlerts.push({ id: `${task.id}-${link.lot.id}`, lotName: link.lot.name, taskType: task.taskType, level: isUrgent ? 'urgent' : 'warned', daysInfo });
+    }
+  }
+  lotTaskAlerts.sort((a, b) => (a.level === 'urgent' ? 0 : 1) - (b.level === 'urgent' ? 0 : 1));
+
+  /* ── Empaque boxes by crop ── */
+  const boxCropMap = new Map<string, number[]>();
+  for (const box of packingBoxes6m) {
+    const mi = getMonthIndex(box.createdAt, sixMonthsAgo);
+    if (mi < 0 || mi >= 6) continue;
+    if (!boxCropMap.has(box.product)) boxCropMap.set(box.product, new Array(6).fill(0));
+    boxCropMap.get(box.product)![mi]++;
+  }
+  const empaqueBoxesByCrop = {
+    months: monthLabels,
+    series: Array.from(boxCropMap.entries()).slice(0, 8).map(([name, values], i) => ({
+      name,
+      color: SERIES_COLORS[i % SERIES_COLORS.length],
+      values,
+    })),
+  };
+
+  /* ── Empaque pallets by crop ── */
+  const palletCropMap = new Map<string, number[]>();
+  for (const pallet of pallets6m) {
+    const mi = getMonthIndex(pallet.createdAt, sixMonthsAgo);
+    if (mi < 0 || mi >= 6) continue;
+    const crop = pallet.boxes[0]?.product || 'Sin producto';
+    if (!palletCropMap.has(crop)) palletCropMap.set(crop, new Array(6).fill(0));
+    palletCropMap.get(crop)![mi]++;
+  }
+  const empaquePalletsByCrop = {
+    months: monthLabels,
+    series: Array.from(palletCropMap.entries()).slice(0, 8).map(([name, values], i) => ({
+      name,
+      color: SERIES_COLORS[i % SERIES_COLORS.length],
+      values,
+    })),
+  };
+
   /* ── Build data ── */
   const data: DashboardData = {
     activeTasks: openTasks,
@@ -214,6 +353,11 @@ export default async function DashboardPage() {
     machineryStatus: { ok: 0, maintenance: 0, broken: 0 }, // no machinery model in DB
     monthlySales: [], // no sales model in DB
     clientsWithBalance: 0, // no client model in DB
+    yieldByCropOverTime,
+    costByLotOverTime,
+    lotTaskAlerts,
+    empaqueBoxesByCrop,
+    empaquePalletsByCrop,
   };
 
   return (
