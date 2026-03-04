@@ -164,7 +164,7 @@ export default async function DashboardPage() {
     // Pending/late tasks linked to lots — lot task alerts
     prisma.task.findMany({
       where: { tenantId: session.tenantId, status: { in: ['PENDING', 'IN_PROGRESS', 'LATE'] }, lotLinks: { some: {} } },
-      select: { taskType: true, status: true, dueDate: true, lotLinks: { include: { lot: { select: { name: true } } } } },
+      select: { id: true, taskType: true, status: true, dueDate: true, lotLinks: { include: { lot: { select: { id: true, name: true } } } } },
     }),
     // PackingBox 6 months — empaque boxes by crop
     prisma.packingBox.findMany({
