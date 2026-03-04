@@ -30,7 +30,7 @@ export function EmpaqueLayoutClient({ children }: { children: React.ReactNode })
       {/* Module header */}
       <header className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Módulo de Empaque</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Empaque</h1>
           <p className="text-sm text-gray-600">
             Gestión integral del proceso de empaque citrícola con trazabilidad completa
           </p>
