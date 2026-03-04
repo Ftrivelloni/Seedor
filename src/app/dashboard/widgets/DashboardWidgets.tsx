@@ -497,7 +497,7 @@ export function LotTaskAlertsWidget({ data }: { data: DashboardData }) {
         <ul className="space-y-2 flex-1 overflow-y-auto">
           {alerts.slice(0, 8).map((a, i) => (
             <li
-              key={i}
+              key={a.id}
               className={`rounded-lg p-3 text-sm ${
                 a.level === 'urgent'
                   ? 'bg-red-50 border border-red-200'
