@@ -10,8 +10,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [email, setEmail] = useState('admin@seedor.app');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -190,11 +190,7 @@ export default function LoginPage() {
             </div>
           </form>
 
-          <div className="mt-6 rounded-xl border border-[#73AC01]/20 bg-[#73AC01]/5 px-4 py-3 text-sm text-[#0A0908]/70">
-            <p className="font-medium text-[#0A0908]">Credenciales demo</p>
-            <p>Admin: admin@seedor.app / admin123</p>
-            <p>Supervisor: supervisor@seedor.app / super123</p>
-          </div>
+
 
           <p
             className={`text-center mt-8 text-sm text-[#0A0908]/60 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}

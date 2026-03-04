@@ -105,6 +105,60 @@ function DonutChart({
 }
 
 /* ════════════════════════════════════════
+   Grouped bar chart for time series
+   ════════════════════════════════════════ */
+function GroupedBarChart({
+  months,
+  series,
+  maxHeight = 100,
+}: {
+  months: string[];
+  series: { name: string; color: string; values: number[] }[];
+  maxHeight?: number;
+}) {
+  const max = Math.max(...series.flatMap((s) => s.values), 1);
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-end gap-3 flex-1">
+        {months.map((month, mi) => (
+          <div key={mi} className="flex flex-col items-center flex-1 min-w-0">
+            <div className="flex items-end gap-0.5 w-full justify-center">
+              {series.map((s, si) => (
+                <div
+                  key={si}
+                  className="rounded-t-sm transition-all duration-500"
+                  style={{
+                    height: `${(s.values[mi] / max) * maxHeight}px`,
+                    backgroundColor: s.color,
+                    minHeight: s.values[mi] > 0 ? '2px' : '0px',
+                    flex: 1,
+                    maxWidth: '16px',
+                  }}
+                  title={`${s.name}: ${s.values[mi]}`}
+                />
+              ))}
+            </div>
+            <span className="mt-1.5 text-[10px] text-gray-500 truncate w-full text-center">
+              {month}
+            </span>
+          </div>
+        ))}
+      </div>
+      {series.length > 0 && (
+        <div className="flex flex-wrap gap-3 mt-3 pt-2 border-t border-gray-100">
+          {series.map((s, i) => (
+            <div key={i} className="flex items-center gap-1.5 text-[10px] text-gray-600">
+              <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+              {s.name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════
    KPI trend badge
    ════════════════════════════════════════ */
 function TrendBadge({ value }: { value: number }) {
@@ -386,6 +440,132 @@ export function ClientsBalanceWidget({ data }: { data: DashboardData }) {
   );
 }
 
+/* ════════════════════════════════════════
+   NEW WIDGET COMPONENTS
+   ════════════════════════════════════════ */
+
+export function YieldByCropTimeWidget({ data }: { data: DashboardData }) {
+  const ts = data.yieldByCropOverTime;
+  return (
+    <div className="flex flex-col h-full">
+      <h3 className="font-semibold text-gray-900 mb-4">Rendimiento por Cultivo (kg/mes)</h3>
+      <div className="flex-1 min-h-[120px]">
+        {ts.series.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">Sin datos de cosecha reciente.</p>
+        ) : (
+          <GroupedBarChart months={ts.months} series={ts.series} maxHeight={100} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function CostByLotTimeWidget({ data }: { data: DashboardData }) {
+  const ts = data.costByLotOverTime;
+  return (
+    <div className="flex flex-col h-full">
+      <h3 className="font-semibold text-gray-900 mb-4">Costo por Lote ($/mes)</h3>
+      <div className="flex-1 min-h-[120px]">
+        {ts.series.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">Sin datos de costos.</p>
+        ) : (
+          <GroupedBarChart months={ts.months} series={ts.series} maxHeight={100} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function LotTaskAlertsWidget({ data }: { data: DashboardData }) {
+  const alerts = data.lotTaskAlerts;
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-gray-900">Alertas de Tareas por Lote</h3>
+        <Link href="/dashboard/campo" className="text-xs text-green-600 hover:text-green-700 font-medium">
+          Ver campo
+        </Link>
+      </div>
+      {alerts.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <CheckCircle2 className="h-8 w-8 text-green-400 mx-auto mb-2" />
+            <p className="text-sm text-gray-400">Sin alertas pendientes</p>
+          </div>
+        </div>
+      ) : (
+        <ul className="space-y-2 flex-1 overflow-y-auto">
+          {alerts.slice(0, 8).map((a, i) => (
+            <li
+              key={a.id}
+              className={`rounded-lg p-3 text-sm ${
+                a.level === 'urgent'
+                  ? 'bg-red-50 border border-red-200'
+                  : 'bg-amber-50 border border-amber-200'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`h-2 w-2 rounded-full flex-shrink-0 ${
+                      a.level === 'urgent' ? 'bg-red-500' : 'bg-amber-500'
+                    }`}
+                  />
+                  <span className="font-medium text-gray-900 truncate">{a.lotName}</span>
+                </div>
+                <span
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                    a.level === 'urgent'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}
+                >
+                  {a.level === 'urgent' ? 'Urgente' : 'Atención'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {a.taskType} — {a.level === 'urgent' ? `${a.daysInfo}d vencido` : `faltan ${a.daysInfo}d`}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export function EmpaqueBoxesByCropWidget({ data }: { data: DashboardData }) {
+  const ts = data.empaqueBoxesByCrop;
+  return (
+    <div className="flex flex-col h-full">
+      <h3 className="font-semibold text-gray-900 mb-4">Cajas por Cultivo (mensual)</h3>
+      <div className="flex-1 min-h-[120px]">
+        {ts.series.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">Sin datos de cajas.</p>
+        ) : (
+          <GroupedBarChart months={ts.months} series={ts.series} maxHeight={100} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function EmpaquePalletsByCropWidget({ data }: { data: DashboardData }) {
+  const ts = data.empaquePalletsByCrop;
+  return (
+    <div className="flex flex-col h-full">
+      <h3 className="font-semibold text-gray-900 mb-4">Pallets por Cultivo (mensual)</h3>
+      <div className="flex-1 min-h-[120px]">
+        {ts.series.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">Sin datos de pallets.</p>
+        ) : (
+          <GroupedBarChart months={ts.months} series={ts.series} maxHeight={100} />
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Widget renderer ── */
 export function renderWidget(widgetId: string, data: DashboardData): React.ReactNode {
   switch (widgetId) {
@@ -401,6 +581,11 @@ export function renderWidget(widgetId: string, data: DashboardData): React.React
     case 'machinery_status': return <MachineryStatusWidget data={data} />;
     case 'monthly_sales': return <MonthlySalesWidget data={data} />;
     case 'clients_balance': return <ClientsBalanceWidget data={data} />;
+    case 'yield_by_crop_time': return <YieldByCropTimeWidget data={data} />;
+    case 'cost_by_lot_time': return <CostByLotTimeWidget data={data} />;
+    case 'lot_task_alerts': return <LotTaskAlertsWidget data={data} />;
+    case 'empaque_boxes_by_crop': return <EmpaqueBoxesByCropWidget data={data} />;
+    case 'empaque_pallets_by_crop': return <EmpaquePalletsByCropWidget data={data} />;
     default: return <p className="text-sm text-gray-400">Widget desconocido</p>;
   }
 }
