@@ -27,6 +27,7 @@ import type {
   SerializedInventoryItem,
   SerializedWarehouse,
   SerializedTaskType,
+  SerializedCompletionLog,
 } from '../../types';
 import { taskStatusColors, taskStatusLabels } from '../../types';
 
@@ -40,6 +41,7 @@ interface LotDetailClientProps {
   inventoryItems: SerializedInventoryItem[];
   warehouses: SerializedWarehouse[];
   taskTypes: SerializedTaskType[];
+  completionLogs: SerializedCompletionLog[];
 }
 
 export function LotDetailClient({
@@ -52,6 +54,7 @@ export function LotDetailClient({
   inventoryItems,
   warehouses,
   taskTypes,
+  completionLogs,
 }: LotDetailClientProps) {
   const [activeTab, setActiveTab] = useState('tareas');
   const [editingTask, setEditingTask] = useState<SerializedTask | null>(null);
@@ -521,6 +524,55 @@ export function LotDetailClient({
                             </td>
                             <td className="px-4 py-2.5 text-gray-500">
                               {new Date(t.dueDate).toLocaleDateString('es-AR')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </article>
+
+              {/* Completion audit log */}
+              <article className="rounded-xl border border-gray-200 bg-white p-5">
+                <h3 className="text-base font-semibold text-gray-900 mb-4">
+                  Historial de completado
+                </h3>
+                {completionLogs.length === 0 ? (
+                  <p className="text-sm text-gray-400 italic">Sin registros de completado aún.</p>
+                ) : (
+                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-gray-50">
+                          <th className="px-4 py-2.5 text-left font-medium text-gray-600">Tarea</th>
+                          <th className="px-4 py-2.5 text-left font-medium text-gray-600">Completado por</th>
+                          <th className="px-4 py-2.5 text-left font-medium text-gray-600">Origen</th>
+                          <th className="px-4 py-2.5 text-left font-medium text-gray-600">Fecha y hora</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {completionLogs.map((log) => (
+                          <tr key={log.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-2.5 text-gray-900">{log.taskDescription}</td>
+                            <td className="px-4 py-2.5 text-gray-600">{log.workerName}</td>
+                            <td className="px-4 py-2.5">
+                              <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium border ${
+                                log.source === 'telegram'
+                                  ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                  : 'bg-purple-100 text-purple-800 border-purple-200'
+                              }`}>
+                                {log.source === 'telegram' ? 'Telegram' : 'Web'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-gray-500">
+                              {new Date(log.completedAt).toLocaleString('es-AR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
                             </td>
                           </tr>
                         ))}

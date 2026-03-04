@@ -90,6 +90,14 @@ export interface SerializedCropType {
   color: string;
 }
 
+export interface SerializedCompletionLog {
+  id: string;
+  taskDescription: string;
+  workerName: string;
+  source: string;
+  completedAt: string;
+}
+
 export interface SerializedTaskHistory {
   id: string;
   description: string;
