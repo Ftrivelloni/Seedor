@@ -318,7 +318,7 @@ export function ProcesoPageClient({ activeSession, history, availableBins, fruit
       {/* Active Session or Start */}
       {activeSession && activeSession.status !== 'COMPLETED' ? (
         <Card className={`border-2 ${activeSession.status === 'PAUSED' ? 'border-yellow-200 bg-yellow-50/30' : 'border-purple-300'}`}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:justify-between pb-2">
             <div className="flex items-center gap-3">
               <div className="rounded-full bg-purple-100 p-2">
                 <Cog className={`h-5 w-5 text-purple-600 ${activeSession.status === 'IN_PROGRESS' ? 'animate-[spin_8s_linear_infinite]' : ''}`} />
@@ -340,7 +340,7 @@ export function ProcesoPageClient({ activeSession, history, availableBins, fruit
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-2 bg-purple-50 rounded-lg px-3 py-1.5">
                 <Timer className="h-4 w-4 text-purple-600" />
                 <span className="font-mono text-lg font-semibold text-purple-700">{elapsed}</span>
@@ -594,11 +594,11 @@ export function ProcesoPageClient({ activeSession, history, availableBins, fruit
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-5 text-sm">
-                      <span className="text-gray-600">{s.totalDurationHours ? `${s.totalDurationHours}h` : '-'}</span>
-                      <span className="text-gray-500">{s.inputBinCount} bines</span>
-                      <span className="text-gray-500">{s.boxCount} cajas</span>
-                      <span className="text-red-500">{totalDisc} kg desc.</span>
+                    <div className="flex items-center gap-2 sm:gap-5 text-sm">
+                      <span className="hidden sm:inline text-gray-600">{s.totalDurationHours ? `${s.totalDurationHours}h` : '-'}</span>
+                      <span className="hidden sm:inline text-gray-500">{s.inputBinCount} bines</span>
+                      <span className="hidden sm:inline text-gray-500">{s.boxCount} cajas</span>
+                      <span className="hidden sm:inline text-red-500">{totalDisc} kg desc.</span>
                       <Badge variant="outline" className="bg-green-100 text-green-700">
                         {processStatusLabels[s.status] || s.status}
                       </Badge>
@@ -676,7 +676,7 @@ export function ProcesoPageClient({ activeSession, history, availableBins, fruit
 
       {/* Add Bin Modal */}
       <Dialog open={showAddBin} onOpenChange={setShowAddBin}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] max-w-lg">
           <DialogHeader>
             <DialogTitle>Agregar Bin al Proceso</DialogTitle>
           </DialogHeader>
@@ -709,7 +709,7 @@ export function ProcesoPageClient({ activeSession, history, availableBins, fruit
 
       {/* Register Product Modal */}
       <Dialog open={showProduct} onOpenChange={setShowProduct}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle>Registrar Producto / Insumo</DialogTitle>
           </DialogHeader>
@@ -718,7 +718,7 @@ export function ProcesoPageClient({ activeSession, history, availableBins, fruit
               <Label htmlFor="productName">Producto</Label>
               <Input id="productName" name="productName" placeholder="Ej: Cera, Jabón, Cloro" required />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="quantity">Cantidad</Label>
                 <Input id="quantity" name="quantity" type="number" step="0.01" min="0.01" required />
@@ -755,7 +755,7 @@ export function ProcesoPageClient({ activeSession, history, availableBins, fruit
 
       {/* Register Discard Modal */}
       <Dialog open={showDiscard} onOpenChange={setShowDiscard}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle>Registrar Descarte</DialogTitle>
           </DialogHeader>
@@ -785,12 +785,12 @@ export function ProcesoPageClient({ activeSession, history, availableBins, fruit
 
       {/* Generate Box Modal — batch creation with CropType + Field/Lot dropdowns */}
       <Dialog open={showBox} onOpenChange={setShowBox}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] max-w-lg">
           <DialogHeader>
             <DialogTitle>Generar Cajas</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateBox} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="product">Fruta</Label>
                 {fruitOptions.length > 0 ? (
@@ -830,7 +830,7 @@ export function ProcesoPageClient({ activeSession, history, availableBins, fruit
                 <Input id="producer" name="producer" placeholder="Ej: Campo Norte — Lote 1" />
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="caliber">Calibre</Label>
                 <Select name="caliber" defaultValue="40">
@@ -860,7 +860,7 @@ export function ProcesoPageClient({ activeSession, history, availableBins, fruit
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="packagingCode">Código Envase</Label>
                 <Input id="packagingCode" name="packagingCode" placeholder="Ej: ENV-001" />
@@ -884,7 +884,7 @@ export function ProcesoPageClient({ activeSession, history, availableBins, fruit
 
       {/* Edit Session Modal */}
       <Dialog open={showEditSession} onOpenChange={(open) => { setShowEditSession(open); if (!open) setEditingSession(null); }}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle>Editar Sesión — {editingSession?.code}</DialogTitle>
           </DialogHeader>
@@ -937,7 +937,7 @@ export function ProcesoPageClient({ activeSession, history, availableBins, fruit
 
       {/* Manage Destinations Modal */}
       <Dialog open={showDestinations} onOpenChange={setShowDestinations}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle>Gestionar Destinos de Proceso</DialogTitle>
           </DialogHeader>

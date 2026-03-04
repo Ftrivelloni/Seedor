@@ -233,18 +233,18 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
       {/* Card 2: Módulos y precios */}
       <Card>
         <CardHeader>
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:justify-between gap-3 sm:gap-4">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Detalle del plan</h3>
               <p className="mt-0.5 text-sm text-gray-500">Módulos incluidos en tu suscripción {isYearly ? 'anual' : 'mensual'}.</p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex flex-col sm:flex-row shrink-0 items-stretch sm:items-center gap-2 w-full sm:w-auto">
               {/* Botón Más información */}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <button
                     type="button"
-                    className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-700"
+                    className="flex items-center justify-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-700 w-full sm:w-auto"
                   >
                     <Info className="h-3.5 w-3.5" />
                     Más información
@@ -285,7 +285,7 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
                 <button
                   type="button"
                   onClick={() => setIsEditingPlan(true)}
-                  className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-gray-300 hover:text-gray-900"
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-gray-300 hover:text-gray-900 w-full sm:w-auto"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                   Editar
@@ -296,7 +296,7 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
                     type="button"
                     onClick={handleCancelPlanEdit}
                     disabled={isSavingPlan}
-                    className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-gray-300 disabled:opacity-50"
+                    className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-gray-300 disabled:opacity-50 w-full sm:w-auto"
                   >
                     <X className="h-3.5 w-3.5" />
                     Cancelar
@@ -312,7 +312,7 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
                       setShowConfirmSave(true);
                     }}
                     disabled={isSavingPlan}
-                    className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+                    className="flex items-center justify-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50 w-full sm:w-auto"
                   >
                     <Check className="h-3.5 w-3.5" />
                     {isSavingPlan ? 'Guardando...' : 'Guardar'}

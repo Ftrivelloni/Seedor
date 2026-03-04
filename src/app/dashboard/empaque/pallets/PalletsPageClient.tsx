@@ -113,7 +113,7 @@ export function PalletsPageClient({ availableBoxes, pallets, destinationOptions 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* KPI Cards */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StateCard
@@ -348,7 +348,7 @@ export function PalletsPageClient({ availableBoxes, pallets, destinationOptions 
 
       {/* Create Pallet Modal */}
       <Dialog open={showPallet} onOpenChange={setShowPallet}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] max-w-lg">
           <DialogHeader>
             <DialogTitle>Armar Pallet</DialogTitle>
           </DialogHeader>

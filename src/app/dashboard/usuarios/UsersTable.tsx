@@ -137,22 +137,22 @@ export function UsersTable({ users }: UsersTableProps) {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            <th className="whitespace-nowrap px-3 md:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                                 Usuario
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            <th className="whitespace-nowrap px-3 md:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 hidden sm:table-cell">
                                 Teléfono
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            <th className="whitespace-nowrap px-3 md:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                                 Rol
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            <th className="whitespace-nowrap px-3 md:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 hidden md:table-cell">
                                 Último acceso
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            <th className="whitespace-nowrap px-3 md:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                                 Estado
                             </th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            <th className="whitespace-nowrap px-3 md:px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
                                 <span className="sr-only">Acciones</span>
                             </th>
                         </tr>
@@ -160,34 +160,34 @@ export function UsersTable({ users }: UsersTableProps) {
                     <tbody className="divide-y divide-gray-100 bg-white">
                         {users.map((entry) => (
                             <tr key={entry.id} className="hover:bg-gray-50">
-                                <td className="px-4 py-3">
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="h-9 w-9 bg-green-100 text-green-700">
-                                            <AvatarFallback className="bg-green-100 text-green-700 text-sm font-medium">
+                                <td className="px-3 md:px-4 py-3">
+                                    <div className="flex items-center gap-2 md:gap-3">
+                                        <Avatar className="h-8 w-8 md:h-9 md:w-9 bg-green-100 text-green-700 flex-shrink-0">
+                                            <AvatarFallback className="bg-green-100 text-green-700 text-xs md:text-sm font-medium">
                                                 {getInitials(entry.user.firstName, entry.user.lastName)}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-900">
+                                        <div className="min-w-0">
+                                            <p className="text-xs md:text-sm font-medium text-gray-900 truncate">
                                                 {entry.user.firstName} {entry.user.lastName}
                                             </p>
-                                            <p className="text-sm text-gray-500">{entry.user.email}</p>
+                                            <p className="text-xs md:text-sm text-gray-500 truncate">{entry.user.email}</p>
                                         </div>
                                     </div>
                                 </td>
-                                <td className="px-4 py-3 text-sm text-gray-700">
+                                <td className="whitespace-nowrap px-3 md:px-4 py-3 text-xs md:text-sm text-gray-700 hidden sm:table-cell">
                                     {entry.user.phone || '-'}
                                 </td>
-                                <td className="px-4 py-3">
+                                <td className="px-3 md:px-4 py-3">
                                     <RoleBadge role={entry.user.role} />
                                 </td>
-                                <td className="px-4 py-3 text-sm text-gray-700">
+                                <td className="whitespace-nowrap px-3 md:px-4 py-3 text-xs md:text-sm text-gray-700 hidden md:table-cell">
                                     {formatRelativeTime(entry.user.lastAccessAt)}
                                 </td>
-                                <td className="px-4 py-3">
+                                <td className="px-3 md:px-4 py-3">
                                     <StatusBadge status={entry.user.status} />
                                 </td>
-                                <td className="px-4 py-3 text-right">
+                                <td className="px-3 md:px-4 py-3 text-right">
                                     <UserActionsMenu user={entry.user} />
                                 </td>
                             </tr>
