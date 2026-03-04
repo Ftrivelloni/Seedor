@@ -192,9 +192,9 @@ export function DespachoPageClient({ dispatches, availablePallets, clientOptions
       )}
 
       {/* Header + Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row items-stretch gap-3 sm:justify-between">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-1">
+          <div className="relative flex-1 sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Buscar por código o cliente..."
@@ -204,7 +204,7 @@ export function DespachoPageClient({ dispatches, availablePallets, clientOptions
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-full sm:w-44">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -217,11 +217,11 @@ export function DespachoPageClient({ dispatches, availablePallets, clientOptions
           </Select>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowClients(true)}>
+          <Button variant="outline" onClick={() => setShowClients(true)} className="flex-1 sm:flex-none justify-center">
             <FileText className="h-4 w-4 mr-2" />
             Clientes
           </Button>
-          <Button onClick={() => setShowNew(true)} className="bg-green-600 hover:bg-green-700">
+          <Button onClick={() => setShowNew(true)} className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none justify-center">
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Despacho
           </Button>
@@ -334,7 +334,7 @@ export function DespachoPageClient({ dispatches, availablePallets, clientOptions
 
       {/* Create Dispatch Modal */}
       <Dialog open={showNew} onOpenChange={setShowNew}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Crear Nuevo Despacho</DialogTitle>
           </DialogHeader>
@@ -345,7 +345,7 @@ export function DespachoPageClient({ dispatches, availablePallets, clientOptions
                 <FileText className="h-4 w-4 text-gray-500" />
                 Datos del Cliente
               </h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="clientName">Cliente *</Label>
                   {clientOptions.length > 0 ? (
@@ -403,7 +403,7 @@ export function DespachoPageClient({ dispatches, availablePallets, clientOptions
                 <Truck className="h-4 w-4 text-gray-500" />
                 Datos de Transporte
               </h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="destination">Destino</Label>
                   <Input id="destination" name="destination" placeholder="Ciudad / Mercado" />
@@ -482,7 +482,7 @@ export function DespachoPageClient({ dispatches, availablePallets, clientOptions
                 <FileText className="h-4 w-4 text-gray-500" />
                 Documentación
               </h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="remitoNumber">Nº Remito</Label>
                   <Input id="remitoNumber" name="remitoNumber" />

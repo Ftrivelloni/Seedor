@@ -74,27 +74,29 @@ export function EmpaqueDashboardClient({ data }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
-            {flowSteps.map((step, i) => {
-              const Icon = step.icon;
-              const count = data.flujo[step.key as keyof typeof data.flujo];
-              return (
-                <div key={step.key} className="flex items-center gap-3">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className={`rounded-full p-4 ${step.color}`}>
-                      <Icon className="h-6 w-6" />
+          <div className="overflow-x-auto -mx-2 px-2">
+            <div className="flex items-center gap-3 min-w-max">
+              {flowSteps.map((step, i) => {
+                const Icon = step.icon;
+                const count = data.flujo[step.key as keyof typeof data.flujo];
+                return (
+                  <div key={step.key} className="flex items-center gap-3">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className={`rounded-full p-3 md:p-4 ${step.color}`}>
+                        <Icon className="h-5 w-5 md:h-6 md:w-6" />
+                      </div>
+                      <span className="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">{step.label}</span>
+                      <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 border border-green-200 whitespace-nowrap">
+                        {count} activos
+                      </span>
                     </div>
-                    <span className="text-sm font-medium text-gray-700">{step.label}</span>
-                    <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 border border-green-200">
-                      {count} activos
-                    </span>
+                    {i < flowSteps.length - 1 && (
+                      <ArrowRight className="h-5 w-5 text-gray-300 flex-shrink-0" />
+                    )}
                   </div>
-                  {i < flowSteps.length - 1 && (
-                    <ArrowRight className="h-5 w-5 text-gray-300 mx-2" />
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </CardContent>
       </Card>

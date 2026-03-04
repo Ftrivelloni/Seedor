@@ -132,19 +132,19 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row items-start gap-3 sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Gestión de Cámaras</h2>
-          <p className="text-sm text-gray-600">
+          <h2 className="text-lg md:text-xl font-semibold text-gray-900">Gestión de Cámaras</h2>
+          <p className="text-xs md:text-sm text-gray-600">
             {totalBins} bines en cámara · {totalKg.toLocaleString('es-AR')} kg
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => setShowCreateChamber(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 justify-center"
           >
             <Plus className="h-4 w-4" />
             Nueva Cámara
@@ -152,7 +152,7 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
           <button
             onClick={() => setShowTaskModal(true)}
             disabled={chambers.length === 0}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed justify-center"
           >
             <ClipboardList className="h-4 w-4" />
             Registrar Tarea
@@ -160,7 +160,7 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
           <button
             onClick={() => setShowIngressModal(true)}
             disabled={chambers.length === 0}
-            className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed justify-center"
           >
             <Plus className="h-4 w-4" />
             Ingresar Bines
@@ -243,14 +243,14 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200 text-left text-gray-600">
-                      <th className="pb-3 font-medium">Código</th>
-                      <th className="pb-3 font-medium">Fruta</th>
-                      <th className="pb-3 font-medium">Color</th>
-                      <th className="pb-3 font-medium">Peso</th>
-                      <th className="pb-3 font-medium">Fecha Ingreso</th>
-                      <th className="pb-3 font-medium">Días en Cámara</th>
-                      <th className="pb-3 font-medium">Lote Interno</th>
-                      <th className="pb-3 font-medium text-right">Acciones</th>
+                      <th className="pb-3 px-2 font-medium whitespace-nowrap">Código</th>
+                      <th className="pb-3 px-2 font-medium whitespace-nowrap">Fruta</th>
+                      <th className="pb-3 px-2 font-medium whitespace-nowrap">Color</th>
+                      <th className="pb-3 px-2 font-medium whitespace-nowrap">Peso</th>
+                      <th className="pb-3 px-2 font-medium whitespace-nowrap">Fecha Ingreso</th>
+                      <th className="pb-3 px-2 font-medium whitespace-nowrap">Días en Cámara</th>
+                      <th className="pb-3 px-2 font-medium whitespace-nowrap">Lote Interno</th>
+                      <th className="pb-3 px-2 font-medium text-right">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -263,17 +263,17 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
                         : 0;
                       return (
                         <tr key={bin.id} className="hover:bg-gray-50">
-                          <td className="py-3 font-medium text-gray-900">{bin.code}</td>
-                          <td className="py-3 text-gray-600">{bin.fruitType}</td>
-                          <td className="py-3">
+                          <td className="py-3 px-2 font-medium text-gray-900 whitespace-nowrap">{bin.code}</td>
+                          <td className="py-3 px-2 text-gray-600 whitespace-nowrap">{bin.fruitType}</td>
+                          <td className="py-3 px-2 whitespace-nowrap">
                             {bin.fruitColor && (
                               <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
                                 {bin.fruitColor}
                               </span>
                             )}
                           </td>
-                          <td className="py-3 text-gray-900">{bin.netWeight} kg</td>
-                          <td className="py-3 text-gray-600">
+                          <td className="py-3 px-2 text-gray-900 whitespace-nowrap">{bin.netWeight} kg</td>
+                          <td className="py-3 px-2 text-gray-600 whitespace-nowrap">
                             {bin.chamberEntryDate
                               ? new Date(bin.chamberEntryDate).toLocaleDateString('es-AR', {
                                   day: '2-digit',
@@ -282,7 +282,7 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
                                 })
                               : '-'}
                           </td>
-                          <td className="py-3">
+                          <td className="py-3 px-2 whitespace-nowrap">
                             <span
                               className={`text-sm font-medium ${
                                 daysInChamber > 30
@@ -298,8 +298,8 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
                               )}
                             </span>
                           </td>
-                          <td className="py-3 text-gray-600">{bin.internalLot || '-'}</td>
-                          <td className="py-3 text-right">
+                          <td className="py-3 px-2 text-gray-600 whitespace-nowrap">{bin.internalLot || '-'}</td>
+                          <td className="py-3 px-2 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => handleUndoIngress(bin.id)}
@@ -340,11 +340,13 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
           <Card>
             <CardContent className="pt-6">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList>
-                  <TabsTrigger value="registros">Registros y Tareas</TabsTrigger>
-                  <TabsTrigger value="movimientos">Historial Movimientos</TabsTrigger>
-                  <TabsTrigger value="costos">Costos</TabsTrigger>
-                </TabsList>
+                <div className="overflow-x-auto -mx-2 px-2 mb-2">
+                  <TabsList className="w-fit gap-1 p-1">
+                    <TabsTrigger value="registros" className="text-xs sm:text-sm whitespace-nowrap">Registros y Tareas</TabsTrigger>
+                    <TabsTrigger value="movimientos" className="text-xs sm:text-sm whitespace-nowrap">Historial Movimientos</TabsTrigger>
+                    <TabsTrigger value="costos" className="text-xs sm:text-sm whitespace-nowrap">Costos</TabsTrigger>
+                  </TabsList>
+                </div>
 
                 {/* Registros y Tareas Tab */}
                 <TabsContent value="registros" className="mt-4">
@@ -352,16 +354,16 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-gray-200 text-left text-gray-600">
-                          <th className="pb-3 font-medium">Fecha</th>
-                          <th className="pb-3 font-medium">Tipo</th>
-                          <th className="pb-3 font-medium">Descripción</th>
-                          <th className="pb-3 font-medium text-right">Costo</th>
+                          <th className="pb-3 px-2 font-medium whitespace-nowrap">Fecha</th>
+                          <th className="pb-3 px-2 font-medium whitespace-nowrap">Tipo</th>
+                          <th className="pb-3 px-2 font-medium whitespace-nowrap">Descripción</th>
+                          <th className="pb-3 px-2 font-medium text-right whitespace-nowrap">Costo</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {activeChamber.tasks.map((task) => (
                           <tr key={task.id} className="hover:bg-gray-50">
-                            <td className="py-3 text-gray-600">
+                            <td className="py-3 px-2 text-gray-600 whitespace-nowrap">
                               {new Date(task.date).toLocaleString('es-AR', {
                                 day: '2-digit',
                                 month: '2-digit',
@@ -370,7 +372,7 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
                                 minute: '2-digit',
                               })}
                             </td>
-                            <td className="py-3">
+                            <td className="py-3 px-2 whitespace-nowrap">
                               <span
                                 className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                                   taskTypeColors[task.type] || 'bg-gray-100 text-gray-700'
@@ -379,8 +381,8 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
                                 {taskTypeLabels[task.type] || task.type}
                               </span>
                             </td>
-                            <td className="py-3 text-gray-600">{task.description}</td>
-                            <td className="py-3 text-right text-gray-900">
+                            <td className="py-3 px-2 text-gray-600">{task.description}</td>
+                            <td className="py-3 px-2 text-right text-gray-900 whitespace-nowrap">
                               {task.cost ? `$${task.cost.toLocaleString('es-AR')}` : '-'}
                             </td>
                           </tr>
@@ -403,14 +405,14 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-gray-200 text-left text-gray-600">
-                          <th className="pb-3 font-medium">Código</th>
-                          <th className="pb-3 font-medium">Fruta</th>
-                          <th className="pb-3 font-medium">Color</th>
-                          <th className="pb-3 font-medium">Peso</th>
-                          <th className="pb-3 font-medium">Fecha Ingreso</th>
-                          <th className="pb-3 font-medium">Fecha Egreso</th>
-                          <th className="pb-3 font-medium">Días en Cámara</th>
-                          <th className="pb-3 font-medium text-right">Acciones</th>
+                          <th className="pb-3 px-2 font-medium whitespace-nowrap">Código</th>
+                          <th className="pb-3 px-2 font-medium whitespace-nowrap">Fruta</th>
+                          <th className="pb-3 px-2 font-medium whitespace-nowrap">Color</th>
+                          <th className="pb-3 px-2 font-medium whitespace-nowrap">Peso</th>
+                          <th className="pb-3 px-2 font-medium whitespace-nowrap">Fecha Ingreso</th>
+                          <th className="pb-3 px-2 font-medium whitespace-nowrap">Fecha Egreso</th>
+                          <th className="pb-3 px-2 font-medium whitespace-nowrap">Días en Cámara</th>
+                          <th className="pb-3 px-2 font-medium text-right">Acciones</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -423,17 +425,17 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
                               : null;
                           return (
                             <tr key={bin.id} className="hover:bg-gray-50">
-                              <td className="py-3 font-medium text-gray-900">{bin.code}</td>
-                              <td className="py-3 text-gray-600">{bin.fruitType}</td>
-                              <td className="py-3">
+                              <td className="py-3 px-2 font-medium text-gray-900 whitespace-nowrap">{bin.code}</td>
+                              <td className="py-3 px-2 text-gray-600 whitespace-nowrap">{bin.fruitType}</td>
+                              <td className="py-3 px-2 whitespace-nowrap">
                                 {bin.fruitColor && (
                                   <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
                                     {bin.fruitColor}
                                   </span>
                                 )}
                               </td>
-                              <td className="py-3 text-gray-900">{bin.netWeight} kg</td>
-                              <td className="py-3 text-gray-600">
+                              <td className="py-3 px-2 text-gray-900 whitespace-nowrap">{bin.netWeight} kg</td>
+                              <td className="py-3 px-2 text-gray-600 whitespace-nowrap">
                                 {entry
                                   ? entry.toLocaleDateString('es-AR', {
                                       day: '2-digit',
@@ -442,7 +444,7 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
                                     })
                                   : '-'}
                               </td>
-                              <td className="py-3 text-gray-600">
+                              <td className="py-3 px-2 text-gray-600 whitespace-nowrap">
                                 {exit
                                   ? exit.toLocaleDateString('es-AR', {
                                       day: '2-digit',
@@ -451,10 +453,10 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
                                     })
                                   : '-'}
                               </td>
-                              <td className="py-3 text-gray-600">
+                              <td className="py-3 px-2 text-gray-600 whitespace-nowrap">
                                 {daysInChamber !== null ? `${daysInChamber} días` : '-'}
                               </td>
-                              <td className="py-3 text-right">
+                              <td className="py-3 px-2 text-right">
                                 <button
                                   onClick={() => handleUndoEgress(bin.id)}
                                   disabled={undoingBinId === bin.id}
@@ -532,7 +534,7 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
 
       {/* Create Chamber Modal */}
       <Dialog open={showCreateChamber} onOpenChange={setShowCreateChamber}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Warehouse className="h-5 w-5 text-green-600" />
@@ -584,7 +586,7 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
 
       {/* Ingress Bins Modal */}
       <Dialog open={showIngressModal} onOpenChange={setShowIngressModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="h-5 w-5 text-green-600" />
@@ -681,7 +683,7 @@ export function CamarasPageClient({ chambers, availableBins, egressedBins }: Pro
 
       {/* Register Task Modal */}
       <Dialog open={showTaskModal} onOpenChange={setShowTaskModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardList className="h-5 w-5 text-gray-600" />

@@ -36,6 +36,7 @@ import {
   AlertCircle,
   ClipboardList,
 } from 'lucide-react';
+import { useIsMobile } from '@/hooks';
 
 import { updateWorkerActiveStatusAction } from './actions';
 import type { SerializedWorker } from './types';
@@ -78,13 +79,13 @@ function KpiCard({
   const c = colorMap[color] ?? colorMap.green;
 
   return (
-    <div className="rounded-xl border bg-white p-4 flex items-center gap-4">
-      <div className={`${c.iconBg} rounded-lg p-2.5`}>
-        <Icon className={`h-5 w-5 ${c.text}`} />
+    <div className="rounded-xl border bg-white p-3 md:p-4 flex items-center gap-3 md:gap-4">
+      <div className={`${c.iconBg} rounded-lg p-2`}>
+        <Icon className={`h-4 w-4 md:h-5 md:w-5 ${c.text}`} />
       </div>
       <div>
-        <p className="text-sm text-gray-500">{label}</p>
-        <p className={`text-2xl font-semibold ${c.text}`}>{value}</p>
+        <p className="text-xs md:text-sm text-gray-500">{label}</p>
+        <p className={`text-lg md:text-2xl font-semibold ${c.text}`}>{value}</p>
       </div>
     </div>
   );
@@ -92,6 +93,7 @@ function KpiCard({
 
 /* ── Main component ── */
 export function WorkersPageClient({ workers }: WorkersPageClientProps) {
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
   const [filterPaymentType, setFilterPaymentType] = useState('ALL');
   const [filterFunction, setFilterFunction] = useState('ALL');
@@ -159,26 +161,28 @@ export function WorkersPageClient({ workers }: WorkersPageClientProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="space-y-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Trabajadores</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-xl md:text-2xl font-semibold text-gray-900">Trabajadores</h1>
+          <p className="text-xs md:text-sm text-gray-500 mt-1">
             Gestión de trabajadores, pagos y asignaciones
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Exportar
-          </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {!isMobile && (
+            <Button variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Exportar
+            </Button>
+          )}
           <AddWorkerModal />
         </div>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <KpiCard
           label="Trabajadores activos"
           value={activeWorkers.length}
@@ -206,8 +210,8 @@ export function WorkersPageClient({ workers }: WorkersPageClientProps) {
       </div>
 
       {/* Search & filters */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col gap-3">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Buscar por nombre, DNI, teléfono..."
@@ -217,8 +221,9 @@ export function WorkersPageClient({ workers }: WorkersPageClientProps) {
           />
         </div>
 
+        <div className="flex flex-wrap items-center gap-2">
         <Select value={filterPaymentType} onValueChange={setFilterPaymentType}>
-          <SelectTrigger className="w-[170px]">
+          <SelectTrigger className="w-full sm:w-[170px]">
             <SelectValue placeholder="Modalidad" />
           </SelectTrigger>
           <SelectContent>
@@ -230,7 +235,7 @@ export function WorkersPageClient({ workers }: WorkersPageClientProps) {
         </Select>
 
         <Select value={filterFunction} onValueChange={setFilterFunction}>
-          <SelectTrigger className="w-[170px]">
+          <SelectTrigger className="w-full sm:w-[170px]">
             <SelectValue placeholder="Función" />
           </SelectTrigger>
           <SelectContent>
@@ -244,7 +249,7 @@ export function WorkersPageClient({ workers }: WorkersPageClientProps) {
         </Select>
 
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
           <SelectContent>
@@ -264,6 +269,7 @@ export function WorkersPageClient({ workers }: WorkersPageClientProps) {
           <Label htmlFor="only-active" className="text-sm text-gray-600 whitespace-nowrap">
             Solo activos
           </Label>
+        </div>
         </div>
       </div>
 

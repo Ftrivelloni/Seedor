@@ -19,6 +19,7 @@ import json
 import os
 import re
 import tempfile
+from collections import OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -669,9 +670,12 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
 
-    # ── Helpers ──
-    status_emoji = {"PENDING": "🟡", "IN_PROGRESS": "🔵", "LATE": "🔴"}
-    status_label = {"PENDING": "Pendiente", "IN_PROGRESS": "En progreso", "LATE": "Atrasada"}
+    # Build message
+    status_emoji = {
+        "PENDING": "🟡",
+        "IN_PROGRESS": "🔵",
+        "LATE": "🔴",
+    }
 
     def _fmt_due(raw_date: str) -> str:
         try:
@@ -692,10 +696,14 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         except (ValueError, TypeError):
             return raw_date
 
-    # ── Group tasks: field_name → lot_name → [tasks] ──
-    from collections import OrderedDict
+    status_label = {
+        "PENDING": "Pendiente",
+        "IN_PROGRESS": "En progreso",
+        "LATE": "Atrasada",
+    }
 
-    field_groups: dict[str, dict[str, list[dict]]] = OrderedDict()
+    field_groups: dict[str, 'OrderedDict[str, list[dict]]'] = {}
+
     for t in active_tasks:
         lot_ids = t.get("lot_ids", [])
         if not lot_ids:
@@ -759,7 +767,7 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def handle_task_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle inline button: show confirmation before completing a task."""
+    """Handle inline button: mark a task as completed."""
     query = update.callback_query
     await query.answer()
 
@@ -770,6 +778,7 @@ async def handle_task_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.edit_message_text("⚠️ Sesión expirada. Usá /start para volver a identificarte.")
         return
 
+    # Parse callback_data: "done:{task_id}"
     data = query.data
     if not data.startswith("done:"):
         return
@@ -855,21 +864,18 @@ async def handle_task_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
     await query.edit_message_text(
-        "✅ *Tarea completada:* Se registró correctamente.\n\n"
-        "Usá '📋 Mis Tareas' para ver las que quedan.",
+        f"✅ *Tarea completada:* Se registró correctamente.\n\n"
+        f"Usá '📋 Mis Tareas' para ver las que quedan.",
         parse_mode="Markdown",
     )
 
 
 async def handle_task_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle cancellation: go back without completing."""
+    """Handle cancel button: go back to tasks."""
     query = update.callback_query
     await query.answer()
-
     await query.edit_message_text(
-        "↩️ *Cancelado.* La tarea no fue modificada.\n\n"
-        "Usá '📋 Mis Tareas' para ver tus tareas.",
-        parse_mode="Markdown",
+        "❌ Operación cancelada. Usá '📋 Mis Tareas' para ver tus tareas.",
     )
 
 

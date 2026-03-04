@@ -136,7 +136,7 @@ export function LotDetailClient({
           <ChevronRight className="h-3.5 w-3.5" />
           <span className="text-gray-900 font-medium">{lot.name}</span>
         </div>
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row items-start gap-3 sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-green-700">
               <Layers className="h-6 w-6" />
@@ -154,7 +154,7 @@ export function LotDetailClient({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href={`/dashboard/campo/${field.id}`}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"

@@ -1,10 +1,12 @@
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
+import { requireModuleEnabled } from '@/lib/auth/module-access';
 import { EmpaqueDashboardClient } from './EmpaqueDashboardClient';
 import type { EmpaqueDashboardData, SerializedChamber } from './types';
 
 export default async function EmpaquePage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+  await requireModuleEnabled(session.tenantId, 'PACKAGING');
   const tenantId = session.tenantId;
   const today = new Date();
   today.setHours(0, 0, 0, 0);

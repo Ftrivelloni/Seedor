@@ -190,8 +190,8 @@ export function PreseleccionPageClient({
       {/* Active Preselection */}
       {activePreselection ? (
         <Card className={`border-2 ${activePreselection.status === 'PAUSED' ? 'border-yellow-200 bg-yellow-50/30' : 'border-orange-200 bg-orange-50/30'}`}>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div className="flex items-center gap-3">
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:justify-between">
+            <div className="flex items-center gap-3 flex-wrap">
               <CardTitle className="text-base flex items-center gap-2">
                 <Filter className="h-5 w-5 text-orange-600" />
                 {activePreselection.status === 'PAUSED' ? 'Preselección Pausada' : 'Preselección en Curso'}
@@ -742,7 +742,7 @@ export function PreseleccionPageClient({
 
       {/* ═══ Add Input (Supply) Modal ═══ */}
       <Dialog open={showAddInput} onOpenChange={setShowAddInput}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Beaker className="h-5 w-5 text-gray-600" />
@@ -807,7 +807,7 @@ export function PreseleccionPageClient({
                 ))}
               </select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad *</label>
                 <input
@@ -858,7 +858,7 @@ export function PreseleccionPageClient({
 
       {/* ═══ Add Bin to Preselection ═══ */}
       <Dialog open={showAddBin} onOpenChange={setShowAddBin}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle>Agregar Bin de Entrada</DialogTitle>
             <DialogDescription>Seleccione un bin de la playa para agregar a la preselección</DialogDescription>
@@ -896,7 +896,7 @@ export function PreseleccionPageClient({
 
       {/* ═══ Generate Output Bin ═══ */}
       <Dialog open={showGenerateBin} onOpenChange={setShowGenerateBin}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle>Generar Bin de Salida</DialogTitle>
             <DialogDescription>Registre un bin resultante de la preselección</DialogDescription>
@@ -914,7 +914,7 @@ export function PreseleccionPageClient({
             }}
             className="space-y-4"
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Color *</label>
                 <select
@@ -962,7 +962,7 @@ export function PreseleccionPageClient({
                 ))}
               </select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Lote *</label>
                 <select
