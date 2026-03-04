@@ -284,7 +284,7 @@ export default async function DashboardPage() {
       const daysInfo = isUrgent
         ? Math.max(1, Math.ceil((now.getTime() - task.dueDate.getTime()) / (1000 * 60 * 60 * 24)))
         : Math.max(1, Math.ceil((task.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-      lotTaskAlerts.push({ lotName: link.lot.name, taskType: task.taskType, level: isUrgent ? 'urgent' : 'warned', daysInfo });
+      lotTaskAlerts.push({ id: `${task.id}-${link.lot.id}`, lotName: link.lot.name, taskType: task.taskType, level: isUrgent ? 'urgent' : 'warned', daysInfo });
     }
   }
   lotTaskAlerts.sort((a, b) => (a.level === 'urgent' ? 0 : 1) - (b.level === 'urgent' ? 0 : 1));
