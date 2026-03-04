@@ -1,19 +1,21 @@
 FROM python:3.11-slim
 
-# Carpeta de trabajo dentro del contenedor
+# Working directory
 WORKDIR /app
 
-# Copiar e instalar dependencias primero (para aprovechar la cache de Docker)
+# Install dependencies first (Docker cache optimization)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el resto del código
+# Copy all bot code
 COPY bot.py .
+COPY logger.py .
+COPY retry.py .
 COPY mock_data.py .
 COPY sync_service.py .
 
-# Crear la carpeta data (donde el bot guarda JSON temporales)
+# Create persistent data directory
 RUN mkdir -p data
 
-# Comando que arranca el bot
+# Default: run the bot
 CMD ["python", "bot.py"]
