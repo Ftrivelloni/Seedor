@@ -13,6 +13,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -209,6 +210,15 @@ def _push_event_to_api(event: dict) -> bool:
     except Exception as e:
         logger.error("API push failed: %s", e)
         return False
+
+
+# CUID format: c + 24 lowercase alphanumeric chars (Prisma default IDs)
+_CUID_RE = re.compile(r"^c[a-z0-9]{20,30}$")
+
+
+def _is_valid_id(value: str) -> bool:
+    """Validate that value looks like a Prisma CUID."""
+    return bool(value and _CUID_RE.match(value))
 
 
 def _append_event(event: dict) -> None:
@@ -682,6 +692,11 @@ async def handle_task_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     task_id = data.split(":", 1)[1]
 
+    if not _is_valid_id(task_id):
+        logger.warning("Invalid task_id from callback_data: %r", task_id)
+        await query.edit_message_text("⚠️ ID de tarea inválido.")
+        return
+
     # Look up task details for the confirmation message
     task_name = task_id
     lot_display = ""
@@ -733,6 +748,11 @@ async def handle_task_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     task_id = query.data.split(":", 1)[1]
+
+    if not _is_valid_id(task_id):
+        logger.warning("Invalid task_id in confirm callback: %r", task_id)
+        await query.edit_message_text("⚠️ ID de tarea inválido.")
+        return
 
     # Apply local override for immediate UX
     _local_task_overrides[task_id] = "COMPLETED"

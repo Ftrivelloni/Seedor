@@ -580,6 +580,7 @@ export async function updateTaskStatusAction(taskId: string, status: TaskStatus)
       if (logsToCreate.length > 0) {
         await tx.taskCompletionLog.createMany({
           data: logsToCreate,
+          skipDuplicates: true,
         });
       }
     } else if (status !== 'COMPLETED' && task.status === 'COMPLETED') {
