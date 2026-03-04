@@ -119,7 +119,7 @@ export interface DashboardData {
   // Time series
   yieldByCropOverTime: { months: string[]; series: { name: string; color: string; values: number[] }[] };
   costByLotOverTime: { months: string[]; series: { name: string; color: string; values: number[] }[] };
-  lotTaskAlerts: { lotName: string; taskType: string; level: 'urgent' | 'warned'; daysInfo: number }[];
+  lotTaskAlerts: { id: string; lotName: string; taskType: string; level: 'urgent' | 'warned'; daysInfo: number }[];
   // Empaque
   empaqueBoxesByCrop: { months: string[]; series: { name: string; color: string; values: number[] }[] };
   empaquePalletsByCrop: { months: string[]; series: { name: string; color: string; values: number[] }[] };
