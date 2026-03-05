@@ -105,7 +105,7 @@ export default async function UsuariosPage({
             type="search"
             placeholder="Buscar por nombre, email o teléfono..."
             defaultValue={params.q || ''}
-            className="pl-10"
+            className="pl-10 bg-white! border-gray-300"
           />
           <input type="hidden" name="role" value={params.role || 'ALL'} />
           <input type="hidden" name="status" value={params.status || 'ALL'} />
@@ -113,28 +113,34 @@ export default async function UsuariosPage({
 
         <form className="flex flex-wrap items-center gap-2" action="/dashboard/usuarios">
           <input type="hidden" name="q" value={params.q || ''} />
-          <Select name="role" defaultValue={params.role || 'ALL'}>
-            <SelectTrigger className="w-full sm:w-[160px]">
-              <SelectValue placeholder="Todos los roles" />
-            </SelectTrigger>
-            <SelectContent position="popper" sideOffset={5} className="w-[var(--radix-select-trigger-width)]">
-              <SelectItem value="ALL">Todos los roles</SelectItem>
-              <SelectItem value="ADMIN">Administrador</SelectItem>
-              <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-gray-700">Filtrado por rol</label>
+            <Select name="role" defaultValue={params.role || 'ALL'}>
+              <SelectTrigger className="w-full sm:w-[160px] bg-white! border-gray-300 cursor-pointer">
+                <SelectValue placeholder="Todos los roles" />
+              </SelectTrigger>
+              <SelectContent position="popper" sideOffset={5} className="w-[var(--radix-select-trigger-width)] bg-white! border-gray-300">
+                <SelectItem value="ALL">Todos los roles</SelectItem>
+                <SelectItem value="ADMIN">Administrador</SelectItem>
+                <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select name="status" defaultValue={params.status || 'ALL'}>
-            <SelectTrigger className="w-full sm:w-[140px]">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent position="popper" sideOffset={5} className="w-[var(--radix-select-trigger-width)]">
-              <SelectItem value="ALL">Todos</SelectItem>
-              <SelectItem value="ACTIVE">Activo</SelectItem>
-              <SelectItem value="INACTIVE">Inactivo</SelectItem>
-              <SelectItem value="INVITED">Invitado</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-gray-700">Filtrado por estado</label>
+            <Select name="status" defaultValue={params.status || 'ALL'}>
+              <SelectTrigger className="w-full sm:w-[140px] bg-white! border-gray-300 cursor-pointer">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent position="popper" sideOffset={5} className="w-[var(--radix-select-trigger-width)] bg-white! border-gray-300">
+                <SelectItem value="ALL">Todos</SelectItem>
+                <SelectItem value="ACTIVE">Activo</SelectItem>
+                <SelectItem value="INACTIVE">Inactivo</SelectItem>
+                <SelectItem value="INVITED">Invitado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <Button type="submit" variant="ghost" size="sm" className="hidden">
             Filtrar
