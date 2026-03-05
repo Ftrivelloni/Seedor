@@ -50,6 +50,7 @@ export default function LoginPage() {
       toast.success('¡Bienvenido a Seedor!');
       router.push('/dashboard');
       router.refresh();
+      NProgress.done();
     } catch {
       const errorMsg = 'No se pudo iniciar sesión.';
       setError(errorMsg);

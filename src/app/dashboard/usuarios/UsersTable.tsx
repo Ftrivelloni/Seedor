@@ -1,6 +1,8 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import type { User, TenantUserMembership } from '@prisma/client';
+import { toast } from 'sonner';
 import { formatRelativeTime } from '@/lib/utils/format-relative-time';
 import { Avatar, AvatarFallback } from '@/components/dashboard/ui/avatar';
 import { Badge } from '@/components/dashboard/ui/badge';
@@ -13,7 +15,6 @@ import {
     DropdownMenuTrigger,
 } from '@/components/dashboard/ui/dropdown-menu';
 import { MoreHorizontal, UserCog, UserX, UserCheck, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { updateUserRoleAction, updateUserStatusAction } from './actions';
 
 type UserWithMembership = TenantUserMembership & {
@@ -70,34 +71,40 @@ function UserActionsMenu({
 }: {
     user: User;
 }) {
+    const router = useRouter();
+
     async function handleRoleChange(role: 'ADMIN' | 'SUPERVISOR') {
-        try {
-            const formData = new FormData();
-            formData.set('userId', user.id);
-            formData.set('role', role);
-            await updateUserRoleAction(formData);
-            toast.success(`Rol actualizado a ${role === 'ADMIN' ? 'Administrador' : 'Supervisor'}`);
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Error al cambiar el rol');
+        const formData = new FormData();
+        formData.set('userId', user.id);
+        formData.set('role', role);
+        const result = await updateUserRoleAction(formData);
+
+        if (result.success) {
+            toast.success('Rol actualizado exitosamente');
+            router.refresh();
+        } else {
+            toast.error(result.error);
         }
     }
 
     async function handleStatusChange(status: 'ACTIVE' | 'INACTIVE') {
-        try {
-            const formData = new FormData();
-            formData.set('userId', user.id);
-            formData.set('status', status);
-            await updateUserStatusAction(formData);
-            toast.success(`Usuario ${status === 'ACTIVE' ? 'activado' : 'desactivado'}`);
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Error al cambiar el estado');
+        const formData = new FormData();
+        formData.set('userId', user.id);
+        formData.set('status', status);
+        const result = await updateUserStatusAction(formData);
+
+        if (result.success) {
+            toast.success('Estado actualizado exitosamente');
+            router.refresh();
+        } else {
+            toast.error(result.error);
         }
     }
 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
                     <MoreHorizontal className="h-4 w-4" />
                     <span className="sr-only">Acciones</span>
                 </Button>
@@ -146,7 +153,7 @@ export function UsersTable({ users }: UsersTableProps) {
         <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-white border-b-2 border-gray-200">
+                    <thead className="bg-gray-50">
                         <tr>
                             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                                 Usuario
@@ -169,11 +176,8 @@ export function UsersTable({ users }: UsersTableProps) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 bg-white">
-                        {users.map((entry, index) => (
-                            <tr 
-                                key={entry.id} 
-                                className="bg-white hover:bg-gray-50 transition-colors"
-                            >
+                        {users.map((entry) => (
+                            <tr key={entry.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-3">
                                         <Avatar className="h-9 w-9 bg-green-100 text-green-700">

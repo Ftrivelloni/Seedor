@@ -119,6 +119,7 @@ function AcceptInvitationForm() {
       toast.success('¡Cuenta creada exitosamente! Bienvenido a Seedor.');
       router.push('/dashboard');
       router.refresh();
+      NProgress.done();
     } catch {
       const errorMsg = 'No se pudo completar el registro.';
       setError(errorMsg);

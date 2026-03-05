@@ -49,7 +49,7 @@ export function EditProfileModal({ open, onOpenChange, userProfile }: EditProfil
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-125">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Editar datos de mi cuenta</DialogTitle>
           <DialogDescription>

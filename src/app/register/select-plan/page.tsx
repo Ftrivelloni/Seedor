@@ -189,6 +189,7 @@ export default function SelectModulesPage() {
                 }));
 
                 router.push('/register/success');
+                NProgress.done();
             } else {
                 // Paid registration — redirect to Stripe Checkout
                 // Persist selected modules so the success page can read them after redirect

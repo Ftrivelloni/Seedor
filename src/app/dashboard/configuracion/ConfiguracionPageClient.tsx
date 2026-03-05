@@ -75,9 +75,9 @@ export function ConfiguracionPageClient({
     formData.set('locale', userProfile.locale);
     formData.set('dateFormat', userProfile.dateFormat);
     formData.set('darkMode', checked.toString());
-    formData.set('emailNotifications', userProfile.emailNotifications.toString());
-    formData.set('whatsappNotifications', userProfile.whatsappNotifications.toString());
-    formData.set('dailySummary', userProfile.dailySummary.toString());
+    formData.set('emailNotifications', emailNotifications.toString());
+    formData.set('whatsappNotifications', whatsappNotifications.toString());
+    formData.set('dailySummary', dailySummary.toString());
 
     startTransition(async () => {
       try {
@@ -514,8 +514,8 @@ export function ConfiguracionPageClient({
                             {module.isOptional ? 'Módulo opcional' : 'Módulo obligatorio'}
                           </p>
                         </div>
-                        <div className="pointer-events-none">
-                          <Switch checked={module.enabled} disabled={!module.isOptional} />
+                        <div>
+                          <Switch checked={module.enabled} disabled />
                         </div>
                       </div>
                     ))}

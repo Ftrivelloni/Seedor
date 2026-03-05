@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from '@/components/dashboard/ui/dialog';
 import { Label } from '@/components/dashboard/ui/label';
-import { Switch } from '@/components/dashboard/ui/switch';
 import {
   Select,
   SelectContent,
@@ -20,7 +19,6 @@ import {
   SelectValue,
 } from '@/components/dashboard/ui/select';
 import { Button } from '@/components/dashboard/ui/button';
-import { Separator } from '@/components/dashboard/ui/separator';
 import { updateUserPreferencesAction } from './actions';
 import type { SerializedUserProfile } from './types';
 
@@ -72,7 +70,7 @@ export function EditPreferencesModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-137.5">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Editar preferencias generales</DialogTitle>
           <DialogDescription>

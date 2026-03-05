@@ -40,3 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 /dev.db
+
+# telegram bot data (contains real data, should be in database)
+telegram-bot/data/*.json
+!telegram-bot/data/.gitkeep
+!telegram-bot/data/*.json.example
