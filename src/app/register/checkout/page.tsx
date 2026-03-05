@@ -25,9 +25,10 @@ const MODULE_LABELS: Record<string, string> = {
     SALES: 'Ventas',
 };
 
-const BASE_PRICE_USD = 200;
-const MODULE_PRICE_MONTHLY_USD = 20;
-const MODULE_PRICE_YEARLY_USD = 15;
+// ⚠️ PRUEBA DE PRODUCCIÓN: Precios simbólicos ($1 USD base + $0 módulos)
+const BASE_PRICE_USD = 1;
+const MODULE_PRICE_MONTHLY_USD = 0;
+const MODULE_PRICE_YEARLY_USD = 0;
 
 type PlanInterval = 'MONTHLY' | 'ANNUAL';
 

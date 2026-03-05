@@ -2,9 +2,10 @@ import { prisma } from '@/lib/prisma';
 import type { ModuleKey, PlanInterval } from '@prisma/client';
 
 // ── Pricing Constants ──
-export const BASE_PRICE_MONTHLY_USD = 200;
-export const MODULE_PRICE_MONTHLY_USD = 20;
-export const MODULE_PRICE_YEARLY_USD = 15; // $15/month when billed annually ($180/year per module)
+// ⚠️ PRUEBA DE PRODUCCIÓN: Precios simbólicos ($1 USD base + $0 módulos)
+export const BASE_PRICE_MONTHLY_USD = 1;
+export const MODULE_PRICE_MONTHLY_USD = 0;
+export const MODULE_PRICE_YEARLY_USD = 0; // $0/month when billed annually ($0/year per module)
 
 /** Modules that are NOT included in the base plan. */
 export const OPTIONAL_MODULES: ModuleKey[] = ['PACKAGING', 'MACHINERY', 'SALES'];
