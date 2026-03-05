@@ -326,22 +326,83 @@ export async function deleteTenantAccountAction(
     return { success: false, error: 'Debés escribir el nombre de la empresa para confirmar.' };
   }
 
+  // ── 1. Fetch tenant ──
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: session.tenantId },
+    select: {
+      id: true,
+      name: true,
+      subscriptionStatus: true,
+      mpPreapprovalId: true,
+    },
+  });
+
+  if (!tenant) {
+    return { success: false, error: 'Tenant no encontrado.' };
+  }
+
+  // Validate confirmation text matches tenant name (case-insensitive)
+  if (confirmationText.trim().toLowerCase() !== tenant.name.trim().toLowerCase()) {
+    return { success: false, error: 'El nombre ingresado no coincide con el de la empresa.' };
+  }
+
+  // ── 2. Cancel MP subscription if active ──
+  let mpCanceled = false;
+  const ACTIVE_STATUSES = new Set(['ACTIVE', 'TRIALING', 'PAST_DUE']);
+
+  if (tenant.mpPreapprovalId && ACTIVE_STATUSES.has(tenant.subscriptionStatus)) {
+    try {
+      await mpPreApproval.update({
+        id: tenant.mpPreapprovalId,
+        body: { status: 'cancelled' },
+      });
+      mpCanceled = true;
+      console.log(
+        `🔴 ELIMINACIÓN DE CUENTA: Suscripción MP ${tenant.mpPreapprovalId} cancelada para tenant "${tenant.name}" (${tenant.id})`
+      );
+    } catch (mpErr) {
+      console.error(
+        `⚠️ ELIMINACIÓN DE CUENTA: No se pudo cancelar la suscripción MP ${tenant.mpPreapprovalId}. Continuando con eliminación.`,
+        mpErr
+      );
+    }
+  }
+
+  // ── 3. Delete all tenant data in a transaction ──
   try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const res = await fetch(`${appUrl}/api/account/delete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirmationText }),
+    await prisma.$transaction(async (tx) => {
+      const memberships = await tx.tenantUserMembership.findMany({
+        where: { tenantId: tenant.id },
+        select: { userId: true },
+      });
+      const userIds = memberships.map((m) => m.userId);
+
+      // Delete tenant (cascades to memberships, modules, fields, etc.)
+      await tx.tenant.delete({ where: { id: tenant.id } });
+
+      // Delete orphaned users
+      if (userIds.length > 0) {
+        const usersWithOtherTenants = await tx.tenantUserMembership.findMany({
+          where: { userId: { in: userIds }, tenantId: { not: tenant.id } },
+          select: { userId: true },
+        });
+        const usersToKeep = new Set(usersWithOtherTenants.map((m) => m.userId));
+        const usersToDelete = userIds.filter((id) => !usersToKeep.has(id));
+
+        if (usersToDelete.length > 0) {
+          await tx.user.deleteMany({ where: { id: { in: usersToDelete } } });
+        }
+      }
     });
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      return { success: false, error: data.error || 'Error al eliminar la cuenta.' };
-    }
+    console.log(
+      `🔴 ELIMINACIÓN DE CUENTA COMPLETADA: Tenant "${tenant.name}" (${tenant.id}) eliminado. ` +
+      `Suscripción MP cancelada: ${mpCanceled ? 'Sí' : 'No'}.`
+    );
 
     return { success: true };
-  } catch {
-    return { success: false, error: 'Error de comunicación al eliminar la cuenta.' };
+  } catch (err) {
+    console.error('[deleteTenantAccountAction] Error:', err);
+    return { success: false, error: 'Error al eliminar la cuenta. Intentá de nuevo.' };
   }
 }
