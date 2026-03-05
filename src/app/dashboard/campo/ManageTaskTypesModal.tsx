@@ -3,7 +3,6 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Settings, Trash2, X } from 'lucide-react';
-import { toast } from 'sonner';
 import { createTaskTypeAction, deleteTaskTypeAction } from './actions';
 import type { SerializedTaskType } from './types';
 
@@ -22,18 +21,12 @@ export function ManageTaskTypesModal({ taskTypes }: ManageTaskTypesModalProps) {
   async function handleCreate() {
     if (!name.trim()) return;
     startCreate(async () => {
-      try {
-        const formData = new FormData();
-        formData.set('name', name.trim());
-        formData.set('color', color);
-        await createTaskTypeAction(formData);
-        setName('');
-        toast.success('Tipo de tarea creado exitosamente');
-        router.refresh();
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Error al crear el tipo de tarea.';
-        toast.error(errorMessage);
-      }
+      const formData = new FormData();
+      formData.set('name', name.trim());
+      formData.set('color', color);
+      await createTaskTypeAction(formData);
+      setName('');
+      router.refresh();
     });
   }
 
@@ -41,11 +34,7 @@ export function ManageTaskTypesModal({ taskTypes }: ManageTaskTypesModalProps) {
     setDeleting(id);
     try {
       await deleteTaskTypeAction(id);
-      toast.success('Tipo de tarea eliminado');
       router.refresh();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al eliminar el tipo de tarea.';
-      toast.error(errorMessage);
     } finally {
       setDeleting(null);
     }
@@ -55,7 +44,7 @@ export function ManageTaskTypesModal({ taskTypes }: ManageTaskTypesModalProps) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors bg-white cursor-pointer"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
       >
         <Settings className="h-3.5 w-3.5" />
         Tipos de tarea

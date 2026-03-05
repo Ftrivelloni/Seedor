@@ -22,7 +22,6 @@ import {
   SelectValue,
 } from '@/components/dashboard/ui/select';
 import { ArrowLeftRight } from 'lucide-react';
-import { toast } from 'sonner';
 import { createInventoryMovementAction } from './actions';
 import type { SerializedWarehouse, SerializedItem } from './types';
 
@@ -55,20 +54,15 @@ export function RegisterMovementModal({ warehouses, items }: RegisterMovementMod
   const needsDestination = movementType === 'INCOME' || movementType === 'TRANSFER' || movementType === 'ADJUSTMENT';
 
   async function handleSubmit(formData: FormData) {
-    try {
-      await createInventoryMovementAction(formData);
-      setOpen(false);
-      setMovementType('INCOME');
-      toast.success('Movimiento registrado exitosamente');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error al registrar el movimiento');
-    }
+    await createInventoryMovementAction(formData);
+    setOpen(false);
+    setMovementType('INCOME');
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2 !bg-white !border-gray-200 cursor-pointer">
+        <Button variant="outline" className="gap-2">
           <ArrowLeftRight className="h-4 w-4" />
           Registrar movimiento
         </Button>
@@ -90,7 +84,7 @@ export function RegisterMovementModal({ warehouses, items }: RegisterMovementMod
               defaultValue="INCOME"
               onValueChange={(v) => setMovementType(v)}
             >
-              <SelectTrigger className="cursor-pointer">
+              <SelectTrigger>
                 <SelectValue placeholder="Seleccionar tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -108,7 +102,7 @@ export function RegisterMovementModal({ warehouses, items }: RegisterMovementMod
               Insumo <span className="text-red-500">*</span>
             </Label>
             <Select name="itemId">
-              <SelectTrigger className="cursor-pointer">
+              <SelectTrigger>
                 <SelectValue placeholder="Seleccionar insumo" />
               </SelectTrigger>
               <SelectContent>
@@ -145,7 +139,7 @@ export function RegisterMovementModal({ warehouses, items }: RegisterMovementMod
                 )}
               </Label>
               <Select name="sourceWarehouseId">
-                <SelectTrigger className="cursor-pointer">
+                <SelectTrigger>
                   <SelectValue placeholder="Seleccionar depósito origen" />
                 </SelectTrigger>
                 <SelectContent>
@@ -168,7 +162,7 @@ export function RegisterMovementModal({ warehouses, items }: RegisterMovementMod
                 )}
               </Label>
               <Select name="destinationWarehouseId">
-                <SelectTrigger className="cursor-pointer">
+                <SelectTrigger>
                   <SelectValue placeholder="Seleccionar depósito destino" />
                 </SelectTrigger>
                 <SelectContent>

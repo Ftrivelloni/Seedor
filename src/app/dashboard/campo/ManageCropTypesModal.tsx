@@ -3,7 +3,6 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Leaf, Trash2, X } from 'lucide-react';
-import { toast } from 'sonner';
 import { createCropTypeAction, deleteCropTypeAction } from './actions';
 import type { SerializedCropType } from './types';
 
@@ -22,18 +21,12 @@ export function ManageCropTypesModal({ cropTypes }: ManageCropTypesModalProps) {
   async function handleCreate() {
     if (!name.trim()) return;
     startCreate(async () => {
-      try {
-        const formData = new FormData();
-        formData.set('name', name.trim());
-        formData.set('color', color);
-        await createCropTypeAction(formData);
-        setName('');
-        toast.success('Tipo de cultivo creado exitosamente');
-        router.refresh();
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Error al crear el tipo de cultivo.';
-        toast.error(errorMessage);
-      }
+      const formData = new FormData();
+      formData.set('name', name.trim());
+      formData.set('color', color);
+      await createCropTypeAction(formData);
+      setName('');
+      router.refresh();
     });
   }
 
@@ -41,11 +34,7 @@ export function ManageCropTypesModal({ cropTypes }: ManageCropTypesModalProps) {
     setDeleting(id);
     try {
       await deleteCropTypeAction(id);
-      toast.success('Tipo de cultivo eliminado');
       router.refresh();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al eliminar el tipo de cultivo.';
-      toast.error(errorMessage);
     } finally {
       setDeleting(null);
     }
@@ -55,7 +44,7 @@ export function ManageCropTypesModal({ cropTypes }: ManageCropTypesModalProps) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors bg-white cursor-pointer"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
       >
         <Leaf className="h-3.5 w-3.5" />
         Tipos de cultivo

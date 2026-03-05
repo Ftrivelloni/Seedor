@@ -3,7 +3,6 @@
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Wheat } from 'lucide-react';
-import { toast } from 'sonner';
 import { createHarvestRecordAction } from './actions';
 import type { SerializedField } from './types';
 
@@ -33,16 +32,10 @@ export function CreateHarvestModal({ fields, preselectedLotId }: CreateHarvestMo
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
-      try {
-        await createHarvestRecordAction(formData);
-        setOpen(false);
-        setSelectedLotId(preselectedLotId || '');
-        toast.success('Cosecha registrada exitosamente');
-        router.refresh();
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Error al registrar la cosecha.';
-        toast.error(errorMessage);
-      }
+      await createHarvestRecordAction(formData);
+      setOpen(false);
+      setSelectedLotId(preselectedLotId || '');
+      router.refresh();
     });
   }
 
@@ -50,7 +43,7 @@ export function CreateHarvestModal({ fields, preselectedLotId }: CreateHarvestMo
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors cursor-pointer"
+        className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
       >
         <Wheat className="h-4 w-4" />
         Registrar cosecha
