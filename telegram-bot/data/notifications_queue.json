@@ -1,3 +1,15 @@
 {
-  "events": []
+  "events": [
+    {
+      "type": "TASK_ASSIGNED",
+      "message": "Nueva tarea asignada\n\n🏢 Empresa: La Finca de Olivia\n📌 Tarea: Poda\nTipo: poda\n🌱 Lote: Lote N1 - Campo Norte\n📅 Vence: 2026-03-07",
+      "workers": [
+        {
+          "id": "cmmdzibly0001uu7fsthxfe4w",
+          "phone": "+541136679484"
+        }
+      ],
+      "created_at": "2026-03-05T21:36:27.529Z"
+    }
+  ]
 }

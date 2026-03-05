@@ -66,11 +66,19 @@ from telegram.ext import (
 # ─── Paths ─────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
-SNAPSHOT_PATH = os.path.join(DATA_DIR, "snapshot.json")
+SNAPSHOT_PATH = os.path.join(DATA_DIR, "snapshot.json")  # legacy / fallback
 UPDATES_PATH = os.path.join(DATA_DIR, "updates_queue.json")
 SESSIONS_PATH = os.path.join(DATA_DIR, "sessions.json")
 NOTIFICATIONS_PATH = os.path.join(DATA_DIR, "notifications_queue.json")
 DLQ_PATH = Path(DATA_DIR) / "dead_letter.json"
+
+
+def _snapshot_path(tenant_id: str = "") -> str:
+    """Return the per-tenant snapshot path, or the global fallback."""
+    if tenant_id:
+        safe = re.sub(r"[^a-zA-Z0-9_-]", "_", tenant_id)
+        return os.path.join(DATA_DIR, f"snapshot_{safe}.json")
+    return SNAPSHOT_PATH
 
 # ─── Dead-letter queue ────────────────────────────────────
 dlq = DeadLetterQueue(DLQ_PATH)
@@ -147,32 +155,40 @@ NOTIFICATION_POLL_SECONDS = int(os.environ.get("SEEDOR_NOTIFICATION_POLL_SECONDS
 # HELPERS
 # ═══════════════════════════════════════════════════════════
 
-def _load_snapshot() -> dict:
-    """Load and return the current snapshot."""
-    with open(SNAPSHOT_PATH, "r", encoding="utf-8") as f:
+def _load_snapshot(tenant_id: str = "") -> dict:
+    """Load and return the snapshot for the given tenant (or global fallback)."""
+    path = _snapshot_path(tenant_id)
+    if tenant_id and not os.path.exists(path):
+        path = SNAPSHOT_PATH  # fall back to global if tenant file missing
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def _write_snapshot(snapshot: dict) -> None:
-    """Atomically write snapshot to disk."""
+def _write_snapshot(snapshot: dict, tenant_id: str = "") -> None:
+    """Atomically write snapshot to disk for the given tenant."""
+    path = _snapshot_path(tenant_id)
     os.makedirs(DATA_DIR, exist_ok=True)
     fd, tmp_path = tempfile.mkstemp(dir=DATA_DIR, suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(snapshot, f, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, SNAPSHOT_PATH)
+        os.replace(tmp_path, path)
     except Exception:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
         raise
 
 
-def _should_refresh_snapshot() -> bool:
-    """Return True if snapshot is missing or stale."""
-    if not os.path.exists(SNAPSHOT_PATH):
-        return True
+def _should_refresh_snapshot(tenant_id: str = "") -> bool:
+    """Return True if the tenant's snapshot is missing or stale."""
+    path = _snapshot_path(tenant_id)
+    if not os.path.exists(path):
+        if tenant_id and os.path.exists(SNAPSHOT_PATH):
+            path = SNAPSHOT_PATH  # fall back to global
+        else:
+            return True
     try:
-        age = datetime.now().timestamp() - os.path.getmtime(SNAPSHOT_PATH)
+        age = datetime.now().timestamp() - os.path.getmtime(path)
     except OSError:
         return True
     return age > SNAPSHOT_TTL_SECONDS
@@ -220,7 +236,7 @@ def _refresh_snapshot_from_api(tenant_id: str = "") -> bool:
 
     try:
         snapshot = _api_get(url)
-        _write_snapshot(snapshot)
+        _write_snapshot(snapshot, tid)
         log.info(
             "Snapshot refreshed",
             tenant_id=tid,
@@ -540,23 +556,30 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     api_workers = _api_lookup_worker_by_phone(phone)
 
     if not api_workers:
-        # Fallback to local snapshot
-        if _should_refresh_snapshot():
-            _refresh_snapshot_from_api()
-        try:
-            snapshot = _load_snapshot()
-            worker = _find_worker_by_phone(snapshot, phone)
-            if worker:
-                tenant = snapshot.get("tenant", {})
-                api_workers = [{
-                    "worker_id": worker["id"],
-                    "first_name": worker.get("first_name", ""),
-                    "last_name": worker.get("last_name", ""),
-                    "tenant_id": tenant.get("id", TENANT_ID),
-                    "tenant_name": tenant.get("name", "Empresa"),
-                }]
-        except FileNotFoundError:
-            pass
+        # Fallback: search all known tenant snapshots (and global fallback)
+        tenant_ids_to_check: list[str] = list(set(_selected_tenants.values()))
+        if TENANT_ID and TENANT_ID not in tenant_ids_to_check:
+            tenant_ids_to_check.append(TENANT_ID)
+        if not tenant_ids_to_check:
+            tenant_ids_to_check = [""]  # global snapshot only
+
+        for tid_check in tenant_ids_to_check:
+            if _should_refresh_snapshot(tid_check):
+                _refresh_snapshot_from_api(tid_check)
+            try:
+                snapshot = _load_snapshot(tid_check)
+                worker = _find_worker_by_phone(snapshot, phone)
+                if worker:
+                    tenant = snapshot.get("tenant", {})
+                    api_workers.append({
+                        "worker_id": worker["id"],
+                        "first_name": worker.get("first_name", ""),
+                        "last_name": worker.get("last_name", ""),
+                        "tenant_id": tenant.get("id", tid_check or TENANT_ID),
+                        "tenant_name": tenant.get("name", "Empresa"),
+                    })
+            except FileNotFoundError:
+                pass
 
     if not api_workers:
         log.info("Auth failed: phone not found", chat_id=chat_id)
@@ -754,10 +777,10 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
 
+    user_tenant_id = _selected_tenants.get(chat_id, TENANT_ID)
     refreshed = False
-    if _should_refresh_snapshot():
-        tenant_id = _selected_tenants.get(chat_id, TENANT_ID)
-        refreshed = _refresh_snapshot_from_api(tenant_id)
+    if _should_refresh_snapshot(user_tenant_id):
+        refreshed = _refresh_snapshot_from_api(user_tenant_id)
 
     def _resolve_active_tasks(snapshot: dict, worker_id: str) -> tuple[Optional[dict], str, list[dict]]:
         worker = next(
@@ -801,12 +824,21 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return worker, worker_id, active_tasks
 
     try:
-        snapshot = _load_snapshot()
+        snapshot = _load_snapshot(user_tenant_id)
     except FileNotFoundError:
         await update.message.reply_text("⚠️ Snapshot no disponible.")
         return
 
     worker, worker_id, active_tasks = _resolve_active_tasks(snapshot, worker_id)
+    if worker is None:
+        # Snapshot may have been overwritten by another tenant — force refresh for this user.
+        if user_tenant_id and _refresh_snapshot_from_api(user_tenant_id):
+            try:
+                snapshot = _load_snapshot(user_tenant_id)
+                worker, worker_id, active_tasks = _resolve_active_tasks(snapshot, worker_id)
+            except FileNotFoundError:
+                pass
+
     if worker is None:
         _authenticated_workers.pop(chat_id, None)
         _authenticated_phones.pop(chat_id, None)
@@ -818,9 +850,9 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
     if not active_tasks and not refreshed:
-        if _refresh_snapshot_from_api():
+        if _refresh_snapshot_from_api(user_tenant_id):
             try:
-                snapshot = _load_snapshot()
+                snapshot = _load_snapshot(user_tenant_id)
             except FileNotFoundError:
                 snapshot = None
             if snapshot:
@@ -965,7 +997,7 @@ async def handle_task_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     task_name = task_id
     lot_display = ""
     try:
-        snapshot = _load_snapshot()
+        snapshot = _load_snapshot(_selected_tenants.get(chat_id, ""))
         for t in snapshot.get("tasks", []):
             if t["id"] == task_id:
                 task_name = t.get("description", task_id)
@@ -1161,15 +1193,19 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 # ═══════════════════════════════════════════════════════════
 
 async def _snapshot_refresh_loop() -> None:
-    """Periodically refresh snapshot from API."""
+    """Periodically refresh snapshot from API for all active tenants."""
     SYNC_INTERVAL = int(os.environ.get("SEEDOR_SYNC_INTERVAL_SECONDS", "60"))
     log.info("Snapshot sync loop started", interval_seconds=SYNC_INTERVAL)
     while True:
+        await asyncio.sleep(SYNC_INTERVAL)
         try:
-            _refresh_snapshot_from_api()
+            active_tenants = set(_selected_tenants.values())
+            if not active_tenants and TENANT_ID:
+                active_tenants = {TENANT_ID}
+            for tid in active_tenants:
+                _refresh_snapshot_from_api(tid)
         except Exception as e:
             log.error("Snapshot refresh loop error", error=str(e))
-        await asyncio.sleep(SYNC_INTERVAL)
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1195,9 +1231,12 @@ def main() -> None:
     )
 
     async def _post_init(app: Application) -> None:
-        # Initial snapshot fetch
-        if TENANT_ID:
-            _refresh_snapshot_from_api(TENANT_ID)
+        # Initial snapshot fetch for all tenants with active sessions
+        active_tenants = set(_selected_tenants.values())
+        if not active_tenants and TENANT_ID:
+            active_tenants = {TENANT_ID}
+        for tid in active_tenants:
+            _refresh_snapshot_from_api(tid)
         app.create_task(_notification_poller(app))
         app.create_task(_snapshot_refresh_loop())
         log.info("Background tasks started")
