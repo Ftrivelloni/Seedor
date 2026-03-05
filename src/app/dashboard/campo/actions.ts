@@ -315,11 +315,19 @@ export async function createTaskAction(formData: FormData) {
   );
 
   if (assignedWorkers.length > 0 && createdTasks.length > 0) {
+    // Get tenant name for notification
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: session.tenantId },
+      select: { name: true },
+    });
+    const tenantName = tenant?.name ?? '';
+
     const tasksForNotify = createdTasks.map((task) => ({
       description: task.description,
       taskType: task.taskType,
       dueDate: task.dueDate.toISOString().split('T')[0],
       lotDisplay: lotDisplayById.get(task.lotId) ?? task.lotId,
+      tenantName,
     }));
 
     try {

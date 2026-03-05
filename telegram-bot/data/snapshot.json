@@ -1,218 +1,95 @@
 {
-  "generated_at": "2026-02-23T22:20:10.237Z",
+  "generated_at": "2026-03-05T19:44:51.723Z",
   "tenant": {
-    "id": "cmlcnm2pa000e9ndezxeb93kj",
-    "name": "ejemplo"
+    "id": "cmmcncta80000vu4e0wwltzbs",
+    "name": "Mateo"
   },
   "workers": [
     {
-      "id": "cmlh2wpdb0003xa4ichsl3yw9",
-      "first_name": "koe",
-      "last_name": "dubo",
-      "phone": "+541137809999",
-      "function_type": "tractor",
-      "active": true
-    },
-    {
-      "id": "cmlh2xbe30005xa4i4yxd3yzp",
-      "first_name": "mate",
-      "last_name": "pi",
+      "id": "cmmcok95u000lvu4e9myn0y9m",
+      "first_name": "mateo",
+      "last_name": "pirola",
       "phone": "+542995751149",
-      "function_type": "riego",
-      "active": true
-    },
-    {
-      "id": "cmlinrqz9001vad6mrxgq4jmu",
-      "first_name": "prueba",
-      "last_name": "prueba",
-      "phone": "2995751149",
-      "function_type": "tractor",
-      "active": true
-    },
-    {
-      "id": "cmlcp9kwe0001wz0wnmlbb8dz",
-      "first_name": "Cata",
-      "last_name": "Yelmini",
-      "phone": "+45 911 36447476",
-      "function_type": "Tractorista",
+      "function_type": "peon",
       "active": true
     }
   ],
   "fields": [
     {
-      "id": "cmlima839001kad6mhjz7qg5g",
-      "name": "aasdffffffffffffaasdffffffffffffaasdffffffffffffaasdffffffffffffaasdffffffffffffaasdffffffffffffaasd",
-      "location": null,
-      "lots": []
-    },
-    {
-      "id": "cmlcpbn200001wzx4awdc0pam",
-      "name": "Campo Norte",
-      "location": "Ruta Nacional 41",
+      "id": "cmmcngr0g000fvu4ejbuyv2t8",
+      "name": "campo sur",
+      "location": "ruta 3, 20km",
       "lots": [
         {
-          "id": "cmlcpdhx00005wzx4kxmjxgwf",
-          "name": "Lote N1",
-          "area_hectares": 50,
-          "production_type": "Limones"
+          "id": "cmmcnhixi000hvu4ej9srzhe6",
+          "name": "lote a1",
+          "area_hectares": 35,
+          "production_type": "naranja"
         },
         {
-          "id": "cmlcpdy210007wzx4w1giyryz",
-          "name": "Lote N2",
-          "area_hectares": 25,
-          "production_type": "Naranjas"
+          "id": "cmmcni0bn000jvu4ee6f4hqoh",
+          "name": "lote a2",
+          "area_hectares": 35,
+          "production_type": "limones"
         }
       ]
-    },
-    {
-      "id": "cmlcpc6tc0003wzx4kb8ojsmm",
-      "name": "Campo Sur",
-      "location": "Zonda",
-      "lots": [
-        {
-          "id": "cmlcpelip0009wzx4gti5ihsu",
-          "name": "Lote S1",
-          "area_hectares": 100,
-          "production_type": "Mandarina"
-        }
-      ]
-    },
-    {
-      "id": "cmlim9n0m001iad6mi3szu3o4",
-      "name": "PRUEBA",
-      "location": null,
-      "lots": []
-    },
-    {
-      "id": "cmlinsknv001xad6m572hkigj",
-      "name": "Test",
-      "location": null,
-      "lots": []
     }
   ],
   "tasks": [
     {
-      "id": "cmlhelrk6001aad6m6jsyjp23",
-      "description": "hola",
-      "task_type": "Fumigacion",
+      "id": "cmmconzw6000nvu4ekmpbf8b0",
+      "description": "riego",
+      "task_type": "riego",
       "status": "PENDING",
-      "start_date": "2026-02-11",
-      "due_date": "2026-02-12",
-      "assigned_worker_ids": [],
-      "lot_ids": [
-        "cmlcpdhx00005wzx4kxmjxgwf"
-      ]
-    },
-    {
-      "id": "cmlczxshs0007wzzkl340anpc",
-      "description": "Filas 12-14",
-      "task_type": "Poda",
-      "status": "PENDING",
-      "start_date": "2026-02-08",
-      "due_date": "2026-02-14",
-      "assigned_worker_ids": [],
-      "lot_ids": [
-        "cmlcpdhx00005wzx4kxmjxgwf",
-        "cmlcpelip0009wzx4gti5ihsu"
-      ]
-    },
-    {
-      "id": "cmlcpjdm8000kwzx415dpbunh",
-      "description": "poda de arbol",
-      "task_type": "Poda",
-      "status": "PENDING",
-      "start_date": "2026-02-07",
-      "due_date": "2026-02-14",
+      "start_date": "2026-03-05",
+      "due_date": "2026-03-12",
       "assigned_worker_ids": [
-        "cmlcp9kwe0001wz0wnmlbb8dz"
+        "cmmcok95u000lvu4e9myn0y9m"
       ],
       "lot_ids": [
-        "cmlcpdhx00005wzx4kxmjxgwf",
-        "cmlcpelip0009wzx4gti5ihsu"
+        "cmmcnhixi000hvu4ej9srzhe6"
       ]
     },
     {
-      "id": "cmlherx20001ead6m3sfwu4tm",
-      "description": "Tarea de verificaci",
-      "task_type": "Fumigacion",
+      "id": "cmmcoo0wi000svu4ec9zh1sys",
+      "description": "riego",
+      "task_type": "riego",
       "status": "PENDING",
-      "start_date": "2026-02-11",
-      "due_date": "2026-02-15",
-      "assigned_worker_ids": [],
-      "lot_ids": [
-        "cmlcpdhx00005wzx4kxmjxgwf"
-      ]
-    },
-    {
-      "id": "cmlpvm3np000vvu9gsoschkm7",
-      "description": "prueba mensaje",
-      "task_type": "Poda",
-      "status": "PENDING",
-      "start_date": "2026-02-19",
-      "due_date": "2026-02-21",
+      "start_date": "2026-03-05",
+      "due_date": "2026-03-12",
       "assigned_worker_ids": [
-        "cmlh2xbe30005xa4i4yxd3yzp"
+        "cmmcok95u000lvu4e9myn0y9m"
       ],
       "lot_ids": [
-        "cmlcpdy210007wzx4w1giyryz"
+        "cmmcni0bn000jvu4ee6f4hqoh"
       ]
     },
     {
-      "id": "cmlpvm2ym000qvu9glpduitfa",
-      "description": "prueba mensaje",
-      "task_type": "Poda",
-      "status": "PENDING",
-      "start_date": "2026-02-19",
-      "due_date": "2026-02-21",
-      "assigned_worker_ids": [
-        "cmlh2xbe30005xa4i4yxd3yzp"
-      ],
-      "lot_ids": [
-        "cmlcpdhx00005wzx4kxmjxgwf"
-      ]
-    },
-    {
-      "id": "cmlpv7pxc000lvu9g09ojenhu",
-      "description": "g",
-      "task_type": "Poda",
-      "status": "PENDING",
-      "start_date": "2026-02-18",
-      "due_date": "2026-02-21",
-      "assigned_worker_ids": [
-        "cmlh2xbe30005xa4i4yxd3yzp"
-      ],
-      "lot_ids": [
-        "cmlcpdhx00005wzx4kxmjxgwf"
-      ]
-    },
-    {
-      "id": "cmlzpjghc0008vucxaxht0plu",
+      "id": "cmmcqxmen000xvu4ea6y4265u",
       "description": "ejemplo",
-      "task_type": "Fumigacion",
+      "task_type": "riego",
       "status": "PENDING",
-      "start_date": "2026-02-25",
-      "due_date": "2026-02-27",
+      "start_date": "2026-03-05",
+      "due_date": "2026-03-12",
       "assigned_worker_ids": [
-        "cmlh2wpdb0003xa4ichsl3yw9",
-        "cmlh2xbe30005xa4i4yxd3yzp",
-        "cmlinrqz9001vad6mrxgq4jmu"
+        "cmmcok95u000lvu4e9myn0y9m"
       ],
       "lot_ids": [
-        "cmlcpdy210007wzx4w1giyryz"
+        "cmmcnhixi000hvu4ej9srzhe6"
       ]
     },
     {
-      "id": "cmlptxu0b0006vu9gla40wnbl",
-      "description": "regar lote",
-      "task_type": "Fumigacion",
+      "id": "cmmcqxnew0012vu4ejhzw3sjq",
+      "description": "ejemplo",
+      "task_type": "riego",
       "status": "PENDING",
-      "start_date": "2026-02-17",
-      "due_date": "2026-02-21",
+      "start_date": "2026-03-05",
+      "due_date": "2026-03-12",
       "assigned_worker_ids": [
-        "cmlh2xbe30005xa4i4yxd3yzp"
+        "cmmcok95u000lvu4e9myn0y9m"
       ],
       "lot_ids": [
-        "cmlcpdy210007wzx4w1giyryz"
+        "cmmcni0bn000jvu4ee6f4hqoh"
       ]
     }
   ]

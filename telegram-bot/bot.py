@@ -77,10 +77,14 @@ dlq = DeadLetterQueue(DLQ_PATH)
 
 # ─── Persistent session stores ─────────────────────────────
 
-def _load_sessions() -> tuple[dict[int, str], dict[int, str]]:
-    """Load authenticated sessions and phones from disk."""
+def _load_sessions() -> tuple[dict[int, str], dict[int, str], dict[int, str], dict[int, list[dict]]]:
+    """Load authenticated sessions from disk.
+    Returns: (workers, phones, selected_tenants, worker_tenants)
+    """
     workers: dict[int, str] = {}
     phones: dict[int, str] = {}
+    tenants: dict[int, str] = {}
+    w_tenants: dict[int, list[dict]] = {}
     if os.path.exists(SESSIONS_PATH):
         try:
             with open(SESSIONS_PATH, "r", encoding="utf-8") as f:
@@ -92,28 +96,40 @@ def _load_sessions() -> tuple[dict[int, str], dict[int, str]]:
                     elif isinstance(value, dict):
                         worker_id = value.get("worker_id") or value.get("workerId")
                         phone = value.get("phone")
+                        tenant_id = value.get("tenant_id")
+                        available = value.get("available_tenants", [])
                         if worker_id:
                             workers[chat_id] = worker_id
                         if phone:
                             phones[chat_id] = phone
+                        if tenant_id:
+                            tenants[chat_id] = tenant_id
+                        if available:
+                            w_tenants[chat_id] = available
         except (json.JSONDecodeError, ValueError, TypeError) as e:
             log.warning("Failed to load sessions", error=str(e))
-    return workers, phones
+    return workers, phones, tenants, w_tenants
 
 def _save_sessions() -> None:
     """Persist authenticated sessions to disk."""
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(SESSIONS_PATH, "w", encoding="utf-8") as f:
-        payload: dict[str, dict[str, str]] = {}
+        payload: dict[str, dict] = {}
         for chat_id, worker_id in _authenticated_workers.items():
-            entry = {"worker_id": worker_id}
+            entry: dict = {"worker_id": worker_id}
             phone = _authenticated_phones.get(chat_id)
             if phone:
                 entry["phone"] = phone
+            tenant_id = _selected_tenants.get(chat_id)
+            if tenant_id:
+                entry["tenant_id"] = tenant_id
+            available = _worker_tenants.get(chat_id)
+            if available:
+                entry["available_tenants"] = available
             payload[str(chat_id)] = entry
         json.dump(payload, f, indent=2)
 
-_authenticated_workers, _authenticated_phones = _load_sessions()
+_authenticated_workers, _authenticated_phones, _selected_tenants, _worker_tenants = _load_sessions()
 
 # task_id → new status (local overrides for immediate UX)
 _local_task_overrides: dict[str, str] = {}
@@ -193,20 +209,21 @@ def _api_post(url: str, payload: dict, timeout: int = 10) -> dict:
         return json.loads(resp.read().decode("utf-8"))
 
 
-def _refresh_snapshot_from_api() -> bool:
+def _refresh_snapshot_from_api(tenant_id: str = "") -> bool:
     """Fetch snapshot from API and update local file. Returns True on success."""
-    if not API_KEY or not TENANT_ID:
+    tid = tenant_id or TENANT_ID
+    if not API_KEY or not tid:
         log.warning("Cannot refresh snapshot: missing required env vars")
         return False
 
-    url = f"{API_URL.rstrip('/')}/api/telegram/snapshot?tenantId={TENANT_ID}"
+    url = f"{API_URL.rstrip('/')}/api/telegram/snapshot?tenantId={tid}"
 
     try:
         snapshot = _api_get(url)
         _write_snapshot(snapshot)
         log.info(
             "Snapshot refreshed",
-            tenant_id=TENANT_ID,
+            tenant_id=tid,
             workers=len(snapshot.get("workers", [])),
             tasks=len(snapshot.get("tasks", [])),
         )
@@ -214,6 +231,20 @@ def _refresh_snapshot_from_api() -> bool:
     except Exception as e:
         log.error("Snapshot refresh failed after retries", error=str(e))
         return False
+
+
+def _api_lookup_worker_by_phone(phone: str) -> list[dict]:
+    """Lookup worker by phone across all tenants via API."""
+    if not API_KEY:
+        return []
+    normalized = _normalize_phone(phone)
+    url = f"{API_URL.rstrip('/')}/api/telegram/worker-lookup?phone={normalized}"
+    try:
+        result = _api_get(url)
+        return result.get("workers", [])
+    except Exception as e:
+        log.error("Worker lookup failed", error=str(e), phone=phone[:6] + "***")
+        return []
 
 
 def _push_event_to_api(event: dict) -> bool:
@@ -440,15 +471,16 @@ async def _notification_poller(app) -> None:
         await asyncio.sleep(NOTIFICATION_POLL_SECONDS)
 
 
-def _main_menu_keyboard() -> ReplyKeyboardMarkup:
+def _main_menu_keyboard(chat_id: int = 0) -> ReplyKeyboardMarkup:
     """Return the main reply keyboard for authenticated workers."""
-    return ReplyKeyboardMarkup(
-        [
-            [KeyboardButton("📋 Mis Tareas")],
-            [KeyboardButton("📍 Check-in", request_location=True)],
-        ],
-        resize_keyboard=True,
-    )
+    buttons = [
+        [KeyboardButton("📋 Mis Tareas")],
+        [KeyboardButton("📍 Check-in", request_location=True)],
+    ]
+    # Show 'Cambiar Empresa' if worker belongs to 2+ tenants
+    if chat_id and len(_worker_tenants.get(chat_id, [])) > 1:
+        buttons.append([KeyboardButton("🏢 Cambiar Empresa")])
+    return ReplyKeyboardMarkup(buttons, resize_keyboard=True)
 
 
 # ═══════════════════════════════════════════════════════════
@@ -456,6 +488,7 @@ def _main_menu_keyboard() -> ReplyKeyboardMarkup:
 # ═══════════════════════════════════════════════════════════
 # Auth conversation
 AUTH_WAITING_CONTACT = 0
+AUTH_WAITING_TENANT = 1
 
 # Task completion conversation (future expansion)
 TASK_SELECT, TASK_CONFIRM = range(10, 12)
@@ -470,10 +503,10 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.message.chat_id
 
     # If already authenticated, show main menu
-    if chat_id in _authenticated_workers:
+    if chat_id in _authenticated_workers and chat_id in _selected_tenants:
         await update.message.reply_text(
             "🌿 Ya estás identificado. Usá el menú para continuar.",
-            reply_markup=_main_menu_keyboard(),
+            reply_markup=_main_menu_keyboard(chat_id),
         )
         return ConversationHandler.END
 
@@ -493,7 +526,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Authenticate the worker via their shared phone number."""
+    """Authenticate the worker via their shared phone number (cross-tenant)."""
     contact = update.message.contact
     if not contact or not contact.phone_number:
         await update.message.reply_text("❌ No se pudo leer tu contacto. Intentá de nuevo.")
@@ -503,21 +536,29 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     chat_id = update.message.chat_id
     log.info("Contact received", chat_id=chat_id, phone=phone[:6] + "***")
 
-    if _should_refresh_snapshot():
-        _refresh_snapshot_from_api()
+    # Try API lookup first (cross-tenant)
+    api_workers = _api_lookup_worker_by_phone(phone)
 
-    try:
-        snapshot = _load_snapshot()
-    except FileNotFoundError:
-        await update.message.reply_text(
-            "⚠️ El sistema no está sincronizado aún. "
-            "Contactá al supervisor."
-        )
-        return ConversationHandler.END
+    if not api_workers:
+        # Fallback to local snapshot
+        if _should_refresh_snapshot():
+            _refresh_snapshot_from_api()
+        try:
+            snapshot = _load_snapshot()
+            worker = _find_worker_by_phone(snapshot, phone)
+            if worker:
+                tenant = snapshot.get("tenant", {})
+                api_workers = [{
+                    "worker_id": worker["id"],
+                    "first_name": worker.get("first_name", ""),
+                    "last_name": worker.get("last_name", ""),
+                    "tenant_id": tenant.get("id", TENANT_ID),
+                    "tenant_name": tenant.get("name", "Empresa"),
+                }]
+        except FileNotFoundError:
+            pass
 
-    worker = _find_worker_by_phone(snapshot, phone)
-
-    if worker is None:
+    if not api_workers:
         log.info("Auth failed: phone not found", chat_id=chat_id)
         await update.message.reply_text(
             "❌ Tu número de teléfono no está registrado en el sistema.\n"
@@ -526,36 +567,166 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         return ConversationHandler.END
 
-    if not worker.get("active", True):
-        log.info("Auth failed: worker inactive", chat_id=chat_id, worker_id=worker["id"])
+    _authenticated_phones[chat_id] = _normalize_phone(phone)
+    _worker_tenants[chat_id] = api_workers
+
+    if len(api_workers) == 1:
+        # Single tenant — auto-select
+        w = api_workers[0]
+        _authenticated_workers[chat_id] = w["worker_id"]
+        _selected_tenants[chat_id] = w["tenant_id"]
+        _save_sessions()
+
+        # Refresh snapshot for this tenant
+        _refresh_snapshot_from_api(w["tenant_id"])
+
+        name = f"{w['first_name']} {w['last_name']}"
+        tenant_name = w.get("tenant_name", "")
+
+        log.info(
+            "Worker authenticated (single tenant)",
+            worker_id=w["worker_id"],
+            tenant_id=w["tenant_id"],
+            chat_id=chat_id,
+        )
+
         await update.message.reply_text(
-            "⚠️ Tu cuenta está desactivada. Contactá al supervisor.",
-            reply_markup=ReplyKeyboardRemove(),
+            f"✅ *¡Hola, {name}!*\n"
+            f"🏢 Empresa: _{tenant_name}_\n\n"
+            "Usá el menú para ver tus tareas o registrar tu presencia.",
+            parse_mode="Markdown",
+            reply_markup=_main_menu_keyboard(chat_id),
         )
         return ConversationHandler.END
+    else:
+        # Multiple tenants — show selector
+        context.user_data["pending_workers"] = api_workers
+        buttons = []
+        for w in api_workers:
+            label = f"🏢 {w['tenant_name']}"
+            buttons.append([InlineKeyboardButton(label, callback_data=f"tenant:{w['tenant_id']}:{w['worker_id']}")])
 
-    _authenticated_workers[chat_id] = worker["id"]
-    _authenticated_phones[chat_id] = _normalize_phone(phone)
+        await update.message.reply_text(
+            "🌿 *Pertenecés a varias empresas*\n\n"
+            "Elegí desde cuál querés ver tus tareas:",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+        return AUTH_WAITING_TENANT
+
+
+async def handle_tenant_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle tenant selection from inline keyboard."""
+    query = update.callback_query
+    await query.answer()
+
+    chat_id = query.message.chat_id
+    data = query.data  # format: "tenant:{tenant_id}:{worker_id}"
+    parts = data.split(":", 2)
+    if len(parts) != 3:
+        await query.edit_message_text("⚠️ Selección inválida. Usá /start.")
+        return ConversationHandler.END
+
+    _, tenant_id, worker_id = parts
+
+    _authenticated_workers[chat_id] = worker_id
+    _selected_tenants[chat_id] = tenant_id
     _save_sessions()
 
-    name = _get_worker_name(worker)
-    role = worker.get("function_type", "")
+    # Refresh snapshot for selected tenant
+    _refresh_snapshot_from_api(tenant_id)
+
+    # Find tenant name
+    tenant_name = tenant_id
+    worker_name = ""
+    for w in _worker_tenants.get(chat_id, []):
+        if w["tenant_id"] == tenant_id:
+            tenant_name = w.get("tenant_name", tenant_id)
+            worker_name = f"{w['first_name']} {w['last_name']}"
+            break
 
     log.info(
-        "Worker authenticated",
-        worker_id=worker["id"],
-        worker_name=name,
+        "Worker authenticated (tenant selected)",
+        worker_id=worker_id,
+        tenant_id=tenant_id,
         chat_id=chat_id,
     )
 
-    await update.message.reply_text(
-        f"✅ *¡Hola, {name}!*\n"
-        f"Rol: _{role}_\n\n"
+    await query.edit_message_text(
+        f"✅ *¡Hola, {worker_name}!*\n"
+        f"🏢 Empresa: _{tenant_name}_\n\n"
         "Usá el menú para ver tus tareas o registrar tu presencia.",
         parse_mode="Markdown",
-        reply_markup=_main_menu_keyboard(),
+    )
+    # Send menu keyboard via a new message (inline buttons + reply keyboard can't be in the same msg)
+    await query.message.reply_text(
+        "👇 Menú:",
+        reply_markup=_main_menu_keyboard(chat_id),
     )
     return ConversationHandler.END
+
+
+async def handle_change_company(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle 'Cambiar Empresa' button — re-show tenant selector."""
+    chat_id = update.message.chat_id
+    available = _worker_tenants.get(chat_id, [])
+
+    if len(available) <= 1:
+        await update.message.reply_text(
+            "ℹ️ Solo pertenecés a una empresa.",
+            reply_markup=_main_menu_keyboard(chat_id),
+        )
+        return
+
+    buttons = []
+    current_tenant = _selected_tenants.get(chat_id)
+    for w in available:
+        check = " ✅" if w["tenant_id"] == current_tenant else ""
+        label = f"🏢 {w['tenant_name']}{check}"
+        buttons.append([InlineKeyboardButton(label, callback_data=f"switch:{w['tenant_id']}:{w['worker_id']}")])
+
+    await update.message.reply_text(
+        "🏢 *Elegí la empresa:*",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+
+
+async def handle_switch_tenant(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle tenant switch from inline keyboard."""
+    query = update.callback_query
+    await query.answer()
+
+    chat_id = query.message.chat_id
+    data = query.data  # format: "switch:{tenant_id}:{worker_id}"
+    parts = data.split(":", 2)
+    if len(parts) != 3:
+        await query.edit_message_text("⚠️ Selección inválida.")
+        return
+
+    _, tenant_id, worker_id = parts
+
+    _authenticated_workers[chat_id] = worker_id
+    _selected_tenants[chat_id] = tenant_id
+    _save_sessions()
+
+    # Refresh snapshot for selected tenant
+    _refresh_snapshot_from_api(tenant_id)
+
+    # Find tenant name
+    tenant_name = tenant_id
+    for w in _worker_tenants.get(chat_id, []):
+        if w["tenant_id"] == tenant_id:
+            tenant_name = w.get("tenant_name", tenant_id)
+            break
+
+    log.info("Tenant switched", tenant_id=tenant_id, worker_id=worker_id, chat_id=chat_id)
+
+    await query.edit_message_text(
+        f"✅ Cambiaste a: *{tenant_name}*\n\n"
+        "Usá '📋 Mis Tareas' para ver tus tareas.",
+        parse_mode="Markdown",
+    )
 
 
 async def auth_timeout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -585,7 +756,8 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     refreshed = False
     if _should_refresh_snapshot():
-        refreshed = _refresh_snapshot_from_api()
+        tenant_id = _selected_tenants.get(chat_id, TENANT_ID)
+        refreshed = _refresh_snapshot_from_api(tenant_id)
 
     def _resolve_active_tasks(snapshot: dict, worker_id: str) -> tuple[Optional[dict], str, list[dict]]:
         worker = next(
@@ -666,7 +838,7 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if not active_tasks:
         await update.message.reply_text(
             "🎉 ¡No tenés tareas pendientes! Buen trabajo.",
-            reply_markup=_main_menu_keyboard(),
+            reply_markup=_main_menu_keyboard(chat_id),
         )
         return
 
@@ -732,7 +904,7 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text(
         f"📋 *Tenés {total} tareas en {num_fields} campo{'s' if num_fields != 1 else ''}:*",
         parse_mode="Markdown",
-        reply_markup=_main_menu_keyboard(),
+        reply_markup=_main_menu_keyboard(chat_id),
     )
 
     for field_name, lots in field_groups.items():
@@ -923,7 +1095,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         f"📌 Ubicación: `{lat:.6f}, {lon:.6f}`\n"
         f"🕐 Hora: {datetime.now().strftime('%H:%M:%S')}",
         parse_mode="Markdown",
-        reply_markup=_main_menu_keyboard(),
+        reply_markup=_main_menu_keyboard(chat_id),
     )
 
 
@@ -941,7 +1113,7 @@ async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     else:
         await update.message.reply_text(
             "🤔 No entendí ese mensaje. Usá los botones del menú.",
-            reply_markup=_main_menu_keyboard(),
+            reply_markup=_main_menu_keyboard(chat_id),
         )
 
 
@@ -980,7 +1152,7 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         f"⏱ TTL snapshot: {SNAPSHOT_TTL_SECONDS}s\n"
         f"🔔 Poll notificaciones: {NOTIFICATION_POLL_SECONDS}s",
         parse_mode="Markdown",
-        reply_markup=_main_menu_keyboard(),
+        reply_markup=_main_menu_keyboard(chat_id),
     )
 
 
@@ -1023,6 +1195,9 @@ def main() -> None:
     )
 
     async def _post_init(app: Application) -> None:
+        # Initial snapshot fetch
+        if TENANT_ID:
+            _refresh_snapshot_from_api(TENANT_ID)
         app.create_task(_notification_poller(app))
         app.create_task(_snapshot_refresh_loop())
         log.info("Background tasks started")
@@ -1035,6 +1210,9 @@ def main() -> None:
         states={
             AUTH_WAITING_CONTACT: [
                 MessageHandler(filters.CONTACT, handle_contact),
+            ],
+            AUTH_WAITING_TENANT: [
+                CallbackQueryHandler(handle_tenant_selection, pattern=r"^tenant:"),
             ],
         },
         fallbacks=[
@@ -1049,11 +1227,13 @@ def main() -> None:
     # ── Register handlers (order matters) ──
     app.add_handler(auth_conv)
     app.add_handler(CommandHandler("status", cmd_status))
+    app.add_handler(MessageHandler(filters.Regex(r"^🏢 Cambiar Empresa$"), handle_change_company))
     app.add_handler(MessageHandler(filters.Regex(r"^📋 Mis Tareas$"), handle_my_tasks))
     app.add_handler(MessageHandler(filters.LOCATION, handle_location))
     app.add_handler(CallbackQueryHandler(handle_task_done, pattern=r"^done:"))
     app.add_handler(CallbackQueryHandler(handle_task_confirm, pattern=r"^confirm:"))
     app.add_handler(CallbackQueryHandler(handle_task_cancel, pattern=r"^cancel:"))
+    app.add_handler(CallbackQueryHandler(handle_switch_tenant, pattern=r"^switch:"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unknown))
 
     log.info("Seedor Bot ready, starting polling")

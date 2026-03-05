@@ -254,7 +254,7 @@ export default async function LotPage({ params }: LotPageProps) {
   const serializedCompletionLogs: SerializedCompletionLog[] = completionLogs.map((cl) => ({
     id: cl.id,
     taskDescription: cl.task.description,
-    workerName: `${cl.worker.firstName} ${cl.worker.lastName}`,
+    workerName: cl.worker ? `${cl.worker.firstName} ${cl.worker.lastName}` : 'Trabajador eliminado',
     source: cl.source,
     completedAt: cl.completedAt.toISOString(),
   }));
