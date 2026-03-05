@@ -10,9 +10,79 @@ import {
 
 import { cn } from "@/lib/utils";
 
+// Context para manejar el hover state
+const SelectHoverContext = React.createContext<{
+  isHoveringTrigger: boolean;
+  isHoveringContent: boolean;
+  setHoveringTrigger: (hovering: boolean) => void;
+  setHoveringContent: (hovering: boolean) => void;
+  openOnHover: boolean;
+} | null>(null);
+
 function Select({
+  openOnHover = false,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Root>) {
+}: React.ComponentProps<typeof SelectPrimitive.Root> & {
+  openOnHover?: boolean;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [isHoveringTrigger, setHoveringTrigger] = React.useState(false);
+  const [isHoveringContent, setHoveringContent] = React.useState(false);
+  const closeTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const openTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    if (!openOnHover) return;
+
+    if (isHoveringTrigger || isHoveringContent) {
+      // Cancelar cierre pendiente
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = null;
+      }
+      // Abrir con un pequeño delay
+      if (!open) {
+        openTimeoutRef.current = setTimeout(() => setOpen(true), 100);
+      }
+    } else {
+      // Cancelar apertura pendiente
+      if (openTimeoutRef.current) {
+        clearTimeout(openTimeoutRef.current);
+        openTimeoutRef.current = null;
+      }
+      // Cerrar con un pequeño delay para evitar cierres accidentales
+      if (open) {
+        closeTimeoutRef.current = setTimeout(() => setOpen(false), 150);
+      }
+    }
+
+    return () => {
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+      if (openTimeoutRef.current) clearTimeout(openTimeoutRef.current);
+    };
+  }, [isHoveringTrigger, isHoveringContent, open, openOnHover]);
+
+  if (openOnHover) {
+    return (
+      <SelectHoverContext.Provider
+        value={{
+          isHoveringTrigger,
+          isHoveringContent,
+          setHoveringTrigger,
+          setHoveringContent,
+          openOnHover,
+        }}
+      >
+        <SelectPrimitive.Root
+          data-slot="select"
+          open={open}
+          onOpenChange={setOpen}
+          {...props}
+        />
+      </SelectHoverContext.Provider>
+    );
+  }
+
   return <SelectPrimitive.Root data-slot="select" {...props} />;
 }
 
@@ -36,6 +106,20 @@ function SelectTrigger({
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
   size?: "sm" | "default";
 }) {
+  const hoverContext = React.useContext(SelectHoverContext);
+
+  const handleMouseEnter = () => {
+    if (hoverContext?.openOnHover) {
+      hoverContext.setHoveringTrigger(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverContext?.openOnHover) {
+      hoverContext.setHoveringTrigger(false);
+    }
+  };
+
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
@@ -44,11 +128,13 @@ function SelectTrigger({
         "border-input data-[placeholder]:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-full items-center justify-between gap-2 rounded-md border bg-input-background px-3 py-2 text-sm whitespace-nowrap transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="size-4 opacity-50" />
+        <ChevronDownIcon className="size-4 opacity-50 transition-transform duration-200 data-[state=open]:rotate-180" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
@@ -60,6 +146,20 @@ function SelectContent({
   position = "popper",
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
+  const hoverContext = React.useContext(SelectHoverContext);
+
+  const handleMouseEnter = () => {
+    if (hoverContext?.openOnHover) {
+      hoverContext.setHoveringContent(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverContext?.openOnHover) {
+      hoverContext.setHoveringContent(false);
+    }
+  };
+
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -71,6 +171,8 @@ function SelectContent({
           className,
         )}
         position={position}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         {...props}
       >
         <SelectScrollUpButton />

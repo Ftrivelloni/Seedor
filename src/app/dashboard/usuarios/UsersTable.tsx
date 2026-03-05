@@ -1,8 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import type { User, TenantUserMembership } from '@prisma/client';
-import { toast } from 'sonner';
 import { formatRelativeTime } from '@/lib/utils/format-relative-time';
 import { Avatar, AvatarFallback } from '@/components/dashboard/ui/avatar';
 import { Badge } from '@/components/dashboard/ui/badge';
@@ -71,34 +69,18 @@ function UserActionsMenu({
 }: {
     user: User;
 }) {
-    const router = useRouter();
-
     async function handleRoleChange(role: 'ADMIN' | 'SUPERVISOR') {
         const formData = new FormData();
         formData.set('userId', user.id);
         formData.set('role', role);
-        const result = await updateUserRoleAction(formData);
-
-        if (result.success) {
-            toast.success('Rol actualizado exitosamente');
-            router.refresh();
-        } else {
-            toast.error(result.error);
-        }
+        await updateUserRoleAction(formData);
     }
 
     async function handleStatusChange(status: 'ACTIVE' | 'INACTIVE') {
         const formData = new FormData();
         formData.set('userId', user.id);
         formData.set('status', status);
-        const result = await updateUserStatusAction(formData);
-
-        if (result.success) {
-            toast.success('Estado actualizado exitosamente');
-            router.refresh();
-        } else {
-            toast.error(result.error);
-        }
+        await updateUserStatusAction(formData);
     }
 
     return (
