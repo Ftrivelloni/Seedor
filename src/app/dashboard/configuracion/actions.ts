@@ -346,8 +346,7 @@ export async function deleteTenantAccountAction(
     return { success: false, error: 'El nombre ingresado no coincide con el de la empresa.' };
   }
 
-  // ── 2. Cancel MP subscription if active ──
-  let mpCanceled = false;
+  // ── 2. Cancel MP subscription if active (BLOCKING) ──
   const ACTIVE_STATUSES = new Set(['ACTIVE', 'TRIALING', 'PAST_DUE']);
 
   if (tenant.mpPreapprovalId && ACTIVE_STATUSES.has(tenant.subscriptionStatus)) {
@@ -356,15 +355,19 @@ export async function deleteTenantAccountAction(
         id: tenant.mpPreapprovalId,
         body: { status: 'cancelled' },
       });
-      mpCanceled = true;
       console.log(
-        `🔴 ELIMINACIÓN DE CUENTA: Suscripción MP ${tenant.mpPreapprovalId} cancelada para tenant "${tenant.name}" (${tenant.id})`
+        `✅ ELIMINACIÓN DE CUENTA: Suscripción MP ${tenant.mpPreapprovalId} CANCELADA EXITOSAMENTE para tenant "${tenant.name}" (${tenant.id})`
       );
     } catch (mpErr) {
       console.error(
-        `⚠️ ELIMINACIÓN DE CUENTA: No se pudo cancelar la suscripción MP ${tenant.mpPreapprovalId}. Continuando con eliminación.`,
+        `❌ ELIMINACIÓN DE CUENTA: ERROR CRÍTICO al cancelar suscripción MP ${tenant.mpPreapprovalId} para tenant "${tenant.name}".`,
         mpErr
       );
+      // BLOQUEAR eliminación si no se puede cancelar la suscripción activa
+      return {
+        success: false,
+        error: 'No se pudo cancelar la suscripción en Mercado Pago. Por seguridad, la cuenta no será eliminada. Contactá a soporte.',
+      };
     }
   }
 
@@ -396,8 +399,7 @@ export async function deleteTenantAccountAction(
     });
 
     console.log(
-      `🔴 ELIMINACIÓN DE CUENTA COMPLETADA: Tenant "${tenant.name}" (${tenant.id}) eliminado. ` +
-      `Suscripción MP cancelada: ${mpCanceled ? 'Sí' : 'No'}.`
+      `🔴 ELIMINACIÓN DE CUENTA COMPLETADA: Tenant "${tenant.name}" (${tenant.id}) eliminado exitosamente.`
     );
 
     return { success: true };
