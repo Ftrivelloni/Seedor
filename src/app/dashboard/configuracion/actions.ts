@@ -306,3 +306,42 @@ export async function getChangePaymentMethodUrlAction(): Promise<{
     return { success: false, error: 'Error al conectar con Mercado Pago. Intentá de nuevo.' };
   }
 }
+
+// ═══════════════════════════════════════════════════════
+// ELIMINAR CUENTA — ADMIN only (destructive)
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Permanently deletes the tenant account and all associated data.
+ * Cancels any active MP subscription before deletion to prevent orphaned charges.
+ *
+ * @param confirmationText - Must match the tenant name (case-insensitive) for safety.
+ */
+export async function deleteTenantAccountAction(
+  confirmationText: string
+): Promise<{ success: boolean; error?: string }> {
+  const session = await requireRole(['ADMIN']);
+
+  if (!confirmationText || typeof confirmationText !== 'string') {
+    return { success: false, error: 'Debés escribir el nombre de la empresa para confirmar.' };
+  }
+
+  try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const res = await fetch(`${appUrl}/api/account/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmationText }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return { success: false, error: data.error || 'Error al eliminar la cuenta.' };
+    }
+
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Error de comunicación al eliminar la cuenta.' };
+  }
+}
