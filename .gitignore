@@ -36,6 +36,10 @@ yarn-error.log*
 # Python virtual environments
 venv/
 
+# Python cache
+__pycache__/
+*.pyc
+
 # Telegram bot runtime data
 telegram-bot/data/
 

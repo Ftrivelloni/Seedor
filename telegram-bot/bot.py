@@ -225,6 +225,11 @@ def _api_post(url: str, payload: dict, timeout: int = 10) -> dict:
         return json.loads(resp.read().decode("utf-8"))
 
 
+async def _async_refresh_snapshot(tenant_id: str = "") -> bool:
+    """Non-blocking wrapper — runs the sync HTTP call in a thread pool."""
+    return await asyncio.to_thread(_refresh_snapshot_from_api, tenant_id)
+
+
 def _refresh_snapshot_from_api(tenant_id: str = "") -> bool:
     """Fetch snapshot from API and update local file. Returns True on success."""
     tid = tenant_id or TENANT_ID
@@ -551,7 +556,6 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     phone = contact.phone_number
     chat_id = update.message.chat_id
     log.info("Contact received", chat_id=chat_id, phone=phone[:6] + "***")
-
     # Try API lookup first (cross-tenant)
     api_workers = _api_lookup_worker_by_phone(phone)
 
@@ -565,7 +569,7 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         for tid_check in tenant_ids_to_check:
             if _should_refresh_snapshot(tid_check):
-                _refresh_snapshot_from_api(tid_check)
+                await _async_refresh_snapshot(tid_check)
             try:
                 snapshot = _load_snapshot(tid_check)
                 worker = _find_worker_by_phone(snapshot, phone)
@@ -601,7 +605,7 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         _save_sessions()
 
         # Refresh snapshot for this tenant
-        _refresh_snapshot_from_api(w["tenant_id"])
+        await _async_refresh_snapshot(w["tenant_id"])
 
         name = f"{w['first_name']} {w['last_name']}"
         tenant_name = w.get("tenant_name", "")
@@ -657,7 +661,7 @@ async def handle_tenant_selection(update: Update, context: ContextTypes.DEFAULT_
     _save_sessions()
 
     # Refresh snapshot for selected tenant
-    _refresh_snapshot_from_api(tenant_id)
+    await _async_refresh_snapshot(tenant_id)
 
     # Find tenant name
     tenant_name = tenant_id
@@ -734,7 +738,7 @@ async def handle_switch_tenant(update: Update, context: ContextTypes.DEFAULT_TYP
     _save_sessions()
 
     # Refresh snapshot for selected tenant
-    _refresh_snapshot_from_api(tenant_id)
+    await _async_refresh_snapshot(tenant_id)
 
     # Find tenant name
     tenant_name = tenant_id
@@ -780,7 +784,7 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user_tenant_id = _selected_tenants.get(chat_id, TENANT_ID)
     refreshed = False
     if _should_refresh_snapshot(user_tenant_id):
-        refreshed = _refresh_snapshot_from_api(user_tenant_id)
+        refreshed = await _async_refresh_snapshot(user_tenant_id)
 
     def _resolve_active_tasks(snapshot: dict, worker_id: str) -> tuple[Optional[dict], str, list[dict]]:
         worker = next(
@@ -832,7 +836,7 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     worker, worker_id, active_tasks = _resolve_active_tasks(snapshot, worker_id)
     if worker is None:
         # Snapshot may have been overwritten by another tenant — force refresh for this user.
-        if user_tenant_id and _refresh_snapshot_from_api(user_tenant_id):
+        if user_tenant_id and await _async_refresh_snapshot(user_tenant_id):
             try:
                 snapshot = _load_snapshot(user_tenant_id)
                 worker, worker_id, active_tasks = _resolve_active_tasks(snapshot, worker_id)
@@ -850,7 +854,7 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
     if not active_tasks and not refreshed:
-        if _refresh_snapshot_from_api(user_tenant_id):
+        if await _async_refresh_snapshot(user_tenant_id):
             try:
                 snapshot = _load_snapshot(user_tenant_id)
             except FileNotFoundError:
@@ -1203,7 +1207,7 @@ async def _snapshot_refresh_loop() -> None:
             if not active_tenants and TENANT_ID:
                 active_tenants = {TENANT_ID}
             for tid in active_tenants:
-                _refresh_snapshot_from_api(tid)
+                await _async_refresh_snapshot(tid)
         except Exception as e:
             log.error("Snapshot refresh loop error", error=str(e))
 
@@ -1236,7 +1240,7 @@ def main() -> None:
         if not active_tenants and TENANT_ID:
             active_tenants = {TENANT_ID}
         for tid in active_tenants:
-            _refresh_snapshot_from_api(tid)
+            await _async_refresh_snapshot(tid)
         app.create_task(_notification_poller(app))
         app.create_task(_snapshot_refresh_loop())
         log.info("Background tasks started")
@@ -1276,7 +1280,7 @@ def main() -> None:
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unknown))
 
     log.info("Seedor Bot ready, starting polling")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
 
 if __name__ == "__main__":
