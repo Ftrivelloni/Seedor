@@ -21,7 +21,7 @@ export const TEMPLATE_OPTIONS: TemplateOption[] = [
   { key: 'sidebar-right', label: 'Barra Lateral Derecha', description: 'Gráficos grandes a la izquierda + columna de cards a la derecha' },
 ];
 
-export type ModuleKey = 'campo' | 'inventario' | 'maquinaria' | 'ventas';
+export type ModuleKey = 'campo' | 'inventario' | 'maquinaria' | 'ventas' | 'empaque';
 
 export type WidgetSize = 'kpi' | 'medium' | 'large';
 
@@ -40,6 +40,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   inventario: 'Inventario',
   maquinaria: 'Maquinaria',
   ventas: 'Ventas',
+  empaque: 'Empaque',
 };
 
 export const MODULE_ICONS: Record<ModuleKey, string> = {
@@ -47,6 +48,7 @@ export const MODULE_ICONS: Record<ModuleKey, string> = {
   inventario: 'Package',
   maquinaria: 'Truck',
   ventas: 'DollarSign',
+  empaque: 'PackageCheck',
 };
 
 export const WIDGET_CATALOG: WidgetDefinition[] = [
@@ -69,6 +71,15 @@ export const WIDGET_CATALOG: WidgetDefinition[] = [
   { id: 'active_orders', label: 'Órdenes Activas', module: 'ventas', size: 'kpi', icon: 'ShoppingCart', adminOnly: true, notImplemented: true },
   { id: 'monthly_sales', label: 'Ventas Mensuales', module: 'ventas', size: 'medium', icon: 'DollarSign', adminOnly: true, notImplemented: true },
   { id: 'clients_balance', label: 'Clientes con Saldo', module: 'ventas', size: 'medium', icon: 'Users', adminOnly: true, notImplemented: true },
+
+  // Campo — time series
+  { id: 'yield_by_crop_time', label: 'Rendimiento por Cultivo', module: 'campo', size: 'medium', icon: 'BarChart3' },
+  { id: 'cost_by_lot_time', label: 'Costo por Lote (mensual)', module: 'campo', size: 'medium', icon: 'DollarSign' },
+  { id: 'lot_task_alerts', label: 'Alertas de Tareas por Lote', module: 'campo', size: 'medium', icon: 'AlertTriangle' },
+
+  // Empaque
+  { id: 'empaque_boxes_by_crop', label: 'Cajas por Cultivo', module: 'empaque', size: 'medium', icon: 'Package' },
+  { id: 'empaque_pallets_by_crop', label: 'Pallets por Cultivo', module: 'empaque', size: 'medium', icon: 'Layers' },
 ];
 
 export const DEFAULT_WIDGETS = [
@@ -105,4 +116,11 @@ export interface DashboardData {
   // Sales
   monthlySales: { month: string; amount: number }[];
   clientsWithBalance: number;
+  // Time series
+  yieldByCropOverTime: { months: string[]; series: { name: string; color: string; values: number[] }[] };
+  costByLotOverTime: { months: string[]; series: { name: string; color: string; values: number[] }[] };
+  lotTaskAlerts: { id: string; lotName: string; taskType: string; level: 'urgent' | 'warned'; daysInfo: number }[];
+  // Empaque
+  empaqueBoxesByCrop: { months: string[]; series: { name: string; color: string; values: number[] }[] };
+  empaquePalletsByCrop: { months: string[]; series: { name: string; color: string; values: number[] }[] };
 }

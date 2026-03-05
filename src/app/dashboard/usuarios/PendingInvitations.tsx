@@ -51,7 +51,7 @@ export function PendingInvitations({ invitations }: PendingInvitationsProps) {
   }
 
   return (
-    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 md:p-4">
       <div className="flex items-center gap-2 mb-3">
         <Clock className="h-4 w-4 text-yellow-600" />
         <h3 className="text-sm font-semibold text-yellow-800">
@@ -62,14 +62,14 @@ export function PendingInvitations({ invitations }: PendingInvitationsProps) {
         {invitations.map((invitation) => (
           <div
             key={invitation.id}
-            className="flex items-center justify-between rounded-md bg-white p-3 shadow-sm"
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-md bg-white p-3 shadow-sm"
           >
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100">
+            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100 flex-shrink-0">
                 <Mail className="h-4 w-4 text-yellow-600" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs md:text-sm font-medium text-gray-900 truncate">
                   {invitation.email}
                 </p>
                 <p className="text-xs text-gray-500">
@@ -79,12 +79,12 @@ export function PendingInvitations({ invitations }: PendingInvitationsProps) {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 justify-end sm:justify-start flex-shrink-0">
               <Badge
                 className={
                   invitation.role === 'ADMIN'
-                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-100 border-0'
-                    : 'bg-green-100 text-green-700 hover:bg-green-100 border-0'
+                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-100 border-0 text-xs'
+                    : 'bg-green-100 text-green-700 hover:bg-green-100 border-0 text-xs'
                 }
               >
                 {invitation.role === 'ADMIN' ? 'Admin' : 'Operativo'}

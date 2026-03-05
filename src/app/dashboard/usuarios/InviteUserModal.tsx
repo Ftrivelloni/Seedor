@@ -65,10 +65,10 @@ export function InviteUserModal() {
                     Invitar usuario
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Invitar usuario</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="text-lg">Invitar usuario</DialogTitle>
+                    <DialogDescription className="text-sm">
                         Se enviará un email de invitación para que el usuario cree su cuenta.
                     </DialogDescription>
                 </DialogHeader>
@@ -116,19 +116,29 @@ export function InviteUserModal() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="role">
+                            <Label htmlFor="role" className="text-sm">
                                 Rol <span className="text-red-500">*</span>
                             </Label>
                             <Select name="role" defaultValue="SUPERVISOR">
-                                <SelectTrigger>
+                                <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Seleccionar rol" />
                                 </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="SUPERVISOR">
-                                        Operativo — acceso a campo, inventario, trabajadores
+                                <SelectContent position="popper" sideOffset={5} className="w-[var(--radix-select-trigger-width)] max-h-[300px]">
+                                    <SelectItem value="SUPERVISOR" className="text-sm">
+                                        <div className="flex flex-col items-start">
+                                            <span className="font-medium">Operativo</span>
+                                            <span className="text-xs text-gray-500 hidden sm:block">
+                                                Acceso a campo, inventario, trabajadores
+                                            </span>
+                                        </div>
                                     </SelectItem>
-                                    <SelectItem value="ADMIN">
-                                        Administrador — acceso completo incluyendo config y ventas
+                                    <SelectItem value="ADMIN" className="text-sm">
+                                        <div className="flex flex-col items-start">
+                                            <span className="font-medium">Administrador</span>
+                                            <span className="text-xs text-gray-500 hidden sm:block">
+                                                Acceso completo incluyendo config y ventas
+                                            </span>
+                                        </div>
                                     </SelectItem>
                                 </SelectContent>
                             </Select>

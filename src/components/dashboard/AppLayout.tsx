@@ -20,14 +20,19 @@ import {
   ChevronDown,
   Users,
   Briefcase,
+  Menu,
+  X,
 } from 'lucide-react';
-import type { UserRole } from '@prisma/client';
+import type { UserRole, ModuleKey } from '@prisma/client';
+import { useIsMobile } from '@/hooks';
 
 type MenuItem = {
   icon: React.ElementType;
   label: string;
   path: string;
   adminOnly?: boolean;
+  /** If set, this item is only visible when the module is enabled */
+  moduleKey?: ModuleKey;
 };
 
 const baseMenuItems: MenuItem[] = [
@@ -36,10 +41,10 @@ const baseMenuItems: MenuItem[] = [
   { icon: Map, label: 'Campo', path: '/dashboard/campo' },
   { icon: Package, label: 'Inventario', path: '/dashboard/inventario' },
   { icon: Briefcase, label: 'Trabajadores', path: '/dashboard/trabajadores' },
-  { icon: Truck, label: 'Maquinaria', path: '/dashboard/maquinaria' },
-  { icon: Package, label: 'Empaque', path: '/dashboard/empaque' },
-  { icon: ShoppingCart, label: 'Ventas', path: '/dashboard/ventas', adminOnly: true },
-  { icon: Settings, label: 'Configuración', path: '/dashboard/configuracion', adminOnly: true },
+  { icon: Truck, label: 'Maquinaria', path: '/dashboard/maquinaria', moduleKey: 'MACHINERY' },
+  { icon: Package, label: 'Empaque', path: '/dashboard/empaque', moduleKey: 'PACKAGING' },
+  { icon: ShoppingCart, label: 'Ventas', path: '/dashboard/ventas', adminOnly: true, moduleKey: 'SALES' },
+  { icon: Settings, label: 'Configuración', path: '/dashboard/configuracion' },
 ];
 
 interface AppLayoutProps {
@@ -49,19 +54,30 @@ interface AppLayoutProps {
     lastName: string;
     role: UserRole;
   };
+  /** Module keys that are currently enabled for the tenant */
+  enabledModules?: ModuleKey[];
 }
 
-export function AppLayout({ children, user }: AppLayoutProps) {
+export function AppLayout({ children, user, enabledModules }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [headerUserMenuOpen, setHeaderUserMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const menuItems = useMemo(
-    () => baseMenuItems.filter((item) => !(item.adminOnly && user.role !== 'ADMIN')),
-    [user.role]
+    () =>
+      baseMenuItems.filter((item) => {
+        // Hide admin-only items for non-admins
+        if (item.adminOnly && user.role !== 'ADMIN') return false;
+        // Hide optional modules that are disabled
+        if (item.moduleKey && enabledModules && !enabledModules.includes(item.moduleKey)) return false;
+        return true;
+      }),
+    [user.role, enabledModules]
   );
 
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
@@ -73,12 +89,24 @@ export function AppLayout({ children, user }: AppLayoutProps) {
     router.refresh();
   };
 
+  // Bottom bar items (solo 4 opciones principales)
+  const bottomBarItems = useMemo(
+    () => [
+      { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+      { icon: Package, label: 'Empaque', path: '/dashboard/empaque' },
+      { icon: Map, label: 'Campo', path: '/dashboard/campo' },
+      { icon: Settings, label: 'Config.', path: '/dashboard/configuracion', adminOnly: true },
+    ].filter((item) => !(item.adminOnly && user.role !== 'ADMIN')),
+    [user.role]
+  );
+
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Sidebar Desktop */}
       <aside
         className={`${
           sidebarCollapsed ? 'w-16' : 'w-64'
-        } flex flex-col bg-white border-r border-gray-200 transition-all duration-300 ease-in-out`}
+        } ${isMobile ? 'hidden' : 'flex'} flex-col bg-white border-r border-gray-200 transition-all duration-300 ease-in-out`}
       >
         <div className="flex items-center h-16 px-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
@@ -185,29 +213,129 @@ export function AppLayout({ children, user }: AppLayoutProps) {
         </div>
       </aside>
 
+      {/* Mobile Menu Drawer */}
+      {isMobile && mobileMenuOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          {/* Drawer */}
+          <div className="fixed inset-y-0 left-0 w-80 bg-white z-50 flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <Image
+                  src="/images/logos/logo-seedor.png"
+                  alt="Seedor"
+                  width={32}
+                  height={32}
+                  className="rounded-lg"
+                />
+                <span className="text-lg font-semibold text-gray-900">Seedor</span>
+              </div>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2 rounded-lg hover:bg-gray-100 text-gray-500"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+              {menuItems.map((item) => {
+                const isActive =
+                  pathname === item.path ||
+                  (item.path !== '/dashboard' && pathname.startsWith(item.path));
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.path}
+                    href={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-green-50 text-green-700 font-medium'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <Icon className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-green-600' : ''}`} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <div className="border-t border-gray-200 p-3">
+              <div className="px-3 py-2 mb-2">
+                <p className="text-sm font-medium text-gray-900">
+                  {user.firstName} {user.lastName}
+                </p>
+                <p className="text-xs text-gray-500">{roleLabel}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg"
+              >
+                <LogOut className="h-4 w-4" />
+                Cerrar sesión
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-          <div className="flex-1 max-w-md">
-            <div className="relative">
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6">
+          {/* Logo + Menu button en móvil */}
+          {isMobile && (
+            <div className="flex items-center gap-3">
+              <Image
+                src="/images/logos/logo-seedor.png"
+                alt="Seedor"
+                width={32}
+                height={32}
+                className="rounded-lg"
+              />
+              <span className="text-lg font-semibold text-gray-900">Seedor</span>
+            </div>
+          )}
+
+          {/* Search bar (solo desktop) */}
+          {!isMobile && (
+            <div className="flex-1 max-w-md">
+              <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Buscar tareas, lotes, insumos..."
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Botón de menú en móvil */}
+            {isMobile && (
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+                aria-label="Abrir menú"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            )}
+
+            {/* Notificaciones (solo desktop) */}
+            {!isMobile && (
+              <div className="relative">
               <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
                 className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <Bell className="h-5 w-5 text-gray-600" />
-                <span className="absolute top-1 right-1 h-4 w-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">
-                  3
-                </span>
               </button>
 
               {notificationsOpen && (
@@ -215,24 +343,15 @@ export function AppLayout({ children, user }: AppLayoutProps) {
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="font-medium text-gray-900">Notificaciones</p>
                   </div>
-                  <div className="py-1">
-                    <button className="w-full px-4 py-3 hover:bg-gray-50 text-left">
-                      <p className="text-sm font-medium text-gray-900">Stock bajo</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Fertilizante NPK por debajo del mínimo</p>
-                    </button>
-                    <button className="w-full px-4 py-3 hover:bg-gray-50 text-left">
-                      <p className="text-sm font-medium text-gray-900">Service próximo</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Control programado próximamente</p>
-                    </button>
-                    <button className="w-full px-4 py-3 hover:bg-gray-50 text-left">
-                      <p className="text-sm font-medium text-gray-900">Tarea pendiente</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Hay tareas para reasignar</p>
-                    </button>
+                  <div className="px-4 py-6 text-center">
+                    <p className="text-sm text-gray-500">No tenés notificaciones nuevas</p>
                   </div>
                 </div>
               )}
             </div>
+            )}
 
+            {/* User menu */}
             <div className="relative">
               <button
                 onClick={() => setHeaderUserMenuOpen(!headerUserMenuOpen)}
@@ -267,7 +386,36 @@ export function AppLayout({ children, user }: AppLayoutProps) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <main className={`flex-1 overflow-auto ${isMobile ? 'p-4 pb-20' : 'p-6'}`}>{children}</main>
+
+        {/* Bottom Bar Mobile */}
+        {isMobile && (
+          <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-200 flex items-center justify-around px-2 z-30">
+            {bottomBarItems.map((item) => {
+              const isActive =
+                pathname === item.path ||
+                (item.path !== '/dashboard' && pathname.startsWith(item.path));
+              const Icon = item.icon;
+
+              return (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  className={`flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-0 flex-1 ${
+                    isActive ? 'text-green-600' : 'text-gray-600'
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-green-600' : ''}`} />
+                  <span className={`text-xs truncate ${
+                    isActive ? 'font-medium text-green-700' : ''
+                  }`}>
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+        )}
       </div>
 
       {(userMenuOpen || notificationsOpen || headerUserMenuOpen) && (

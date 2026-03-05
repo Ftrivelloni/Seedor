@@ -1,39 +1,59 @@
 import { prisma } from '@/lib/prisma';
 import { requireAuthSession } from '@/lib/auth/auth';
+import { calculateSubscriptionPrice } from '@/lib/domain/subscription';
 import { ConfiguracionPageClient } from './ConfiguracionPageClient';
-import type {
-  SerializedUserProfile,
-  SerializedTenantConfig,
-  SerializedModuleSetting,
-} from './types';
+import type { SerializedUser, SerializedTenant, SerializedModuleSetting, SubscriptionPricingInfo } from './types';
 
 export default async function ConfiguracionPage() {
   const session = await requireAuthSession();
+  const isAdmin = session.role === 'ADMIN';
 
-  // Obtener datos del usuario
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      phone: true,
-      role: true,
-      locale: true,
-      dateFormat: true,
-      darkMode: true,
-      emailNotifications: true,
-      whatsappNotifications: true,
-      dailySummary: true,
-    },
-  });
+  const [user, tenant, moduleSettings, pricing] = await Promise.all([
+    prisma.user.findUniqueOrThrow({
+      where: { id: session.userId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        role: true,
+        locale: true,
+        dateFormat: true,
+        darkMode: true,
+        emailNotifications: true,
+        whatsappNotifications: true,
+        dailySummary: true,
+      },
+    }),
+    prisma.tenant.findUniqueOrThrow({
+      where: { id: session.tenantId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        cuit: true,
+        legalName: true,
+        companyPhone: true,
+        companyAddress: true,
+        subscriptionStatus: true,
+        planInterval: true,
+        currentPeriodEnd: true,
+        cancelAtPeriodEnd: true,
+        mpPreapprovalId: true,
+        mpCardLastFour: true,
+        mpCardBrand: true,
+      },
+    }),
+    prisma.tenantModuleSetting.findMany({
+      where: { tenantId: session.tenantId },
+      select: { id: true, module: true, enabled: true },
+      orderBy: { module: 'asc' },
+    }),
+    calculateSubscriptionPrice(session.tenantId),
+  ]);
 
-  if (!user) {
-    throw new Error('Usuario no encontrado');
-  }
-
-  const userProfile: SerializedUserProfile = {
+  const serializedUser: SerializedUser = {
     id: user.id,
     firstName: user.firstName,
     lastName: user.lastName,
@@ -48,64 +68,51 @@ export default async function ConfiguracionPage() {
     dailySummary: user.dailySummary,
   };
 
-  // Obtener datos del tenant
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: session.tenantId },
-    select: {
-      id: true,
-      name: true,
-      legalName: true,
-      cuit: true,
-      companyPhone: true,
-      companyAddress: true,
-      subscriptionStatus: true,
-      planInterval: true,
-      currentPeriodEnd: true,
-      cancelAtPeriodEnd: true,
-    },
-  });
-
-  if (!tenant) {
-    throw new Error('Tenant no encontrado');
-  }
-
-  const tenantConfig: SerializedTenantConfig = {
+  const serializedTenant: SerializedTenant = {
     id: tenant.id,
     name: tenant.name,
-    legalName: tenant.legalName,
+    slug: tenant.slug,
     cuit: tenant.cuit,
+    legalName: tenant.legalName,
     companyPhone: tenant.companyPhone,
     companyAddress: tenant.companyAddress,
     subscriptionStatus: tenant.subscriptionStatus,
     planInterval: tenant.planInterval,
     currentPeriodEnd: tenant.currentPeriodEnd?.toISOString() ?? null,
     cancelAtPeriodEnd: tenant.cancelAtPeriodEnd,
+    mpPreapprovalId: tenant.mpPreapprovalId,
+    mpCardLastFour: tenant.mpCardLastFour,
+    mpCardBrand: tenant.mpCardBrand,
   };
 
-  // Obtener configuración de módulos
-  const moduleSettings = await prisma.tenantModuleSetting.findMany({
-    where: { tenantId: session.tenantId },
-    select: {
-      module: true,
-      enabled: true,
-    },
-    orderBy: { module: 'asc' },
-  });
-
-  // Los módulos opcionales son MACHINERY, PACKAGING, SALES
-  const optionalModules = ['MACHINERY', 'PACKAGING', 'SALES'];
-
   const serializedModules: SerializedModuleSetting[] = moduleSettings.map((m) => ({
+    id: m.id,
     module: m.module,
     enabled: m.enabled,
-    isOptional: optionalModules.includes(m.module),
   }));
+
+  const pricingInfo: SubscriptionPricingInfo = {
+    planInterval: pricing.planInterval,
+    basePricePerMonth: pricing.basePricePerMonth,
+    modulePricePerMonth: pricing.modulePricePerMonth,
+    basePriceUsd: pricing.basePriceUsd,
+    modulePriceUsd: pricing.modulePriceUsd,
+    enabledModuleCount: pricing.enabledModuleCount,
+    enabledModules: pricing.enabledModules,
+    modulesTotalUsd: pricing.modulesTotalUsd,
+    totalUsd: pricing.totalUsd,
+    totalPerMonth: pricing.totalPerMonth,
+    yearlySavingsUsd: pricing.yearlySavingsUsd,
+    monthlySavingsPerModule: pricing.monthlySavingsPerModule,
+  };
 
   return (
     <ConfiguracionPageClient
-      userProfile={userProfile}
-      tenantConfig={tenantConfig}
+      user={serializedUser}
+      tenant={serializedTenant}
       moduleSettings={serializedModules}
+      pricing={pricingInfo}
+      isAdmin={isAdmin}
     />
   );
 }

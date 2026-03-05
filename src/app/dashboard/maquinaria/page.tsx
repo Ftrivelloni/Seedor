@@ -1,11 +1,13 @@
 import { prisma } from '@/lib/prisma';
-import { requireRole } from '@/lib/auth/auth';
+import { requireAuthSession } from '@/lib/auth/auth';
+import { requireModuleEnabled } from '@/lib/auth/module-access';
 import { MaquinariaPageClient } from './MaquinariaPageClient';
 import { computeServiceStatus } from './types';
 import type { SerializedMachine } from './types';
 
 export default async function MaquinariaPage() {
-  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+  const session = await requireAuthSession();
+  await requireModuleEnabled(session.tenantId, 'MACHINERY');
 
   const machines = await prisma.machine.findMany({
     where: { tenantId: session.tenantId, active: true },

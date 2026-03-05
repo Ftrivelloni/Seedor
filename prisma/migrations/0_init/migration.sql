@@ -1,5 +1,5 @@
-﻿-- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
+-- CreateEnum
+CREATE TYPE "InvitationStatus" AS ENUM ('PENDING', 'ACCEPTED', 'EXPIRED', 'REVOKED');
 
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'SUPERVISOR');
@@ -41,12 +41,6 @@ CREATE TYPE "PreselectionStatus" AS ENUM ('IN_PROGRESS', 'PAUSED', 'COMPLETED');
 CREATE TYPE "ProcessSessionStatus" AS ENUM ('IN_PROGRESS', 'PAUSED', 'COMPLETED');
 
 -- CreateEnum
-CREATE TYPE "ChamberType" AS ENUM ('ETHYLENE', 'COLD');
-
--- CreateEnum
-CREATE TYPE "BoxDestination" AS ENUM ('MERCADO_INTERNO', 'EXPORTACION');
-
--- CreateEnum
 CREATE TYPE "PalletStatus" AS ENUM ('ON_FLOOR', 'DISPATCHED');
 
 -- CreateEnum
@@ -57,12 +51,16 @@ CREATE TABLE "Tenant" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
-    "stripeCustomerId" TEXT,
-    "stripeSubscriptionId" TEXT,
     "subscriptionStatus" "SubscriptionStatus" NOT NULL DEFAULT 'INACTIVE',
     "planInterval" "PlanInterval" NOT NULL DEFAULT 'MONTHLY',
     "currentPeriodEnd" TIMESTAMP(3),
     "cancelAtPeriodEnd" BOOLEAN NOT NULL DEFAULT false,
+    "mpCustomerId" TEXT,
+    "mpPreapprovalPlanId" TEXT,
+    "mpPreapprovalId" TEXT,
+    "mpPayerEmail" TEXT,
+    "mpLastPaymentId" TEXT,
+    "mpLastEventAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -96,6 +94,22 @@ CREATE TABLE "TenantUserMembership" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "TenantUserMembership_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Invitation" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "role" "UserRole" NOT NULL DEFAULT 'SUPERVISOR',
+    "token" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "status" "InvitationStatus" NOT NULL DEFAULT 'PENDING',
+    "invitedBy" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Invitation_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -356,8 +370,6 @@ CREATE TABLE "TenantModuleSetting" (
     "tenantId" TEXT NOT NULL,
     "module" "ModuleKey" NOT NULL,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
-    "stripePriceId" TEXT,
-    "stripeSubscriptionItemId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -365,12 +377,14 @@ CREATE TABLE "TenantModuleSetting" (
 );
 
 -- CreateTable
-CREATE TABLE "StripeEvent" (
+CREATE TABLE "PackingTransport" (
     "id" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "processedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "tenantId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "StripeEvent_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "PackingTransport_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -435,6 +449,7 @@ CREATE TABLE "PreselectionSession" (
     "status" "PreselectionStatus" NOT NULL DEFAULT 'IN_PROGRESS',
     "startTime" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "endTime" TIMESTAMP(3),
+    "pausedAt" TIMESTAMP(3),
     "totalDurationHours" DOUBLE PRECISION,
     "pauseCount" INTEGER NOT NULL DEFAULT 0,
     "totalPauseHours" DOUBLE PRECISION DEFAULT 0,
@@ -497,8 +512,8 @@ CREATE TABLE "Chamber" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "type" "ChamberType" NOT NULL,
-    "capacity" INTEGER NOT NULL,
+    "type" TEXT,
+    "capacity" INTEGER NOT NULL DEFAULT 0,
     "temperature" DOUBLE PRECISION,
     "humidity" DOUBLE PRECISION,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -527,6 +542,7 @@ CREATE TABLE "ProcessSession" (
     "status" "ProcessSessionStatus" NOT NULL DEFAULT 'IN_PROGRESS',
     "startTime" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "endTime" TIMESTAMP(3),
+    "pausedAt" TIMESTAMP(3),
     "totalDurationHours" DOUBLE PRECISION,
     "pauseCount" INTEGER NOT NULL DEFAULT 0,
     "totalPauseHours" DOUBLE PRECISION DEFAULT 0,
@@ -571,7 +587,6 @@ CREATE TABLE "PackingBox" (
     "caliber" TEXT NOT NULL,
     "category" TEXT NOT NULL,
     "packagingCode" TEXT,
-    "destination" "BoxDestination" NOT NULL,
     "weightKg" DOUBLE PRECISION NOT NULL,
     "processSessionId" TEXT,
     "palletId" TEXT,
@@ -588,6 +603,7 @@ CREATE TABLE "Pallet" (
     "number" INTEGER NOT NULL,
     "code" TEXT NOT NULL,
     "status" "PalletStatus" NOT NULL DEFAULT 'ON_FLOOR',
+    "destination" TEXT,
     "operatorName" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -632,14 +648,30 @@ CREATE TABLE "DispatchPallet" (
     CONSTRAINT "DispatchPallet_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "ProcessDestination" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProcessDestination_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "DispatchClient" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "DispatchClient_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Tenant_slug_key" ON "Tenant"("slug");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Tenant_stripeCustomerId_key" ON "Tenant"("stripeCustomerId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Tenant_stripeSubscriptionId_key" ON "Tenant"("stripeSubscriptionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
@@ -652,6 +684,18 @@ CREATE INDEX "TenantUserMembership_tenantId_idx" ON "TenantUserMembership"("tena
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TenantUserMembership_tenantId_userId_key" ON "TenantUserMembership"("tenantId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Invitation_token_key" ON "Invitation"("token");
+
+-- CreateIndex
+CREATE INDEX "Invitation_tenantId_idx" ON "Invitation"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "Invitation_token_idx" ON "Invitation"("token");
+
+-- CreateIndex
+CREATE INDEX "Invitation_email_tenantId_idx" ON "Invitation"("email", "tenantId");
 
 -- CreateIndex
 CREATE INDEX "Field_tenantId_idx" ON "Field"("tenantId");
@@ -768,7 +812,10 @@ CREATE UNIQUE INDEX "DashboardPreference_tenantId_userId_key" ON "DashboardPrefe
 CREATE UNIQUE INDEX "TenantModuleSetting_tenantId_module_key" ON "TenantModuleSetting"("tenantId", "module");
 
 -- CreateIndex
-CREATE INDEX "StripeEvent_type_idx" ON "StripeEvent"("type");
+CREATE INDEX "PackingTransport_tenantId_idx" ON "PackingTransport"("tenantId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PackingTransport_tenantId_name_key" ON "PackingTransport"("tenantId", "name");
 
 -- CreateIndex
 CREATE INDEX "PackingTruckEntry_tenantId_entryDate_idx" ON "PackingTruckEntry"("tenantId", "entryDate");
@@ -836,6 +883,18 @@ CREATE UNIQUE INDEX "Dispatch_tenantId_code_key" ON "Dispatch"("tenantId", "code
 -- CreateIndex
 CREATE UNIQUE INDEX "DispatchPallet_dispatchId_palletId_key" ON "DispatchPallet"("dispatchId", "palletId");
 
+-- CreateIndex
+CREATE INDEX "ProcessDestination_tenantId_idx" ON "ProcessDestination"("tenantId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ProcessDestination_tenantId_name_key" ON "ProcessDestination"("tenantId", "name");
+
+-- CreateIndex
+CREATE INDEX "DispatchClient_tenantId_idx" ON "DispatchClient"("tenantId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DispatchClient_tenantId_name_key" ON "DispatchClient"("tenantId", "name");
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_invitedById_fkey" FOREIGN KEY ("invitedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -844,6 +903,12 @@ ALTER TABLE "TenantUserMembership" ADD CONSTRAINT "TenantUserMembership_tenantId
 
 -- AddForeignKey
 ALTER TABLE "TenantUserMembership" ADD CONSTRAINT "TenantUserMembership_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Invitation" ADD CONSTRAINT "Invitation_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Invitation" ADD CONSTRAINT "Invitation_invitedBy_fkey" FOREIGN KEY ("invitedBy") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Field" ADD CONSTRAINT "Field_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -960,6 +1025,9 @@ ALTER TABLE "DashboardPreference" ADD CONSTRAINT "DashboardPreference_userId_fke
 ALTER TABLE "TenantModuleSetting" ADD CONSTRAINT "TenantModuleSetting_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "PackingTransport" ADD CONSTRAINT "PackingTransport_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "PackingTruckEntry" ADD CONSTRAINT "PackingTruckEntry_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1036,4 +1104,10 @@ ALTER TABLE "DispatchPallet" ADD CONSTRAINT "DispatchPallet_dispatchId_fkey" FOR
 
 -- AddForeignKey
 ALTER TABLE "DispatchPallet" ADD CONSTRAINT "DispatchPallet_palletId_fkey" FOREIGN KEY ("palletId") REFERENCES "Pallet"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProcessDestination" ADD CONSTRAINT "ProcessDestination_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DispatchClient" ADD CONSTRAINT "DispatchClient_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

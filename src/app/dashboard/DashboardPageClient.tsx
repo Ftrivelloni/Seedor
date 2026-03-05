@@ -24,6 +24,7 @@ import { WIDGET_CATALOG } from './dashboard-types';
 import { renderWidget } from './widgets/DashboardWidgets';
 import CustomizeSidebar from './CustomizeSidebar';
 import { updateWidgetOrderAction } from './actions';
+import { useIsMobile } from '@/hooks';
 
 /* ════════════════════════════════════════
    Props
@@ -135,7 +136,7 @@ function SortableWidgetCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative rounded-2xl border border-gray-200 bg-white shadow-sm p-5 transition-shadow hover:shadow-md ${isKpi ? 'min-h-[120px]' : 'min-h-[240px]'
+      className={`group relative rounded-xl md:rounded-2xl border border-gray-200 bg-white shadow-sm p-4 md:p-5 transition-shadow hover:shadow-md ${isKpi ? 'min-h-[100px] md:min-h-[120px]' : 'min-h-[200px] md:min-h-[240px]'}
         } ${isDragging ? 'ring-2 ring-green-400/50' : ''}`}
     >
       {/* ── Hover controls (top-right) ──
@@ -205,6 +206,7 @@ function StaticWidgetCard({
    Main DashboardPageClient
    ════════════════════════════════════════ */
 export function DashboardPageClient({ data, templateKey: initialTemplate, enabledWidgets: initialWidgets, isAdmin }: Props) {
+  const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [templateKey, setTemplateKey] = useState<TemplateKey>(initialTemplate);
   const [enabledWidgets, setEnabledWidgets] = useState<string[]>(initialWidgets);
@@ -243,10 +245,16 @@ export function DashboardPageClient({ data, templateKey: initialTemplate, enable
   );
 
   /* Build grid cells */
-  const gridCells = useMemo(
-    () => resolveGridCells(templateKey, visibleWidgets),
-    [templateKey, visibleWidgets],
-  );
+  const gridCells = useMemo(() => {
+    // En móvil, todos los widgets ocupan 1 columna (ancho completo)
+    if (isMobile) {
+      return visibleWidgets.map((id) => ({
+        id,
+        style: { colSpan: 1, rowSpan: 1 },
+      }));
+    }
+    return resolveGridCells(templateKey, visibleWidgets);
+  }, [templateKey, visibleWidgets, isMobile]);
 
   /* Persist widget order to DB (debounced) */
   const persistOrder = useCallback(
@@ -315,22 +323,11 @@ export function DashboardPageClient({ data, templateKey: initialTemplate, enable
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ── Top bar ── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Resumen en tiempo real de tu operación agrícola
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-white border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
-          >
-            <Settings2 className="h-4 w-4" />
-            Personalizar
-          </button>
-        </div>
+      <div className="mb-4 md:mb-6">
+        <h1 className="text-xl md:text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-xs md:text-sm text-gray-500 mt-0.5">
+          Resumen en tiempo real de tu operación agrícola
+        </p>
       </div>
 
       {/* ── Widget grid ── */}
@@ -355,15 +352,18 @@ export function DashboardPageClient({ data, templateKey: initialTemplate, enable
         </div>
       ) : !mounted ? (
         /* Static grid for SSR — no DndContext to avoid hydration mismatch */
-        <div className="grid grid-cols-4 gap-5 auto-rows-auto">
+        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-4'} gap-3 md:gap-5 auto-rows-auto`}>
           {gridCells.map((cell) => {
             const def = WIDGET_CATALOG.find((w) => w.id === cell.id);
             const isKpi = def?.size === 'kpi';
             return (
               <div
                 key={cell.id}
-                style={{ gridColumn: `span ${cell.style.colSpan}`, gridRow: `span ${cell.style.rowSpan}` }}
-                className={`group relative rounded-2xl border border-gray-200 bg-white shadow-sm p-5 transition-shadow hover:shadow-md ${isKpi ? 'min-h-[120px]' : 'min-h-[240px]'}`}
+                style={{ 
+                  gridColumn: isMobile ? 'span 1' : `span ${cell.style.colSpan}`, 
+                  gridRow: `span ${cell.style.rowSpan}` 
+                }}
+                className={`group relative rounded-xl md:rounded-2xl border border-gray-200 bg-white shadow-sm p-4 md:p-5 transition-shadow hover:shadow-md ${isKpi ? 'min-h-[100px] md:min-h-[120px]' : 'min-h-[200px] md:min-h-[240px]'}`}
               >
                 {renderWidget(cell.id, data)}
               </div>
@@ -383,12 +383,12 @@ export function DashboardPageClient({ data, templateKey: initialTemplate, enable
             items={gridCells.map((c) => c.id)}
             strategy={rectSortingStrategy}
           >
-            <div className="grid grid-cols-4 gap-5 auto-rows-auto">
+            <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-4'} gap-3 md:gap-5 auto-rows-auto`}>
               {gridCells.map((cell) => (
                 <SortableWidgetCard
                   key={cell.id}
                   widgetId={cell.id}
-                  colSpan={cell.style.colSpan}
+                  colSpan={isMobile ? 1 : cell.style.colSpan}
                   rowSpan={cell.style.rowSpan}
                   data={data}
                   onRemove={handleRemoveWidget}
