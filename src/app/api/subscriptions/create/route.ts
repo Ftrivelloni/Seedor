@@ -101,6 +101,9 @@ export async function POST(request: NextRequest) {
   const monthlyChargeUsd = pricing.totalPerMonth;
   const totalArs = convertUsdToArs(monthlyChargeUsd, resolvedRate);
 
+  // ⚠️ AUDIT LOG: PRUEBA DE PRODUCCIÓN
+  console.log(`🔔 PRUEBA DE PRODUCCIÓN: Iniciando suscripción real por un monto simbólico de ${totalArs.toFixed(2)} ARS (${monthlyChargeUsd} USD × ${resolvedRate.toFixed(2)} tasa)`);
+
   if (totalArs <= 0) {
     return NextResponse.json(
       { error: 'El monto calculado no es válido. Verificá la tasa de cambio.' },

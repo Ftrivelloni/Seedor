@@ -306,3 +306,105 @@ export async function getChangePaymentMethodUrlAction(): Promise<{
     return { success: false, error: 'Error al conectar con Mercado Pago. Intentá de nuevo.' };
   }
 }
+
+// ═══════════════════════════════════════════════════════
+// ELIMINAR CUENTA — ADMIN only (destructive)
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Permanently deletes the tenant account and all associated data.
+ * Cancels any active MP subscription before deletion to prevent orphaned charges.
+ *
+ * @param confirmationText - Must match the tenant name (case-insensitive) for safety.
+ */
+export async function deleteTenantAccountAction(
+  confirmationText: string
+): Promise<{ success: boolean; error?: string }> {
+  const session = await requireRole(['ADMIN']);
+
+  if (!confirmationText || typeof confirmationText !== 'string') {
+    return { success: false, error: 'Debés escribir el nombre de la empresa para confirmar.' };
+  }
+
+  // ── 1. Fetch tenant ──
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: session.tenantId },
+    select: {
+      id: true,
+      name: true,
+      subscriptionStatus: true,
+      mpPreapprovalId: true,
+    },
+  });
+
+  if (!tenant) {
+    return { success: false, error: 'Tenant no encontrado.' };
+  }
+
+  // Validate confirmation text matches tenant name (case-insensitive)
+  if (confirmationText.trim().toLowerCase() !== tenant.name.trim().toLowerCase()) {
+    return { success: false, error: 'El nombre ingresado no coincide con el de la empresa.' };
+  }
+
+  // ── 2. Cancel MP subscription if active (BLOCKING) ──
+  const ACTIVE_STATUSES = new Set(['ACTIVE', 'TRIALING', 'PAST_DUE']);
+
+  if (tenant.mpPreapprovalId && ACTIVE_STATUSES.has(tenant.subscriptionStatus)) {
+    try {
+      await mpPreApproval.update({
+        id: tenant.mpPreapprovalId,
+        body: { status: 'cancelled' },
+      });
+      console.log(
+        `✅ ELIMINACIÓN DE CUENTA: Suscripción MP ${tenant.mpPreapprovalId} CANCELADA EXITOSAMENTE para tenant "${tenant.name}" (${tenant.id})`
+      );
+    } catch (mpErr) {
+      console.error(
+        `❌ ELIMINACIÓN DE CUENTA: ERROR CRÍTICO al cancelar suscripción MP ${tenant.mpPreapprovalId} para tenant "${tenant.name}".`,
+        mpErr
+      );
+      // BLOQUEAR eliminación si no se puede cancelar la suscripción activa
+      return {
+        success: false,
+        error: 'No se pudo cancelar la suscripción en Mercado Pago. Por seguridad, la cuenta no será eliminada. Contactá a soporte.',
+      };
+    }
+  }
+
+  // ── 3. Delete all tenant data in a transaction ──
+  try {
+    await prisma.$transaction(async (tx) => {
+      const memberships = await tx.tenantUserMembership.findMany({
+        where: { tenantId: tenant.id },
+        select: { userId: true },
+      });
+      const userIds = memberships.map((m) => m.userId);
+
+      // Delete tenant (cascades to memberships, modules, fields, etc.)
+      await tx.tenant.delete({ where: { id: tenant.id } });
+
+      // Delete orphaned users
+      if (userIds.length > 0) {
+        const usersWithOtherTenants = await tx.tenantUserMembership.findMany({
+          where: { userId: { in: userIds }, tenantId: { not: tenant.id } },
+          select: { userId: true },
+        });
+        const usersToKeep = new Set(usersWithOtherTenants.map((m) => m.userId));
+        const usersToDelete = userIds.filter((id) => !usersToKeep.has(id));
+
+        if (usersToDelete.length > 0) {
+          await tx.user.deleteMany({ where: { id: { in: usersToDelete } } });
+        }
+      }
+    });
+
+    console.log(
+      `🔴 ELIMINACIÓN DE CUENTA COMPLETADA: Tenant "${tenant.name}" (${tenant.id}) eliminado exitosamente.`
+    );
+
+    return { success: true };
+  } catch (err) {
+    console.error('[deleteTenantAccountAction] Error:', err);
+    return { success: false, error: 'Error al eliminar la cuenta. Intentá de nuevo.' };
+  }
+}

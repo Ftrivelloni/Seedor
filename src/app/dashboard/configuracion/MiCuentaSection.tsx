@@ -9,17 +9,37 @@ import { Label } from '@/components/dashboard/ui/label';
 import { Input } from '@/components/dashboard/ui/input';
 import { Switch } from '@/components/dashboard/ui/switch';
 import { updateProfileAction, updateNotificationsAction } from './actions';
-import type { SerializedUser } from './types';
+import { EliminarCuentaSection } from './EliminarCuentaSection';
+import type { SerializedUser, SerializedTenant } from './types';
 
 interface MiCuentaSectionProps {
   user: SerializedUser;
+  tenant?: SerializedTenant;
+  isAdmin?: boolean;
 }
 
-export function MiCuentaSection({ user }: MiCuentaSectionProps) {
+export function MiCuentaSection({ user, tenant, isAdmin }: MiCuentaSectionProps) {
   return (
     <div className="space-y-4">
       <PersonalInfoCard user={user} />
       <NotificationsCard user={user} />
+
+      {/* Zona de peligro — solo visible para ADMIN */}
+      {isAdmin && tenant && (
+        <>
+          <div className="relative mt-8 mb-2">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-red-200" />
+            </div>
+            <div className="relative flex justify-start">
+              <span className="bg-white pr-3 text-xs font-medium uppercase tracking-wide text-red-400">
+                Zona de peligro
+              </span>
+            </div>
+          </div>
+          <EliminarCuentaSection tenant={tenant} />
+        </>
+      )}
     </div>
   );
 }
