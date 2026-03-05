@@ -343,6 +343,30 @@ export async function createTaskAction(formData: FormData) {
 }
 
 /**
+ * Delete a task and all its subtasks.
+ */
+export async function deleteTaskAction(taskId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, tenantId: session.tenantId },
+    select: { id: true, subtasks: { select: { id: true } } },
+  });
+
+  if (!task) throw new Error('Tarea no encontrada.');
+
+  await prisma.$transaction(async (tx) => {
+    if (task.subtasks.length > 0) {
+      await tx.task.deleteMany({ where: { parentTaskId: task.id } });
+    }
+    await tx.task.delete({ where: { id: task.id } });
+  });
+
+  revalidatePath('/dashboard/campo');
+  revalidatePath('/dashboard');
+}
+
+/**
  * Update an existing task's editable fields.
  */
 export async function updateTaskAction(formData: FormData) {
