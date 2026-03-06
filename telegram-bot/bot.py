@@ -656,6 +656,20 @@ async def handle_tenant_selection(update: Update, context: ContextTypes.DEFAULT_
 
     _, tenant_id, worker_id = parts
 
+    # Validate that the selected (tenant_id, worker_id) pair belongs to this chat
+    # before trusting the callback_data to prevent crafted or reused callbacks.
+    pending = context.user_data.get("pending_workers")
+    candidates = (
+        list(pending) if isinstance(pending, list) else []
+    ) + _worker_tenants.get(chat_id, [])
+    is_valid_pair = any(
+        w.get("tenant_id") == tenant_id and w.get("worker_id") == worker_id
+        for w in candidates
+    )
+    if not is_valid_pair:
+        await query.edit_message_text("⚠️ Selección inválida o expirada. Usá /start.")
+        return ConversationHandler.END
+
     _authenticated_workers[chat_id] = worker_id
     _selected_tenants[chat_id] = tenant_id
     _save_sessions()
@@ -732,6 +746,15 @@ async def handle_switch_tenant(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     _, tenant_id, worker_id = parts
+
+    # Validate that the selected (tenant_id, worker_id) pair belongs to this chat.
+    is_valid_pair = any(
+        w.get("tenant_id") == tenant_id and w.get("worker_id") == worker_id
+        for w in _worker_tenants.get(chat_id, [])
+    )
+    if not is_valid_pair:
+        await query.edit_message_text("⚠️ Selección inválida o expirada. Usá /start.")
+        return
 
     _authenticated_workers[chat_id] = worker_id
     _selected_tenants[chat_id] = tenant_id
@@ -910,6 +933,12 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         "LATE": "Atrasada",
     }
 
+    # Build a lookup dict for O(1) lot resolution instead of nested loops per task.
+    lot_lookup: dict[str, tuple[str, str]] = {}
+    for field in snapshot.get("fields", []):
+        for lot in field.get("lots", []):
+            lot_lookup[lot["id"]] = (field["name"], lot["name"])
+
     field_groups: dict[str, 'OrderedDict[str, list[dict]]'] = {}
 
     for t in active_tasks:
@@ -918,13 +947,7 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             field_groups.setdefault("Sin campo", OrderedDict()).setdefault("Sin lote", []).append(t)
         else:
             for lid in lot_ids:
-                field_name, lot_name = "Sin campo", lid
-                for field in snapshot.get("fields", []):
-                    for lot in field.get("lots", []):
-                        if lot["id"] == lid:
-                            field_name = field["name"]
-                            lot_name = lot["name"]
-                            break
+                field_name, lot_name = lot_lookup.get(lid, ("Sin campo", lid))
                 field_groups.setdefault(field_name, OrderedDict()).setdefault(lot_name, []).append(t)
 
     total = len(active_tasks)

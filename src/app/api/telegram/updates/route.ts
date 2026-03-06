@@ -101,12 +101,23 @@ export async function POST(request: Request) {
                         continue;
                     }
 
+                    const rawTimestamp = event.timestamp;
+                    const completedAt = typeof rawTimestamp === 'string' && rawTimestamp
+                        ? new Date(rawTimestamp)
+                        : new Date(NaN);
+                    if (isNaN(completedAt.getTime())) {
+                        errors.push(
+                            `Invalid timestamp "${rawTimestamp}" (type: ${typeof rawTimestamp}) for event on task ${event.task_id}`
+                        );
+                        continue;
+                    }
+
                     await prisma.$transaction([
                         prisma.task.update({
                             where: { id: event.task_id },
                             data: {
                                 status: 'COMPLETED',
-                                completedAt: new Date(event.timestamp),
+                                completedAt,
                             },
                         }),
                         prisma.taskCompletionLog.create({
@@ -114,7 +125,7 @@ export async function POST(request: Request) {
                                 taskId: event.task_id,
                                 workerId: event.worker_id,
                                 source: 'telegram',
-                                completedAt: new Date(event.timestamp),
+                                completedAt,
                             },
                         }),
                     ]);
