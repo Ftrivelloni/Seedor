@@ -120,9 +120,11 @@ class BotRegistry:
 
     def set_phone(self, chat_id: int, phone: str) -> None:
         self._phones[chat_id] = phone
+        self.save()
 
     def set_available_tenants(self, chat_id: int, tenants: list[dict]) -> None:
         self._available[chat_id] = tenants
+        self.save()
 
     def unregister(self, chat_id: int) -> None:
         self._workers.pop(chat_id, None)

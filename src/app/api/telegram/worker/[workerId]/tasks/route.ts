@@ -39,9 +39,14 @@ export async function GET(
             return NextResponse.json({ error: 'Worker not found' }, { status: 404 });
         }
 
-        // Find active tasks assigned to this worker
+        // Find active (non-completed) tasks assigned to this worker
         const assignments = await prisma.taskAssignment.findMany({
-            where: { workerId },
+            where: {
+                workerId,
+                task: {
+                    status: { not: 'COMPLETED' },
+                },
+            },
             select: {
                 task: {
                     select: {
@@ -72,7 +77,6 @@ export async function GET(
 
         const tasks = assignments
             .map((a) => a.task)
-            .filter((t) => t.status !== 'COMPLETED')
             .map((t) => ({
                 id: t.id,
                 description: t.description,

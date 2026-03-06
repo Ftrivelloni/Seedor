@@ -485,7 +485,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         # Refresh available tenants from API (user may have been added to a new company)
         phone = _authenticated_phones.get(chat_id)
         if phone:
-            fresh = _api_lookup_worker_by_phone(phone)
+            fresh = await asyncio.to_thread(_api_lookup_worker_by_phone, phone)
             if fresh and len(fresh) != len(_worker_tenants.get(chat_id, [])):
                 _worker_tenants[chat_id] = fresh
                 _save_sessions()
@@ -808,6 +808,15 @@ async def handle_tasks_tenant_selection(update: Update, context: ContextTypes.DE
         return
 
     _, tenant_id, worker_id = parts
+
+    # Validate that the (tenant_id, worker_id) pair belongs to this chat
+    valid_tenants = _worker_tenants.get(chat_id, [])
+    if not any(
+        w.get("tenant_id") == tenant_id and w.get("worker_id") == worker_id
+        for w in valid_tenants
+    ):
+        await query.edit_message_text("⚠️ Selección inválida.")
+        return
 
     # Update selected tenant so snapshot refresh uses the right one
     _authenticated_workers[chat_id] = worker_id
