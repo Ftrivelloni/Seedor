@@ -525,8 +525,8 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     phone = contact.phone_number
     chat_id = update.message.chat_id
     log.info("Contact received", chat_id=chat_id, phone=phone[:6] + "***")
-    # Try API lookup first (cross-tenant)
-    api_workers = _api_lookup_worker_by_phone(phone)
+    # Try API lookup first (cross-tenant) — run in thread to avoid blocking the event loop
+    api_workers = await asyncio.to_thread(_api_lookup_worker_by_phone, phone)
 
     if not api_workers:
         # Fallback: search all known tenant snapshots (and global fallback)
