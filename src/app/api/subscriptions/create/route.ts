@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
       data: {
         mpPreapprovalId: preapproval.id,
         mpPayerEmail: payerEmail,
-        subscriptionStatus: 'TRIALING',
+        subscriptionStatus: 'ACTIVE',
         planInterval: resolvedPlanInterval,
       },
     });
