@@ -9,6 +9,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy all bot code
 COPY bot.py .
+COPY bot_registry.py .
+COPY webhook_handler.py .
 COPY logger.py .
 COPY retry.py .
 COPY mock_data.py .
@@ -16,6 +18,9 @@ COPY sync_service.py .
 
 # Create persistent data directory
 RUN mkdir -p data
+
+# Expose webhook port (runtime port is provided via $PORT, e.g. by Railway)
+EXPOSE 8080
 
 # Default: run the bot
 CMD ["python", "bot.py"]

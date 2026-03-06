@@ -50,3 +50,6 @@ telegram-bot/data/
 *.tsbuildinfo
 next-env.d.ts
 /dev.db
+
+#ai
+.claude

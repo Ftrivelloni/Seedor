@@ -42,6 +42,7 @@ _load_dotenv(str(Path(__file__).parent / ".env"))
 # ─── Structured logging ──────────────────────────────────
 from logger import get_logger
 from retry import retry_with_backoff, DeadLetterQueue
+from bot_registry import BotRegistry
 
 log = get_logger("bot")
 
@@ -83,61 +84,17 @@ def _snapshot_path(tenant_id: str = "") -> str:
 # ─── Dead-letter queue ────────────────────────────────────
 dlq = DeadLetterQueue(DLQ_PATH)
 
-# ─── Persistent session stores ─────────────────────────────
+# ─── Registry (replaces raw session dicts) ────────────────
+registry = BotRegistry(SESSIONS_PATH)
 
-def _load_sessions() -> tuple[dict[int, str], dict[int, str], dict[int, str], dict[int, list[dict]]]:
-    """Load authenticated sessions from disk.
-    Returns: (workers, phones, selected_tenants, worker_tenants)
-    """
-    workers: dict[int, str] = {}
-    phones: dict[int, str] = {}
-    tenants: dict[int, str] = {}
-    w_tenants: dict[int, list[dict]] = {}
-    if os.path.exists(SESSIONS_PATH):
-        try:
-            with open(SESSIONS_PATH, "r", encoding="utf-8") as f:
-                raw = json.load(f)
-                for key, value in raw.items():
-                    chat_id = int(key)
-                    if isinstance(value, str):
-                        workers[chat_id] = value
-                    elif isinstance(value, dict):
-                        worker_id = value.get("worker_id") or value.get("workerId")
-                        phone = value.get("phone")
-                        tenant_id = value.get("tenant_id")
-                        available = value.get("available_tenants", [])
-                        if worker_id:
-                            workers[chat_id] = worker_id
-                        if phone:
-                            phones[chat_id] = phone
-                        if tenant_id:
-                            tenants[chat_id] = tenant_id
-                        if available:
-                            w_tenants[chat_id] = available
-        except (json.JSONDecodeError, ValueError, TypeError) as e:
-            log.warning("Failed to load sessions", error=str(e))
-    return workers, phones, tenants, w_tenants
+# Legacy aliases for code that still uses the old names
+_authenticated_workers = registry.workers
+_authenticated_phones = registry.phones
+_selected_tenants = registry.tenants
+_worker_tenants = registry.available
 
 def _save_sessions() -> None:
-    """Persist authenticated sessions to disk."""
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(SESSIONS_PATH, "w", encoding="utf-8") as f:
-        payload: dict[str, dict] = {}
-        for chat_id, worker_id in _authenticated_workers.items():
-            entry: dict = {"worker_id": worker_id}
-            phone = _authenticated_phones.get(chat_id)
-            if phone:
-                entry["phone"] = phone
-            tenant_id = _selected_tenants.get(chat_id)
-            if tenant_id:
-                entry["tenant_id"] = tenant_id
-            available = _worker_tenants.get(chat_id)
-            if available:
-                entry["available_tenants"] = available
-            payload[str(chat_id)] = entry
-        json.dump(payload, f, indent=2)
-
-_authenticated_workers, _authenticated_phones, _selected_tenants, _worker_tenants = _load_sessions()
+    registry.save()
 
 # task_id → new status (local overrides for immediate UX)
 _local_task_overrides: dict[str, str] = {}
@@ -523,8 +480,20 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle /start — ask the user to share their contact."""
     chat_id = update.message.chat_id
 
-    # If already authenticated, show main menu
+    # If already authenticated, refresh tenants and show main menu
     if chat_id in _authenticated_workers and chat_id in _selected_tenants:
+        # Refresh available tenants from API (user may have been added to a new company)
+        phone = _authenticated_phones.get(chat_id)
+        if phone:
+            fresh = await asyncio.to_thread(_api_lookup_worker_by_phone, phone)
+            if fresh and len(fresh) != len(_worker_tenants.get(chat_id, [])):
+                _worker_tenants[chat_id] = fresh
+                _save_sessions()
+                log.info(
+                    "Refreshed available tenants",
+                    chat_id=chat_id,
+                    count=len(fresh),
+                )
         await update.message.reply_text(
             "🌿 Ya estás identificado. Usá el menú para continuar.",
             reply_markup=_main_menu_keyboard(chat_id),
@@ -556,8 +525,8 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     phone = contact.phone_number
     chat_id = update.message.chat_id
     log.info("Contact received", chat_id=chat_id, phone=phone[:6] + "***")
-    # Try API lookup first (cross-tenant)
-    api_workers = _api_lookup_worker_by_phone(phone)
+    # Try API lookup first (cross-tenant) — run in thread to avoid blocking the event loop
+    api_workers = await asyncio.to_thread(_api_lookup_worker_by_phone, phone)
 
     if not api_workers:
         # Fallback: search all known tenant snapshots (and global fallback)
@@ -804,10 +773,76 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
 
+    # Multi-tenant: show tenant selector first
+    available = _worker_tenants.get(chat_id, [])
+    if len(available) > 1:
+        buttons = []
+        for w in available:
+            label = f"🏢 {w.get('tenant_name', w['tenant_id'])}"
+            buttons.append([InlineKeyboardButton(
+                label,
+                callback_data=f"tasks_tenant:{w['tenant_id']}:{w['worker_id']}"
+            )])
+        await update.message.reply_text(
+            "📋 *¿De qué empresa querés ver las tareas?*",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+        return
+
+    # Single tenant: show tasks directly
     user_tenant_id = _selected_tenants.get(chat_id, TENANT_ID)
+    await _show_tasks_for_tenant(update.message, chat_id, worker_id, user_tenant_id)
+
+
+async def handle_tasks_tenant_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle tenant selection for task viewing (multi-tenant workers)."""
+    query = update.callback_query
+    await query.answer()
+
+    chat_id = query.message.chat_id
+    data = query.data  # format: "tasks_tenant:{tenant_id}:{worker_id}"
+    parts = data.split(":", 2)
+    if len(parts) != 3:
+        await query.edit_message_text("⚠️ Selección inválida.")
+        return
+
+    _, tenant_id, worker_id = parts
+
+    # Validate that the (tenant_id, worker_id) pair belongs to this chat
+    valid_tenants = _worker_tenants.get(chat_id, [])
+    if not any(
+        w.get("tenant_id") == tenant_id and w.get("worker_id") == worker_id
+        for w in valid_tenants
+    ):
+        await query.edit_message_text("⚠️ Selección inválida.")
+        return
+
+    # Update selected tenant so snapshot refresh uses the right one
+    _authenticated_workers[chat_id] = worker_id
+    _selected_tenants[chat_id] = tenant_id
+    _save_sessions()
+
+    # Find tenant name for the header
+    tenant_name = tenant_id
+    for w in _worker_tenants.get(chat_id, []):
+        if w["tenant_id"] == tenant_id:
+            tenant_name = w.get("tenant_name", tenant_id)
+            break
+
+    await query.edit_message_text(
+        f"📋 Tareas de *{tenant_name}*:",
+        parse_mode="Markdown",
+    )
+
+    await _show_tasks_for_tenant(query.message, chat_id, worker_id, tenant_id)
+
+
+async def _show_tasks_for_tenant(message, chat_id: int, worker_id: str, tenant_id: str) -> None:
+    """Load and display tasks for a specific tenant. Used by both single and multi-tenant flows."""
     refreshed = False
-    if _should_refresh_snapshot(user_tenant_id):
-        refreshed = await _async_refresh_snapshot(user_tenant_id)
+    if _should_refresh_snapshot(tenant_id):
+        refreshed = await _async_refresh_snapshot(tenant_id)
 
     def _resolve_active_tasks(snapshot: dict, worker_id: str) -> tuple[Optional[dict], str, list[dict]]:
         worker = next(
@@ -851,17 +886,17 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return worker, worker_id, active_tasks
 
     try:
-        snapshot = _load_snapshot(user_tenant_id)
+        snapshot = _load_snapshot(tenant_id)
     except FileNotFoundError:
-        await update.message.reply_text("⚠️ Snapshot no disponible.")
+        await message.reply_text("⚠️ Snapshot no disponible.")
         return
 
     worker, worker_id, active_tasks = _resolve_active_tasks(snapshot, worker_id)
     if worker is None:
         # Snapshot may have been overwritten by another tenant — force refresh for this user.
-        if user_tenant_id and await _async_refresh_snapshot(user_tenant_id):
+        if tenant_id and await _async_refresh_snapshot(tenant_id):
             try:
-                snapshot = _load_snapshot(user_tenant_id)
+                snapshot = _load_snapshot(tenant_id)
                 worker, worker_id, active_tasks = _resolve_active_tasks(snapshot, worker_id)
             except FileNotFoundError:
                 pass
@@ -870,16 +905,16 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         _authenticated_workers.pop(chat_id, None)
         _authenticated_phones.pop(chat_id, None)
         _save_sessions()
-        await update.message.reply_text(
+        await message.reply_text(
             "⚠️ Tu sesión está desactualizada. Usá /start para identificarte de nuevo.",
             reply_markup=ReplyKeyboardRemove(),
         )
         return
 
     if not active_tasks and not refreshed:
-        if await _async_refresh_snapshot(user_tenant_id):
+        if await _async_refresh_snapshot(tenant_id):
             try:
-                snapshot = _load_snapshot(user_tenant_id)
+                snapshot = _load_snapshot(tenant_id)
             except FileNotFoundError:
                 snapshot = None
             if snapshot:
@@ -888,14 +923,14 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     _authenticated_workers.pop(chat_id, None)
                     _authenticated_phones.pop(chat_id, None)
                     _save_sessions()
-                    await update.message.reply_text(
+                    await message.reply_text(
                         "⚠️ Tu sesión está desactualizada. Usá /start para identificarte de nuevo.",
                         reply_markup=ReplyKeyboardRemove(),
                     )
                     return
 
     if not active_tasks:
-        await update.message.reply_text(
+        await message.reply_text(
             "🎉 ¡No tenés tareas pendientes! Buen trabajo.",
             reply_markup=_main_menu_keyboard(chat_id),
         )
@@ -960,7 +995,7 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         total_tasks=total,
     )
 
-    await update.message.reply_text(
+    await message.reply_text(
         f"📋 *Tenés {total} tareas en {num_fields} campo{'s' if num_fields != 1 else ''}:*",
         parse_mode="Markdown",
         reply_markup=_main_menu_keyboard(chat_id),
@@ -990,7 +1025,7 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     )]
                 )
 
-        await update.message.reply_text(
+        await message.reply_text(
             "\n".join(lines),
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(buttons),
@@ -1236,30 +1271,15 @@ async def _snapshot_refresh_loop() -> None:
 
 
 # ═══════════════════════════════════════════════════════════
-# MAIN
+# APP BUILDER (shared by polling and webhook modes)
 # ═══════════════════════════════════════════════════════════
 
-def main() -> None:
-    """Start the bot."""
-    token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    if not token:
-        log.critical(
-            "TELEGRAM_BOT_TOKEN not set",
-            hint="Create a bot via @BotFather and export TELEGRAM_BOT_TOKEN",
-        )
-        raise SystemExit(1)
-
-    log.info(
-        "Bot starting",
-        api_url=API_URL,
-        tenant_id=TENANT_ID[:8] + "..." if len(TENANT_ID) > 8 else TENANT_ID,
-        snapshot_ttl=SNAPSHOT_TTL_SECONDS,
-        notification_poll=NOTIFICATION_POLL_SECONDS,
-    )
+def build_app(token: str) -> Application:
+    """Build and configure the Telegram Application with all handlers."""
 
     async def _post_init(app: Application) -> None:
         # Initial snapshot fetch for all tenants with active sessions
-        active_tenants = set(_selected_tenants.values())
+        active_tenants = registry.get_active_tenant_ids()
         if not active_tenants and TENANT_ID:
             active_tenants = {TENANT_ID}
         for tid in active_tenants:
@@ -1300,10 +1320,49 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(handle_task_confirm, pattern=r"^confirm:"))
     app.add_handler(CallbackQueryHandler(handle_task_cancel, pattern=r"^cancel:"))
     app.add_handler(CallbackQueryHandler(handle_switch_tenant, pattern=r"^switch:"))
+    app.add_handler(CallbackQueryHandler(handle_tasks_tenant_selection, pattern=r"^tasks_tenant:"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unknown))
 
-    log.info("Seedor Bot ready, starting polling")
-    app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+    return app
+
+
+# ═══════════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════════
+
+def main() -> None:
+    """Start the bot (polling or webhook mode)."""
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if not token:
+        log.critical(
+            "TELEGRAM_BOT_TOKEN not set",
+            hint="Create a bot via @BotFather and export TELEGRAM_BOT_TOKEN",
+        )
+        raise SystemExit(1)
+
+    webhook_url = os.environ.get("WEBHOOK_URL", "")
+
+    log.info(
+        "Bot starting",
+        api_url=API_URL,
+        tenant_id=TENANT_ID[:8] + "..." if len(TENANT_ID) > 8 else TENANT_ID or "(none)",
+        snapshot_ttl=SNAPSHOT_TTL_SECONDS,
+        notification_poll=NOTIFICATION_POLL_SECONDS,
+        mode="webhook" if webhook_url else "polling",
+    )
+
+    app = build_app(token)
+
+    if webhook_url:
+        # ── Webhook mode (Railway / serverless) ──
+        import asyncio
+        from webhook_handler import run_webhook
+        log.info("Starting in WEBHOOK mode", url=webhook_url)
+        asyncio.run(run_webhook(app))
+    else:
+        # ── Polling mode (local development) ──
+        log.info("Seedor Bot ready, starting polling")
+        app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
 
 if __name__ == "__main__":
