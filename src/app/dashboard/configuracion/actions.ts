@@ -146,6 +146,104 @@ export async function cancelSubscriptionAction(): Promise<{ success: boolean; er
 }
 
 // ═══════════════════════════════════════════════════════
+// SUSCRIPCIÓN — Reactivar (ADMIN only)
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Reactivates a cancelled subscription by creating a new MP preapproval
+ * starting from the next billing period (currentPeriodEnd).
+ * Clears cancelAtPeriodEnd and updates mpPreapprovalId.
+ */
+export async function reactivateSubscriptionAction(): Promise<{
+  success: boolean;
+  error?: string;
+  redirectUrl?: string;
+}> {
+  const session = await requireRole(['ADMIN']);
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: session.tenantId },
+    select: {
+      id: true,
+      name: true,
+      cancelAtPeriodEnd: true,
+      currentPeriodEnd: true,
+      planInterval: true,
+      mpPayerEmail: true,
+      subscriptionStatus: true,
+    },
+  });
+
+  if (!tenant) return { success: false, error: 'Tenant no encontrado.' };
+
+  if (!tenant.cancelAtPeriodEnd) {
+    return { success: false, error: 'La suscripción no está marcada para cancelar.' };
+  }
+
+  try {
+    // Recalculate price based on current modules
+    const pricing = await calculateSubscriptionPrice(session.tenantId);
+    const exchangeRate = await getUsdToArsRate();
+    const totalArs = convertUsdToArs(pricing.totalPerMonth, exchangeRate);
+
+    if (totalArs <= 0) {
+      return { success: false, error: 'El monto calculado no es válido. Verificá la tasa de cambio.' };
+    }
+
+    const isYearly = tenant.planInterval === 'ANNUAL';
+    const mpFrequency = isYearly ? 12 : 1;
+
+    // Start date: beginning of next period (so current period is already paid)
+    const startDate = tenant.currentPeriodEnd
+      ? new Date(tenant.currentPeriodEnd)
+      : new Date();
+
+    // If the period already ended, start now
+    if (startDate < new Date()) {
+      startDate.setTime(Date.now());
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seedor.com.ar';
+
+    const preapproval = await mpPreApproval.create({
+      body: {
+        payer_email: tenant.mpPayerEmail || session.email,
+        reason: `Suscripción Seedor ${isYearly ? 'Anual' : 'Mensual'} - ${tenant.name} (Reactivación)`,
+        external_reference: tenant.id,
+        auto_recurring: {
+          frequency: mpFrequency,
+          frequency_type: 'months' as const,
+          transaction_amount: totalArs,
+          currency_id: 'ARS' as const,
+          start_date: startDate.toISOString(),
+        },
+        back_url: `${appUrl}/dashboard/configuracion`,
+      },
+    });
+
+    if (!preapproval?.id || !preapproval?.init_point) {
+      return { success: false, error: 'No se pudo crear la nueva suscripción. Intentá de nuevo.' };
+    }
+
+    // Update tenant: new preapproval, clear cancellation
+    await prisma.tenant.update({
+      where: { id: session.tenantId },
+      data: {
+        cancelAtPeriodEnd: false,
+        mpPreapprovalId: preapproval.id,
+      },
+    });
+
+    revalidatePath('/dashboard/configuracion');
+    return { success: true, redirectUrl: preapproval.init_point as string };
+  } catch (err: unknown) {
+    console.error('[reactivateSubscriptionAction] Error:', err);
+    const message = err instanceof Error ? err.message : 'Error desconocido.';
+    return { success: false, error: `Error al reactivar la suscripción: ${message}` };
+  }
+}
+
+// ═══════════════════════════════════════════════════════
 // PLAN — Toggle módulos opcionales y actualizar MP
 // ═══════════════════════════════════════════════════════
 

@@ -36,6 +36,7 @@ import {
 } from '@/components/dashboard/ui/alert-dialog';
 import {
   cancelSubscriptionAction,
+  reactivateSubscriptionAction,
   updatePlanModulesAction,
   getChangePaymentMethodUrlAction,
 } from './actions';
@@ -86,8 +87,10 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
   const [isSavingPlan, startSavePlan] = useTransition();
   const [isCanceling, startCancel] = useTransition();
   const [isLoadingPaymentUrl, setIsLoadingPaymentUrl] = useState(false);
+  const [isReactivating, startReactivate] = useTransition();
   const [planError, setPlanError] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [reactivateError, setReactivateError] = useState<string | null>(null);
 
   const statusInfo = STATUS_CONFIG[tenant.subscriptionStatus] ?? null;
   const canCancel = tenant.subscriptionStatus === 'ACTIVE';
@@ -163,6 +166,19 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
     });
   }
 
+  function handleReactivateSubscription() {
+    setReactivateError(null);
+    startReactivate(async () => {
+      const result = await reactivateSubscriptionAction();
+      if (result.success && result.redirectUrl) {
+        toast.success('Redirigiendo a Mercado Pago para completar la reactivación...');
+        window.location.assign(result.redirectUrl);
+      } else {
+        setReactivateError(result.error ?? 'Error al reactivar la suscripción.');
+      }
+    });
+  }
+
   function handleChangePaymentMethod() {
     setIsLoadingPaymentUrl(true);
     getChangePaymentMethodUrlAction()
@@ -203,8 +219,43 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
             })()}
           </div>
           {tenant.cancelAtPeriodEnd && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mt-3">
-              <p className="text-sm text-amber-800">Tu suscripción se cancelará al finalizar el período actual.</p>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mt-3 space-y-3">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-amber-900">
+                    Tu cuenta será eliminada al finalizar el período actual.
+                  </p>
+                  <p className="text-xs text-amber-800">
+                    Al terminar tu suscripción, se eliminarán permanentemente todos los datos de tu organización
+                    (campos, inventario, trabajadores, maquinaria y usuarios).
+                    {tenant.currentPeriodEnd && (
+                      <span className="font-medium">
+                        {' '}Fecha de eliminación: {format(new Date(tenant.currentPeriodEnd), "d 'de' MMMM 'de' yyyy", { locale: es })}.
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              {reactivateError && (
+                <p className="rounded-lg border border-red-300 bg-red-100 px-3 py-2 text-sm text-red-700">{reactivateError}</p>
+              )}
+              <div className="flex items-center justify-between gap-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-green-900">¿Cambiaste de opinión?</p>
+                  <p className="text-xs text-green-700">
+                    Reactivá tu suscripción. El nuevo cobro comenzará a partir del próximo período.
+                  </p>
+                </div>
+                <Button
+                  onClick={handleReactivateSubscription}
+                  disabled={isReactivating}
+                  size="sm"
+                  className="shrink-0 bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isReactivating ? 'Procesando...' : 'Reactivar'}
+                </Button>
+              </div>
             </div>
           )}
         </CardHeader>
@@ -573,10 +624,17 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
                         <AlertTriangle className="h-5 w-5" />
                         ¿Cancelar suscripción?
                       </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Tu suscripción seguirá activa hasta el final del período actual. Después perderás
-                        acceso a las funciones premium. Esta acción puede revertirse contactando soporte
-                        antes de que finalice el período.
+                      <AlertDialogDescription asChild>
+                        <div className="space-y-3 text-sm text-gray-600">
+                          <p>
+                            Tu suscripción seguirá activa hasta el final del período actual.
+                            Al finalizar, <strong className="text-red-700">tu cuenta y todos los datos serán eliminados permanentemente</strong>.
+                          </p>
+                          <p>
+                            Si cambiás de opinión, podés reactivar la suscripción desde esta misma sección
+                            antes de que termine el período.
+                          </p>
+                        </div>
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
