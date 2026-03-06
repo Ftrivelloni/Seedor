@@ -1,11 +1,12 @@
 """
 webhook_handler.py — Webhook server for Seedor Telegram Bot
 ============================================================
-Used when deploying to Railway (serverless).
+Used when deploying to Railway (production).
 Receives Telegram updates via POST /webhook.
 
-Set env var WEBHOOK_URL to activate webhook mode.
-Otherwise bot.py defaults to polling (dev mode).
+A.2: In production (Railway), WEBHOOK_URL and WEBHOOK_SECRET are mandatory.
+     Process must exit(1) if either is missing.
+     Updates are enqueued via app.update_queue (not processed in-band).
 
 Usage:
     WEBHOOK_URL=https://your-app.up.railway.app/webhook python bot.py
@@ -13,6 +14,7 @@ Usage:
 
 import asyncio
 import os
+import sys
 
 from aiohttp import web
 
@@ -32,15 +34,28 @@ async def health_handler(request: web.Request) -> web.Response:
 
 
 async def run_webhook(app) -> None:
-    """Start the webhook server with the given telegram Application."""
+    """Start the webhook server with the given telegram Application.
+
+    A.2: Strict validation — both WEBHOOK_URL and WEBHOOK_SECRET must be set.
+    Updates are pushed to app.update_queue for processing by PTB's internal loop.
+    Full PTB lifecycle: initialize → start → (run) → stop → shutdown.
+    """
     from telegram import Update
 
-    # WEBHOOK_SECRET is required when running in webhook mode
+    # A.2: Strict env validation — fail fast in production
+    if not WEBHOOK_URL:
+        log.critical(
+            "WEBHOOK_URL must be set in webhook mode. "
+            "Set it to the public URL of your Railway deployment."
+        )
+        sys.exit(1)
+
     if not WEBHOOK_SECRET:
-        raise RuntimeError(
+        log.critical(
             "WEBHOOK_SECRET must be set when WEBHOOK_URL is configured. "
             "Generate a strong random token and set it as an environment variable."
         )
+        sys.exit(1)
 
     # Build the aiohttp web app
     webapp = web.Application()
@@ -56,28 +71,26 @@ async def run_webhook(app) -> None:
         try:
             data = await request.json()
             update = Update.de_json(data, app.bot)
-            # Process update in-band
-            await app.process_update(update)
+            # A.2: Enqueue update for processing by PTB's internal loop
+            # instead of processing in-band per HTTP request
+            await app.update_queue.put(update)
             return web.Response(status=200, text="OK")
         except Exception:
-            log.exception("Webhook update processing failed")
+            log.exception("Webhook update enqueue failed")
             return web.Response(status=500, text="Internal Server Error")
 
     webapp.router.add_post("/webhook", webhook_handler)
     webapp.router.add_get("/health", health_handler)
     webapp.router.add_get("/", health_handler)
 
-    # Initialize the telegram application
+    # A.2: Full PTB lifecycle — initialize + start
     await app.initialize()
 
     # Set the webhook on Telegram's side
-    webhook_kwargs = {"url": WEBHOOK_URL}
-    if WEBHOOK_SECRET:
-        webhook_kwargs["secret_token"] = WEBHOOK_SECRET
-    await app.bot.set_webhook(**webhook_kwargs)
+    await app.bot.set_webhook(url=WEBHOOK_URL, secret_token=WEBHOOK_SECRET)
     log.info("Webhook set", url=WEBHOOK_URL)
 
-    # Start background tasks (notifications, snapshot refresh)
+    # Start PTB background tasks (post_init, notification poller, snapshot loop)
     await app.start()
 
     runner = web.AppRunner(webapp)
@@ -94,6 +107,7 @@ async def run_webhook(app) -> None:
     finally:
         log.info("Shutting down webhook server")
         await app.bot.delete_webhook()
+        # A.2: Full PTB shutdown lifecycle — stop + shutdown
         await app.stop()
         await app.shutdown()
         await runner.cleanup()

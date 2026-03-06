@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import {
+    isTelegramAuthorizedRequest,
+    unauthorizedTelegramResponse,
+} from '@/lib/telegram-auth';
 
 /**
  * GET /api/telegram/worker/:workerId/tasks
@@ -12,11 +16,8 @@ export async function GET(
     { params }: { params: Promise<{ workerId: string }> }
 ) {
     // ── Auth ──
-    const authHeader = request.headers.get('authorization');
-    const expectedKey = process.env.TELEGRAM_SYNC_API_KEY;
-
-    if (!expectedKey || authHeader !== `Bearer ${expectedKey}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!isTelegramAuthorizedRequest(request)) {
+        return unauthorizedTelegramResponse();
     }
 
     const { workerId } = await params;

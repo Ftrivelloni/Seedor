@@ -54,6 +54,7 @@ from telegram import (
     ReplyKeyboardRemove,
     Update,
 )
+from telegram.error import Conflict
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -102,8 +103,19 @@ _local_task_overrides: dict[str, str] = {}
 
 # ─── API Config ────────────────────────────────────────────
 API_URL = os.environ.get("SEEDOR_API_URL", "http://localhost:3000")
-API_KEY = os.environ.get("SEEDOR_API_KEY", "")
-TENANT_ID = os.environ.get("SEEDOR_TENANT_ID", "")
+
+
+def _resolve_api_key() -> tuple[str, str]:
+    """Resolve API key from supported env vars, in priority order."""
+    for env_name in ("SEEDOR_API_KEY", "TELEGRAM_SYNC_API_KEY"):
+        value = os.environ.get(env_name, "").strip()
+        if value:
+            return value, env_name
+    return "", ""
+
+
+API_KEY, API_KEY_SOURCE = _resolve_api_key()
+# SEEDOR_TENANT_ID removed — tenant is resolved per-session from BotRegistry
 SNAPSHOT_TTL_SECONDS = int(os.environ.get("SEEDOR_SNAPSHOT_TTL_SECONDS", "30"))
 NOTIFICATION_POLL_SECONDS = int(os.environ.get("SEEDOR_NOTIFICATION_POLL_SECONDS", "15"))
 
@@ -113,10 +125,16 @@ NOTIFICATION_POLL_SECONDS = int(os.environ.get("SEEDOR_NOTIFICATION_POLL_SECONDS
 # ═══════════════════════════════════════════════════════════
 
 def _load_snapshot(tenant_id: str = "") -> dict:
-    """Load and return the snapshot for the given tenant (or global fallback)."""
+    """Load and return the snapshot for the given tenant.
+
+    A.3: No fallback to global snapshot — only per-tenant snapshots are used.
+    Falls back to other known tenant snapshots if specified tenant file is missing.
+    """
+    if not tenant_id:
+        raise FileNotFoundError("tenant_id is required — no global snapshot fallback")
     path = _snapshot_path(tenant_id)
-    if tenant_id and not os.path.exists(path):
-        path = SNAPSHOT_PATH  # fall back to global if tenant file missing
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"No snapshot for tenant {tenant_id}")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -137,13 +155,15 @@ def _write_snapshot(snapshot: dict, tenant_id: str = "") -> None:
 
 
 def _should_refresh_snapshot(tenant_id: str = "") -> bool:
-    """Return True if the tenant's snapshot is missing or stale."""
+    """Return True if the tenant's snapshot is missing or stale.
+
+    A.3: No global snapshot fallback — only checks per-tenant path.
+    """
+    if not tenant_id:
+        return True
     path = _snapshot_path(tenant_id)
     if not os.path.exists(path):
-        if tenant_id and os.path.exists(SNAPSHOT_PATH):
-            path = SNAPSHOT_PATH  # fall back to global
-        else:
-            return True
+        return True
     try:
         age = datetime.now().timestamp() - os.path.getmtime(path)
     except OSError:
@@ -189,9 +209,13 @@ async def _async_refresh_snapshot(tenant_id: str = "") -> bool:
 
 def _refresh_snapshot_from_api(tenant_id: str = "") -> bool:
     """Fetch snapshot from API and update local file. Returns True on success."""
-    tid = tenant_id or TENANT_ID
+    tid = tenant_id
     if not API_KEY or not tid:
-        log.warning("Cannot refresh snapshot: missing required env vars")
+        log.warning(
+            "Cannot refresh snapshot: missing API key or tenant_id",
+            has_api_key=bool(API_KEY),
+            tenant_id=tid or "(missing)",
+        )
         return False
 
     url = f"{API_URL.rstrip('/')}/api/telegram/snapshot?tenantId={tid}"
@@ -214,6 +238,10 @@ def _refresh_snapshot_from_api(tenant_id: str = "") -> bool:
 def _api_lookup_worker_by_phone(phone: str) -> list[dict]:
     """Lookup worker by phone across all tenants via API."""
     if not API_KEY:
+        log.error(
+            "Worker lookup skipped: API key not configured",
+            expected_envs="SEEDOR_API_KEY or TELEGRAM_SYNC_API_KEY",
+        )
         return []
     normalized = _normalize_phone(phone)
     url = f"{API_URL.rstrip('/')}/api/telegram/worker-lookup?phone={normalized}"
@@ -223,6 +251,40 @@ def _api_lookup_worker_by_phone(phone: str) -> list[dict]:
     except Exception as e:
         log.error("Worker lookup failed", error=str(e), phone=phone[:6] + "***")
         return []
+
+
+@retry_with_backoff(max_retries=2, base_delay=1.0, max_delay=10.0)
+def _complete_task_via_api(worker_id: str, task_id: str, timestamp: str) -> bool:
+    """A.4: Complete a task via the granular endpoint.
+
+    POST /api/telegram/worker/:workerId/tasks/:taskId/complete
+    Returns True on success (including idempotent already-completed).
+    """
+    if not API_KEY:
+        log.warning("Cannot complete task: missing API key env var")
+        return False
+
+    url = (
+        f"{API_URL.rstrip('/')}/api/telegram/worker/{worker_id}"
+        f"/tasks/{task_id}/complete"
+    )
+    payload = {"timestamp": timestamp, "source": "telegram"}
+
+    try:
+        result = _api_post(url, payload)
+        ok = result.get("ok", False)
+        already = result.get("already_completed", False)
+        if already:
+            log.info("Task already completed (idempotent)", task_id=task_id)
+        return ok
+    except Exception as e:
+        log.error(
+            "Granular task complete failed",
+            task_id=task_id,
+            worker_id=worker_id,
+            error=str(e),
+        )
+        return False
 
 
 def _push_event_to_api(event: dict) -> bool:
@@ -449,15 +511,30 @@ async def _notification_poller(app) -> None:
         await asyncio.sleep(NOTIFICATION_POLL_SECONDS)
 
 
+def _get_active_tenant_name(chat_id: int) -> str:
+    """Return the display name of the currently selected tenant for this chat."""
+    tenant_id = _selected_tenants.get(chat_id)
+    if not tenant_id:
+        return ""
+    for w in _worker_tenants.get(chat_id, []):
+        if w.get("tenant_id") == tenant_id:
+            return w.get("tenant_name", tenant_id)
+    return tenant_id
+
+
 def _main_menu_keyboard(chat_id: int = 0) -> ReplyKeyboardMarkup:
-    """Return the main reply keyboard for authenticated workers."""
+    """Return the main reply keyboard for authenticated workers.
+
+    A.0: Always show active tenant for authenticated users with a selected tenant.
+    """
     buttons = [
         [KeyboardButton("📋 Mis Tareas")],
-        [KeyboardButton("📍 Check-in", request_location=True)],
     ]
-    # Show 'Cambiar Empresa' if worker belongs to 2+ tenants
-    if chat_id and len(_worker_tenants.get(chat_id, [])) > 1:
-        buttons.append([KeyboardButton("🏢 Cambiar Empresa")])
+    # A.0: Always show active tenant name for users with a selected tenant
+    if chat_id and chat_id in _selected_tenants:
+        tenant_name = _get_active_tenant_name(chat_id)
+        if tenant_name:
+            buttons.append([KeyboardButton(f"🏢 Activa: {tenant_name}")])
     return ReplyKeyboardMarkup(buttons, resize_keyboard=True)
 
 
@@ -529,12 +606,10 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     api_workers = await asyncio.to_thread(_api_lookup_worker_by_phone, phone)
 
     if not api_workers:
-        # Fallback: search all known tenant snapshots (and global fallback)
-        tenant_ids_to_check: list[str] = list(set(_selected_tenants.values()))
-        if TENANT_ID and TENANT_ID not in tenant_ids_to_check:
-            tenant_ids_to_check.append(TENANT_ID)
-        if not tenant_ids_to_check:
-            tenant_ids_to_check = [""]  # global snapshot only
+        # A.3: Fallback only to snapshots for known tenants — never global snapshot
+        tenant_ids_to_check: list[str] = [
+            tid for tid in set(_selected_tenants.values()) if tid
+        ]
 
         for tid_check in tenant_ids_to_check:
             if _should_refresh_snapshot(tid_check):
@@ -548,7 +623,7 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         "worker_id": worker["id"],
                         "first_name": worker.get("first_name", ""),
                         "last_name": worker.get("last_name", ""),
-                        "tenant_id": tenant.get("id", tid_check or TENANT_ID),
+                        "tenant_id": tenant.get("id", tid_check),
                         "tenant_name": tenant.get("name", "Empresa"),
                     })
             except FileNotFoundError:
@@ -589,7 +664,7 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text(
             f"✅ *¡Hola, {name}!*\n"
             f"🏢 Empresa: _{tenant_name}_\n\n"
-            "Usá el menú para ver tus tareas o registrar tu presencia.",
+            "Usá el menú para ver tus tareas.",
             parse_mode="Markdown",
             reply_markup=_main_menu_keyboard(chat_id),
         )
@@ -665,7 +740,7 @@ async def handle_tenant_selection(update: Update, context: ContextTypes.DEFAULT_
     await query.edit_message_text(
         f"✅ *¡Hola, {worker_name}!*\n"
         f"🏢 Empresa: _{tenant_name}_\n\n"
-        "Usá el menú para ver tus tareas o registrar tu presencia.",
+        "Usá el menú para ver tus tareas.",
         parse_mode="Markdown",
     )
     # Send menu keyboard via a new message (inline buttons + reply keyboard can't be in the same msg)
@@ -773,6 +848,14 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
 
+    # Block access if no tenant selected yet (multi-tenant workers must choose first)
+    if chat_id not in _selected_tenants:
+        await update.message.reply_text(
+            "⚠️ Primero seleccioná una empresa. Usá /start para elegir.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+
     # Multi-tenant: show tenant selector first
     available = _worker_tenants.get(chat_id, [])
     if len(available) > 1:
@@ -791,7 +874,7 @@ async def handle_my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
     # Single tenant: show tasks directly
-    user_tenant_id = _selected_tenants.get(chat_id, TENANT_ID)
+    user_tenant_id = _selected_tenants.get(chat_id, "")
     await _show_tasks_for_tenant(update.message, chat_id, worker_id, user_tenant_id)
 
 
@@ -1044,6 +1127,11 @@ async def handle_task_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.edit_message_text("⚠️ Sesión expirada. Usá /start para volver a identificarte.")
         return
 
+    # A.0: Guard — require tenant selection
+    if chat_id not in _selected_tenants:
+        await query.edit_message_text("⚠️ Primero seleccioná una empresa. Usá /start para elegir.")
+        return
+
     # Parse callback_data: "done:{task_id}"
     data = query.data
     if not data.startswith("done:"):
@@ -1095,7 +1183,11 @@ async def handle_task_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def handle_task_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle confirmation: actually mark the task as completed."""
+    """Handle confirmation: actually mark the task as completed.
+
+    A.4: Uses the granular POST /api/telegram/worker/:workerId/tasks/:taskId/complete
+    endpoint. Falls back to the legacy _append_event path if the granular call fails.
+    """
     query = update.callback_query
     await query.answer()
 
@@ -1106,6 +1198,11 @@ async def handle_task_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text("⚠️ Sesión expirada. Usá /start para volver a identificarte.")
         return
 
+    # A.0: Guard — require tenant selection
+    if chat_id not in _selected_tenants:
+        await query.edit_message_text("⚠️ Primero seleccioná una empresa. Usá /start para elegir.")
+        return
+
     task_id = query.data.split(":", 1)[1]
 
     if not _is_valid_id(task_id):
@@ -1113,20 +1210,35 @@ async def handle_task_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text("⚠️ ID de tarea inválido.")
         return
 
+    # A.4: Mark completed locally for immediate UX
     _local_task_overrides[task_id] = "COMPLETED"
 
-    _append_event({
-        "type": "TASK_COMPLETED",
-        "worker_id": worker_id,
-        "task_id": task_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
+    # A.4: Try granular endpoint first, fall back to legacy _append_event
+    timestamp = datetime.now(timezone.utc).isoformat()
+    granular_ok = await asyncio.to_thread(
+        _complete_task_via_api, worker_id, task_id, timestamp
+    )
+
+    if not granular_ok:
+        # Fallback: enqueue via legacy path for retry
+        log.warning(
+            "Granular complete failed, falling back to event queue",
+            task_id=task_id,
+            worker_id=worker_id,
+        )
+        _append_event({
+            "type": "TASK_COMPLETED",
+            "worker_id": worker_id,
+            "task_id": task_id,
+            "timestamp": timestamp,
+        })
 
     log.info(
         "Task completed",
         task_id=task_id,
         worker_id=worker_id,
         chat_id=chat_id,
+        via="granular" if granular_ok else "legacy_queue",
     )
 
     await query.edit_message_text(
@@ -1142,54 +1254,6 @@ async def handle_task_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
     await query.edit_message_text(
         "❌ Operación cancelada. Usá '📋 Mis Tareas' para ver tus tareas.",
-    )
-
-
-# ═══════════════════════════════════════════════════════════
-# HANDLERS — LOCATION
-# ═══════════════════════════════════════════════════════════
-
-async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle location share for check-in."""
-    chat_id = update.message.chat_id
-    worker_id = _authenticated_workers.get(chat_id)
-
-    if not worker_id:
-        await update.message.reply_text(
-            "⚠️ Primero necesitás identificarte. Usá /start"
-        )
-        return
-
-    location = update.message.location
-    if not location:
-        await update.message.reply_text("❌ No se recibió ubicación. Intentá de nuevo.")
-        return
-
-    lat = location.latitude
-    lon = location.longitude
-
-    _append_event({
-        "type": "ATTENDANCE",
-        "worker_id": worker_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "latitude": lat,
-        "longitude": lon,
-    })
-
-    log.info(
-        "Check-in recorded",
-        worker_id=worker_id,
-        chat_id=chat_id,
-        lat=lat,
-        lon=lon,
-    )
-
-    await update.message.reply_text(
-        f"📍 *Check-in registrado*\n\n"
-        f"📌 Ubicación: `{lat:.6f}, {lon:.6f}`\n"
-        f"🕐 Hora: {datetime.now().strftime('%H:%M:%S')}",
-        parse_mode="Markdown",
-        reply_markup=_main_menu_keyboard(chat_id),
     )
 
 
@@ -1224,13 +1288,25 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text("⚠️ Usá /start primero.")
         return
 
+    # A.0: Guard — require tenant selection
+    if chat_id not in _selected_tenants:
+        await update.message.reply_text(
+            "⚠️ Primero seleccioná una empresa. Usá /start para elegir.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+
     dlq_size = dlq.size()
     sessions_count = len(_authenticated_workers)
-    snapshot_exists = os.path.exists(SNAPSHOT_PATH)
+
+    # Use per-tenant snapshot path instead of global
+    user_tenant = _selected_tenants.get(chat_id, "")
+    snap_path = _snapshot_path(user_tenant) if user_tenant else ""
+    snapshot_exists = bool(snap_path) and os.path.exists(snap_path)
     snapshot_age = "N/A"
     if snapshot_exists:
         try:
-            age_secs = int(datetime.now().timestamp() - os.path.getmtime(SNAPSHOT_PATH))
+            age_secs = int(datetime.now().timestamp() - os.path.getmtime(snap_path))
             if age_secs < 60:
                 snapshot_age = f"{age_secs}s"
             else:
@@ -1238,8 +1314,10 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         except OSError:
             snapshot_age = "error"
 
+    tenant_name = _get_active_tenant_name(chat_id)
     await update.message.reply_text(
         f"📊 *Estado del Bot*\n\n"
+        f"🏢 Empresa: _{tenant_name}_\n"
         f"👥 Sesiones activas: {sessions_count}\n"
         f"📡 Snapshot: {'✅' if snapshot_exists else '❌'} (edad: {snapshot_age})\n"
         f"📬 Cola de errores (DLQ): {dlq_size} eventos\n"
@@ -1262,8 +1340,9 @@ async def _snapshot_refresh_loop() -> None:
         await asyncio.sleep(SYNC_INTERVAL)
         try:
             active_tenants = set(_selected_tenants.values())
-            if not active_tenants and TENANT_ID:
-                active_tenants = {TENANT_ID}
+            if not active_tenants:
+                log.debug("No active tenants for snapshot refresh, skipping")
+                continue
             for tid in active_tenants:
                 await _async_refresh_snapshot(tid)
         except Exception as e:
@@ -1274,14 +1353,29 @@ async def _snapshot_refresh_loop() -> None:
 # APP BUILDER (shared by polling and webhook modes)
 # ═══════════════════════════════════════════════════════════
 
+async def _handle_app_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log uncaught telegram errors with actionable context."""
+    err = context.error
+    if isinstance(err, Conflict):
+        log.error(
+            "Telegram update conflict detected",
+            hint="Another bot instance is polling with this token. Keep a single polling instance or enable webhook mode.",
+        )
+        return
+
+    log.error(
+        "Unhandled telegram error",
+        error_type=type(err).__name__ if err else "UnknownError",
+        error=str(err) if err else "",
+    )
+
+
 def build_app(token: str) -> Application:
     """Build and configure the Telegram Application with all handlers."""
 
     async def _post_init(app: Application) -> None:
         # Initial snapshot fetch for all tenants with active sessions
         active_tenants = registry.get_active_tenant_ids()
-        if not active_tenants and TENANT_ID:
-            active_tenants = {TENANT_ID}
         for tid in active_tenants:
             await _async_refresh_snapshot(tid)
         app.create_task(_notification_poller(app))
@@ -1313,15 +1407,15 @@ def build_app(token: str) -> Application:
     # ── Register handlers (order matters) ──
     app.add_handler(auth_conv)
     app.add_handler(CommandHandler("status", cmd_status))
-    app.add_handler(MessageHandler(filters.Regex(r"^🏢 Cambiar Empresa$"), handle_change_company))
+    app.add_handler(MessageHandler(filters.Regex(r"^🏢 (Cambiar Empresa|Activa: .+)$"), handle_change_company))
     app.add_handler(MessageHandler(filters.Regex(r"^📋 Mis Tareas$"), handle_my_tasks))
-    app.add_handler(MessageHandler(filters.LOCATION, handle_location))
     app.add_handler(CallbackQueryHandler(handle_task_done, pattern=r"^done:"))
     app.add_handler(CallbackQueryHandler(handle_task_confirm, pattern=r"^confirm:"))
     app.add_handler(CallbackQueryHandler(handle_task_cancel, pattern=r"^cancel:"))
     app.add_handler(CallbackQueryHandler(handle_switch_tenant, pattern=r"^switch:"))
     app.add_handler(CallbackQueryHandler(handle_tasks_tenant_selection, pattern=r"^tasks_tenant:"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unknown))
+    app.add_error_handler(_handle_app_error)
 
     return app
 
@@ -1340,12 +1434,19 @@ def main() -> None:
         )
         raise SystemExit(1)
 
+    if not API_KEY:
+        log.critical(
+            "API key missing for Seedor API authentication",
+            expected_envs="SEEDOR_API_KEY or TELEGRAM_SYNC_API_KEY",
+        )
+        raise SystemExit(1)
+
     webhook_url = os.environ.get("WEBHOOK_URL", "")
 
     log.info(
         "Bot starting",
         api_url=API_URL,
-        tenant_id=TENANT_ID[:8] + "..." if len(TENANT_ID) > 8 else TENANT_ID or "(none)",
+        api_key_source=API_KEY_SOURCE or "(missing)",
         snapshot_ttl=SNAPSHOT_TTL_SECONDS,
         notification_poll=NOTIFICATION_POLL_SECONDS,
         mode="webhook" if webhook_url else "polling",
@@ -1361,6 +1462,10 @@ def main() -> None:
         asyncio.run(run_webhook(app))
     else:
         # ── Polling mode (local development) ──
+        log.warning(
+            "Polling mode enabled",
+            hint="Only one instance can poll updates with a given TELEGRAM_BOT_TOKEN. Use webhook mode in production.",
+        )
         log.info("Seedor Bot ready, starting polling")
         app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
