@@ -194,13 +194,23 @@ export async function reactivateSubscriptionAction(): Promise<{
     const mpFrequency = isYearly ? 12 : 1;
 
     // Start date: beginning of next period (so current period is already paid)
-    const startDate = tenant.currentPeriodEnd
-      ? new Date(tenant.currentPeriodEnd)
-      : new Date();
-
-    // If the period already ended, start now
-    if (startDate < new Date()) {
-      startDate.setTime(Date.now());
+    // If the period already ended, start 1 minute from now (MP doesn't accept past dates)
+    let startDate: Date;
+    
+    if (tenant.currentPeriodEnd) {
+      const periodEnd = new Date(tenant.currentPeriodEnd);
+      const now = new Date();
+      
+      if (periodEnd > now) {
+        // Period hasn't ended yet, start from period end
+        startDate = periodEnd;
+      } else {
+        // Period already ended, start 1 minute from now
+        startDate = new Date(now.getTime() + 60 * 1000);
+      }
+    } else {
+      // No period end date, start 1 minute from now
+      startDate = new Date(Date.now() + 60 * 1000);
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seedor.com.ar';
@@ -238,7 +248,15 @@ export async function reactivateSubscriptionAction(): Promise<{
     return { success: true, redirectUrl: preapproval.init_point as string };
   } catch (err: unknown) {
     console.error('[reactivateSubscriptionAction] Error:', err);
-    const message = err instanceof Error ? err.message : 'Error desconocido.';
+    
+    let message = 'Error desconocido.';
+    if (err instanceof Error) {
+      message = err.message;
+    } else if (err && typeof err === 'object') {
+      const mpErr = err as { message?: string; status?: number };
+      message = mpErr.message || JSON.stringify(err);
+    }
+    
     return { success: false, error: `Error al reactivar la suscripción: ${message}` };
   }
 }
