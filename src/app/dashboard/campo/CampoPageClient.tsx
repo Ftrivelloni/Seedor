@@ -378,7 +378,9 @@ export function CampoPageClient({
                     </tr>
                   ) : (
                     filteredTaskHistory.map((t) => {
-                      const isOverdue = new Date(t.dueDate) < new Date();
+                      const isOverdue = t.dueDate
+                        ? t.dueDate.slice(0, 10) < new Date().toISOString().slice(0, 10)
+                        : false;
                       return (
                         <tr key={t.id} className={`hover:bg-gray-50 ${isOverdue ? 'bg-red-50/40' : ''}`}>
                           <td className="px-4 py-3 font-medium text-gray-900">{t.description}</td>

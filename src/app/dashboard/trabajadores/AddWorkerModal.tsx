@@ -24,7 +24,8 @@ import { Checkbox } from '@/components/dashboard/ui/checkbox';
 import { UserPlus, MessageCircle, Copy, Check } from 'lucide-react';
 import { createWorkerAction } from './actions';
 
-const BOT_LINK = 'https://t.me/SeedorTestBot';
+const BOT_LINK =
+  process.env.NEXT_PUBLIC_TELEGRAM_BOT_LINK ?? 'https://t.me/SeedorTestBot';
 
 function buildWhatsAppUrl(phone: string, firstName: string): string {
   const normalized = phone.replace(/[\s\-()]/g, '').replace(/^\+/, '');
@@ -64,10 +65,26 @@ export function AddWorkerModal() {
     }
   }
 
-  function handleCopyLink() {
-    navigator.clipboard.writeText(BOT_LINK);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  async function handleCopyLink() {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(BOT_LINK);
+      } else if (typeof document !== 'undefined') {
+        const tempInput = document.createElement('input');
+        tempInput.value = BOT_LINK;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+      } else {
+        throw new Error('Clipboard API no disponible');
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Error al copiar el enlace del bot:', err);
+      setError('No se pudo copiar el enlace automáticamente. Copialo manualmente: ' + BOT_LINK);
+    }
   }
 
   function handleOpenChange(value: boolean) {
