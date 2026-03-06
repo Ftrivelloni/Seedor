@@ -89,7 +89,9 @@
     "prisma": "^6.19.2",
     "shadcn": "^3.8.5",
     "tsx": "^4.21.0",
+    "tsx": "^4.21.0",
     "tw-animate-css": "1.3.8",
+    "typescript": "^5",
     "typescript": "^5",
     "vitest": "^4.0.18"
   }
