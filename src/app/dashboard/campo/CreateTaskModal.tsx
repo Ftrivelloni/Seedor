@@ -2,9 +2,28 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, X, Check } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Search, X, Check, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { createTaskAction } from './actions';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/dashboard/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/dashboard/ui/select';
+import { Button } from '@/components/dashboard/ui/button';
+import { DatePicker } from '@/components/dashboard/ui/date-picker';
 import type {
   SerializedLot,
   SerializedWorker,
@@ -75,8 +94,8 @@ export function CreateTaskModal({
   // Step 1 fields
   const [description, setDescription] = useState('');
   const [taskType, setTaskType] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [costValue, setCostValue] = useState('');
   const [costUnit, setCostUnit] = useState('Fijo');
   const [detailedDescription, setDetailedDescription] = useState('');
@@ -135,8 +154,8 @@ export function CreateTaskModal({
     setStep(1);
     setDescription('');
     setTaskType('');
-    setStartDate('');
-    setDueDate('');
+    setStartDate(undefined);
+    setDueDate(undefined);
     setCostValue('');
     setCostUnit('Fijo');
     setDetailedDescription('');
@@ -161,8 +180,8 @@ export function CreateTaskModal({
       const formData = new FormData();
       formData.set('description', description.trim());
       formData.set('taskType', taskType);
-      formData.set('startDate', startDate);
-      formData.set('dueDate', dueDate);
+      formData.set('startDate', startDate ? startDate.toISOString().split('T')[0] : '');
+      formData.set('dueDate', dueDate ? dueDate.toISOString().split('T')[0] : '');
       formData.set('costValue', costValue || '0');
       formData.set('costUnit', costUnit);
       formData.set('isComposite', 'false');
@@ -189,48 +208,30 @@ export function CreateTaskModal({
     }
   }
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-green-700 transition-colors cursor-pointer"
-      >
-        <Plus className="h-4 w-4" />
-        Agregar tarea
-      </button>
-    );
-  }
-
   return (
-    <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setOpen(false); resetForm(); }} />
+    <Dialog open={open} onOpenChange={(isOpen) => { 
+      setOpen(isOpen); 
+      if (!isOpen) resetForm(); 
+    }}>
+      <DialogTrigger asChild>
+        <Button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-green-600 text-sm font-medium text-white shadow-sm hover:bg-green-700 transition-colors cursor-pointer">
+          <Plus className="h-4 w-4" />
+          Agregar tarea
+        </Button>
+      </DialogTrigger>
+      
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Crear tarea</DialogTitle>
+          <DialogDescription>
+            {step === 1 ? 'Datos de la tarea' : step === 2 ? 'Seleccionar lotes' : 'Asignar recursos'}
+          </DialogDescription>
+        </DialogHeader>
 
-      {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div
-          className="relative w-full max-w-xl rounded-2xl bg-white shadow-xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Close button */}
-          <button
-            onClick={() => { setOpen(false); resetForm(); }}
-            className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-
-          <div className="p-6">
-            {/* Header */}
-            <h2 className="text-lg font-semibold text-gray-900">Crear tarea</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {step === 1 ? 'Datos de la tarea' : step === 2 ? 'Seleccionar lotes' : 'Asignar recursos'}
-            </p>
-
-            {/* Stepper */}
-            <div className="mt-4 mb-6">
-              <Stepper current={step} total={3} />
-            </div>
+        {/* Stepper */}
+        <div className="mt-2 mb-4">
+          <Stepper current={step} total={3} />
+        </div>
 
             {error && (
               <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -259,20 +260,36 @@ export function CreateTaskModal({
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Tipo de tarea <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      value={taskType}
-                      onChange={(e) => setTaskType(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-shadow"
-                    >
-                      <option value="">Seleccionar tipo</option>
-                      {taskTypes.map((tt) => (
-                        <option key={tt.id} value={tt.name}>{tt.name}</option>
-                      ))}
-                    </select>
-                    {taskTypes.length === 0 && (
-                      <p className="mt-1 text-xs text-amber-600">
-                        No hay tipos creados. Crealos desde la configuración del campo.
-                      </p>
+                    {taskTypes.length === 0 ? (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                        <p className="text-xs text-amber-800 mb-2">
+                          No hay tipos de tarea creados.
+                        </p>
+                        <Link href="/dashboard/configuracion" onClick={() => setOpen(false)}>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-xs h-8"
+                          >
+                            <Settings className="h-3 w-3 mr-1" />
+                            Ir a Configuración
+                          </Button>
+                        </Link>
+                      </div>
+                    ) : (
+                      <Select value={taskType} onValueChange={setTaskType}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Seleccionar tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {taskTypes.map((tt) => (
+                            <SelectItem key={tt.id} value={tt.name}>
+                              {tt.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
                   </div>
                 </div>
@@ -282,22 +299,22 @@ export function CreateTaskModal({
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Fecha inicio <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="date"
+                    <DatePicker
                       value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-shadow"
+                      onChange={setStartDate}
+                      placeholder="Seleccione una fecha"
+                      className="w-full h-auto text-sm rounded-lg border-gray-300 px-3 py-2.5 shadow-none hover:bg-white"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Fecha límite <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="date"
+                    <DatePicker
                       value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-shadow"
+                      onChange={setDueDate}
+                      placeholder="Seleccione una fecha"
+                      className="w-full h-auto text-sm rounded-lg border-gray-300 px-3 py-2.5 shadow-none hover:bg-white"
                     />
                   </div>
                 </div>
@@ -321,16 +338,17 @@ export function CreateTaskModal({
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Unidad costo
                     </label>
-                    <select
-                      value={costUnit}
-                      onChange={(e) => setCostUnit(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-shadow"
-                    >
-                      <option value="Fijo">Fijo</option>
-                      <option value="por hectárea">Por hectárea</option>
-                      <option value="por hora">Por hora</option>
-                      <option value="por jornal">Por jornal</option>
-                    </select>
+                    <Select value={costUnit} onValueChange={setCostUnit}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Fijo">Fijo</SelectItem>
+                        <SelectItem value="por hectárea">Por hectárea</SelectItem>
+                        <SelectItem value="por hora">Por hora</SelectItem>
+                        <SelectItem value="por jornal">Por jornal</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -559,39 +577,37 @@ export function CreateTaskModal({
               </div>
             )}
 
-            {/* Footer */}
-            <div className="mt-6 flex items-center justify-end gap-3">
-              <button
-                onClick={() => {
-                  if (step === 1) { setOpen(false); resetForm(); }
-                  else setStep((s) => s - 1);
-                }}
-                className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                {step === 1 ? 'Cancelar' : 'Atrás'}
-              </button>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (step === 1) { setOpen(false); resetForm(); }
+              else setStep((s) => s - 1);
+            }}
+            className="cursor-pointer"
+          >
+            {step === 1 ? 'Cancelar' : 'Atrás'}
+          </Button>
 
-              {step < 3 ? (
-                <button
-                  onClick={() => setStep((s) => s + 1)}
-                  disabled={!canGoNext()}
-                  className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Siguiente
-                </button>
-              ) : (
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitting}
-                  className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {submitting ? 'Creando...' : 'Crear tarea'}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+          {step < 3 ? (
+            <Button
+              onClick={() => setStep((s) => s + 1)}
+              disabled={!canGoNext()}
+              className="bg-green-600 hover:bg-green-700 disabled:cursor-not-allowed cursor-pointer"
+            >
+              Siguiente
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {submitting ? 'Creando...' : 'Crear tarea'}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
