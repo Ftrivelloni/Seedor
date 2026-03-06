@@ -11,7 +11,10 @@ UPDATE "Tenant"
 SET "subscriptionStatus" = 'PAST_DUE' 
 WHERE "subscriptionStatus" IN ('CANCELED', 'UNPAID');
 
--- Step 2: Drop and recreate the enum with only ACTIVE and PAST_DUE
+-- Step 2: Drop default BEFORE changing the type (required for cast)
+ALTER TABLE "Tenant" ALTER COLUMN "subscriptionStatus" DROP DEFAULT;
+
+-- Step 3: Drop and recreate the enum with only ACTIVE and PAST_DUE
 ALTER TYPE "SubscriptionStatus" RENAME TO "SubscriptionStatus_old";
 
 CREATE TYPE "SubscriptionStatus" AS ENUM ('ACTIVE', 'PAST_DUE');
@@ -22,6 +25,6 @@ ALTER TABLE "Tenant"
 
 DROP TYPE "SubscriptionStatus_old";
 
--- Step 3: Update default value from INACTIVE to ACTIVE
+-- Step 4: Set new default
 ALTER TABLE "Tenant" 
-  ALTER COLUMN "subscriptionStatus" SET DEFAULT 'ACTIVE';
+  ALTER COLUMN "subscriptionStatus" SET DEFAULT 'ACTIVE'::"SubscriptionStatus";
