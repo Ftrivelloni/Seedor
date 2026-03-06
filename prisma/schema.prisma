@@ -17,7 +17,7 @@ model Tenant {
   cancelAtPeriodEnd         Boolean                    @default(false)
   currentPeriodEnd          DateTime?
   planInterval              PlanInterval               @default(MONTHLY)
-  subscriptionStatus        SubscriptionStatus         @default(INACTIVE)
+  subscriptionStatus        SubscriptionStatus         @default(ACTIVE)
   cuit                      String?
   companyAddress            String?
   companyPhone              String?
@@ -844,12 +844,8 @@ enum ExtraordinaryItemStatus {
 }
 
 enum SubscriptionStatus {
-  INACTIVE
-  TRIALING
   ACTIVE
   PAST_DUE
-  CANCELED
-  UNPAID
 }
 
 enum PlanInterval {

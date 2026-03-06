@@ -66,12 +66,8 @@ interface SuscripcionSectionProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; badgeClass: string }> = {
-  INACTIVE: { label: 'Inactiva', icon: XCircle, badgeClass: 'bg-gray-100 text-gray-800 border-gray-200' },
-  TRIALING: { label: 'Período de prueba', icon: Info, badgeClass: 'bg-blue-100 text-blue-800 border-blue-200' },
   ACTIVE: { label: 'Activa', icon: CheckCircle2, badgeClass: 'bg-green-100 text-green-800 border-green-200' },
   PAST_DUE: { label: 'Pago pendiente', icon: AlertTriangle, badgeClass: 'bg-amber-100 text-amber-800 border-amber-200' },
-  CANCELED: { label: 'Cancelada', icon: XCircle, badgeClass: 'bg-red-100 text-red-800 border-red-200' },
-  UNPAID: { label: 'Impaga', icon: XCircle, badgeClass: 'bg-red-100 text-red-800 border-red-200' },
 };
 
 export function SuscripcionSection({ tenant, pricing, moduleSettings }: SuscripcionSectionProps) {

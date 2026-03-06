@@ -36,7 +36,7 @@ export function EliminarCuentaSection({ tenant }: EliminarCuentaSectionProps) {
   const isConfirmValid = confirmText.trim().toLowerCase() === tenant.name.trim().toLowerCase();
   const canDelete = isConfirmValid && accepted && !isDeleting;
 
-  const hasActiveSubscription = ['ACTIVE', 'TRIALING', 'PAST_DUE'].includes(tenant.subscriptionStatus);
+  const hasActiveSubscription = ['ACTIVE', 'PAST_DUE'].includes(tenant.subscriptionStatus);
 
   function handleClose() {
     setIsOpen(false);

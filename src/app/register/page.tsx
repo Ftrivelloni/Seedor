@@ -146,6 +146,18 @@ export default function RegisterPage() {
               className={`transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: '250ms' }}
             >
+              {/* Email Matching Warning */}
+              <div className="mb-3 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 px-4 py-3">
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-sm text-amber-900/90 leading-relaxed">
+                    <strong className="font-semibold">Atención:</strong> Por seguridad y sincronización de facturación, el email de registro debe coincidir con el email de tu cuenta de Mercado Pago.
+                  </p>
+                </div>
+              </div>
+              
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <svg className="w-5 h-5 text-[#0A0908]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
