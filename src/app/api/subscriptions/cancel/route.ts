@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Tenant no encontrado.' }, { status: 404 });
   }
 
-  if (tenant.subscriptionStatus !== 'ACTIVE' && tenant.subscriptionStatus !== 'TRIALING') {
+  if (tenant.subscriptionStatus !== 'ACTIVE' && tenant.subscriptionStatus !== 'PAST_DUE') {
     return NextResponse.json(
       { error: 'No hay una suscripción activa para cancelar.' },
       { status: 409 }

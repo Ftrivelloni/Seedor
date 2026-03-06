@@ -281,8 +281,8 @@ export async function getChangePaymentMethodUrlAction(): Promise<{
     return { success: false, error: 'No se encontró una suscripción activa en Mercado Pago.' };
   }
 
-  // Allow payment method changes for active or trialing subscriptions
-  const ALLOWED_STATUSES = new Set(['ACTIVE', 'TRIALING', 'PAST_DUE']);
+  // Allow payment method changes for active or past due subscriptions
+  const ALLOWED_STATUSES = new Set(['ACTIVE', 'PAST_DUE']);
   if (!ALLOWED_STATUSES.has(tenant.subscriptionStatus)) {
     return { success: false, error: 'La suscripción no está activa.' };
   }
@@ -347,7 +347,7 @@ export async function deleteTenantAccountAction(
   }
 
   // ── 2. Cancel MP subscription if active (BLOCKING) ──
-  const ACTIVE_STATUSES = new Set(['ACTIVE', 'TRIALING', 'PAST_DUE']);
+  const ACTIVE_STATUSES = new Set(['ACTIVE', 'PAST_DUE']);
 
   if (tenant.mpPreapprovalId && ACTIVE_STATUSES.has(tenant.subscriptionStatus)) {
     try {
