@@ -10,10 +10,10 @@ Phase 0 improvements:
   - Dead-letter queue for failed events
 
 Usage:
-    python sync_service.py              # one-shot sync
-    python sync_service.py --daemon     # periodic sync every 60s
-    python sync_service.py --push       # push pending updates only
-    python sync_service.py --dlq        # show dead-letter queue stats
+    python sync_service.py --tenant <id>              # one-shot sync
+    python sync_service.py --tenant <id> --daemon     # periodic sync every 60s
+    python sync_service.py --push                     # push pending updates only
+    python sync_service.py --dlq                      # show dead-letter queue stats
 """
 
 import json
@@ -55,8 +55,20 @@ UPDATES_PATH = DATA_DIR / "updates_queue.json"
 DLQ_PATH = DATA_DIR / "dead_letter.json"
 
 API_URL = os.environ.get("SEEDOR_API_URL", "http://localhost:3000")
-API_KEY = os.environ.get("SEEDOR_API_KEY", "")
-TENANT_ID = os.environ.get("SEEDOR_TENANT_ID", "")
+
+
+def _resolve_api_key() -> tuple[str, str]:
+    """Resolve API key from supported env vars, in priority order."""
+    for env_name in ("SEEDOR_API_KEY", "TELEGRAM_SYNC_API_KEY"):
+        value = os.environ.get(env_name, "").strip()
+        if value:
+            return value, env_name
+    return "", ""
+
+
+API_KEY, API_KEY_SOURCE = _resolve_api_key()
+# SEEDOR_TENANT_ID removed — sync_service now works with tenant IDs from active sessions
+# For manual CLI usage, pass --tenant <id>
 
 # ─── Dead-letter queue ────────────────────────────────────
 dlq = DeadLetterQueue(DLQ_PATH)
@@ -93,9 +105,11 @@ def _api_request(method: str, path: str, body: Optional[dict] = None) -> dict:
         raise
 
 
-def fetch_snapshot() -> dict:
-    """Fetch the snapshot from the Seedor API."""
-    return _api_request("GET", f"/api/telegram/snapshot?tenantId={TENANT_ID}")
+def fetch_snapshot(tenant_id: str = "") -> dict:
+    """Fetch the snapshot from the Seedor API for a specific tenant."""
+    if not tenant_id:
+        raise ValueError("tenant_id is required — pass --tenant <id> or provide it programmatically")
+    return _api_request("GET", f"/api/telegram/snapshot?tenantId={tenant_id}")
 
 
 def write_snapshot(snapshot: dict) -> None:
@@ -113,13 +127,19 @@ def write_snapshot(snapshot: dict) -> None:
         raise
 
 
-def sync_once() -> None:
+def sync_once(tenant_id: str = "") -> None:
     """Run a single sync cycle: fetch snapshot from API and write to file."""
-    if not API_KEY or not TENANT_ID:
-        log.critical("Required env vars not set: check SEEDOR_API_KEY and SEEDOR_TENANT_ID")
+    if not API_KEY:
+        log.critical(
+            "Required API key env var not set",
+            expected_envs="SEEDOR_API_KEY or TELEGRAM_SYNC_API_KEY",
+        )
+        raise SystemExit(1)
+    if not tenant_id:
+        log.critical("tenant_id required — pass --tenant <id>")
         raise SystemExit(1)
 
-    snapshot = fetch_snapshot()
+    snapshot = fetch_snapshot(tenant_id)
     write_snapshot(snapshot)
 
     w = len(snapshot.get("workers", []))
@@ -222,22 +242,27 @@ def show_dlq_stats() -> None:
             log.info(f"... and {size - 5} more events")
 
 
-def run_daemon() -> None:
+def run_daemon(tenant_id: str = "") -> None:
     """Run sync_once every 60 seconds using schedule."""
     import schedule
     import time
+
+    if not tenant_id:
+        log.critical("tenant_id required — pass --tenant <id>")
+        raise SystemExit(1)
 
     SYNC_INTERVAL = int(os.environ.get("SEEDOR_SYNC_INTERVAL_SECONDS", "60"))
     PUSH_INTERVAL = int(os.environ.get("SEEDOR_PUSH_INTERVAL_MINUTES", "5"))
 
     log.info(
         "Daemon starting",
+        tenant_id=tenant_id,
         sync_interval_seconds=SYNC_INTERVAL,
         push_interval_minutes=PUSH_INTERVAL,
     )
 
-    sync_once()
-    schedule.every(SYNC_INTERVAL).seconds.do(_safe_sync)
+    sync_once(tenant_id)
+    schedule.every(SYNC_INTERVAL).seconds.do(lambda: _safe_sync(tenant_id))
     schedule.every(PUSH_INTERVAL).minutes.do(_safe_push)
 
     try:
@@ -248,10 +273,10 @@ def run_daemon() -> None:
         log.info("Daemon stopped by user")
 
 
-def _safe_sync() -> None:
+def _safe_sync(tenant_id: str = "") -> None:
     """Wrapper for sync_once that catches and logs errors."""
     try:
-        sync_once()
+        sync_once(tenant_id)
     except Exception as e:
         log.error("Sync cycle failed", error=str(e))
 
@@ -265,12 +290,21 @@ def _safe_push() -> None:
 
 
 # ─── CLI ───────────────────────────────────────────────────
+def _get_cli_tenant_id() -> str:
+    """Extract --tenant <id> from CLI args."""
+    if "--tenant" in sys.argv:
+        idx = sys.argv.index("--tenant")
+        if idx + 1 < len(sys.argv):
+            return sys.argv[idx + 1]
+    return ""
+
+
 if __name__ == "__main__":
     if "--dlq" in sys.argv:
         show_dlq_stats()
     elif "--push" in sys.argv:
         push_updates()
     elif "--daemon" in sys.argv:
-        run_daemon()
+        run_daemon(_get_cli_tenant_id())
     else:
-        sync_once()
+        sync_once(_get_cli_tenant_id())

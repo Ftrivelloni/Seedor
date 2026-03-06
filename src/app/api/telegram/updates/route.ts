@@ -1,29 +1,28 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
+import {
+    isTelegramAuthorizedRequest,
+    unauthorizedTelegramResponse,
+} from '@/lib/telegram-auth';
 
 interface TelegramEvent {
-    type: 'TASK_COMPLETED' | 'ATTENDANCE';
+    type: 'TASK_COMPLETED';
     worker_id: string;
     task_id?: string;
     timestamp: string;
-    latitude?: number;
-    longitude?: number;
 }
 
 /**
  * POST /api/telegram/updates
  *
- * Receives events from the Telegram bot (task completions, attendance)
+ * Receives events from the Telegram bot (task completions)
  * and applies them to the database. Protected by API key.
  */
 export async function POST(request: Request) {
     // ── Auth ──
-    const authHeader = request.headers.get('authorization');
-    const expectedKey = process.env.TELEGRAM_SYNC_API_KEY;
-
-    if (!expectedKey || authHeader !== `Bearer ${expectedKey}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!isTelegramAuthorizedRequest(request)) {
+        return unauthorizedTelegramResponse();
     }
 
     try {
@@ -42,6 +41,17 @@ export async function POST(request: Request) {
 
         for (const event of events) {
             try {
+                // A.1: explicitly reject unsupported event types
+                if (event.type !== 'TASK_COMPLETED') {
+                    errors.push(
+                        `Unsupported event type: "${event.type}" — only TASK_COMPLETED is supported`
+                    );
+                    console.warn(
+                        `[Telegram Updates API] Unsupported event type: "${event.type}"`
+                    );
+                    continue;
+                }
+
                 if (event.type === 'TASK_COMPLETED' && event.task_id) {
                     // Sanitize IDs: must be non-empty strings within reasonable length
                     if (
@@ -112,23 +122,38 @@ export async function POST(request: Request) {
                         continue;
                     }
 
-                    await prisma.$transaction([
-                        prisma.task.update({
-                            where: { id: event.task_id },
-                            data: {
-                                status: 'COMPLETED',
-                                completedAt,
-                            },
-                        }),
-                        prisma.taskCompletionLog.create({
-                            data: {
-                                taskId: event.task_id,
-                                workerId: event.worker_id,
-                                source: 'telegram',
-                                completedAt,
-                            },
-                        }),
-                    ]);
+                    // Idempotent write: catch P2002 (unique constraint) as success
+                    try {
+                        await prisma.$transaction([
+                            prisma.task.update({
+                                where: { id: event.task_id },
+                                data: {
+                                    status: 'COMPLETED',
+                                    completedAt,
+                                },
+                            }),
+                            prisma.taskCompletionLog.create({
+                                data: {
+                                    taskId: event.task_id,
+                                    workerId: event.worker_id,
+                                    source: 'telegram',
+                                    completedAt,
+                                },
+                            }),
+                        ]);
+                    } catch (txError: unknown) {
+                        if (
+                            txError &&
+                            typeof txError === 'object' &&
+                            'code' in txError &&
+                            (txError as { code: string }).code === 'P2002'
+                        ) {
+                            // Duplicate completion — treat as already completed
+                            processed++;
+                            continue;
+                        }
+                        throw txError;
+                    }
 
                     revalidatePath('/dashboard');
                     revalidatePath('/dashboard/campo');
@@ -142,15 +167,6 @@ export async function POST(request: Request) {
                         revalidatePath(path);
                     }
 
-                    processed++;
-                } else if (event.type === 'ATTENDANCE') {
-                    // Log attendance — for now we just log it.
-                    // In the future this could write to an Attendance model.
-                    console.log(
-                        `[Telegram] Attendance: worker=${event.worker_id} ` +
-                        `lat=${event.latitude} lon=${event.longitude} ` +
-                        `at=${event.timestamp}`
-                    );
                     processed++;
                 }
             } catch (eventError) {
