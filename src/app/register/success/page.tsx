@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
+export const dynamic = 'force-dynamic';
+
 interface RegistrationSuccess {
     companyName: string;
     selectedModules: string[];

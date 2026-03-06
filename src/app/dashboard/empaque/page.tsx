@@ -1,8 +1,11 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { requireModuleEnabled } from '@/lib/auth/module-access';
 import { EmpaqueDashboardClient } from './EmpaqueDashboardClient';
 import type { EmpaqueDashboardData, SerializedChamber } from './types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function EmpaquePage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
@@ -202,5 +205,9 @@ export default async function EmpaquePage() {
       : null,
   };
 
-  return <EmpaqueDashboardClient data={data} />;
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <EmpaqueDashboardClient data={data} />
+    </Suspense>
+  );
 }

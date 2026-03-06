@@ -1,7 +1,10 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { PalletsPageClient } from './PalletsPageClient';
 import type { SerializedBox, SerializedPallet, ConfigOption } from '../types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function PalletsPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
@@ -67,10 +70,12 @@ export default async function PalletsPage() {
   const destinationOptions: ConfigOption[] = destinations.map((d) => ({ id: d.id, name: d.name }));
 
   return (
-    <PalletsPageClient
-      availableBoxes={availableBoxes}
-      pallets={pallets}
-      destinationOptions={destinationOptions}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <PalletsPageClient
+        availableBoxes={availableBoxes}
+        pallets={pallets}
+        destinationOptions={destinationOptions}
+      />
+    </Suspense>
   );
 }

@@ -1,7 +1,10 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { WorkersPageClient } from './WorkersPageClient';
 import type { SerializedWorker } from './types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function TrabajadoresPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
@@ -58,5 +61,9 @@ export default async function TrabajadoresPage() {
     };
   });
 
-  return <WorkersPageClient workers={serializedWorkers} />;
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <WorkersPageClient workers={serializedWorkers} />
+    </Suspense>
+  );
 }

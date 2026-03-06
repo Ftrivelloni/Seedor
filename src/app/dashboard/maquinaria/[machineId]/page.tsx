@@ -1,9 +1,12 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { MachineDetailClient } from './MachineDetailClient';
 import { computeServiceStatus } from '../types';
 import type { SerializedMachine, SerializedMachineMovement } from '../types';
+
+export const dynamic = 'force-dynamic';
 
 interface MachineDetailPageProps {
   params: Promise<{ machineId: string }>;
@@ -143,12 +146,14 @@ export default async function MachineDetailPage({ params }: MachineDetailPagePro
   }));
 
   return (
-    <MachineDetailClient
-      machine={serializedMachine}
-      movements={serializedMovements}
-      workers={serializedWorkers}
-      warehouses={serializedWarehouses}
-      inventoryItems={serializedItems}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <MachineDetailClient
+        machine={serializedMachine}
+        movements={serializedMovements}
+        workers={serializedWorkers}
+        warehouses={serializedWarehouses}
+        inventoryItems={serializedItems}
+      />
+    </Suspense>
   );
 }

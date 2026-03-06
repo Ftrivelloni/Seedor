@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import NProgress from 'nprogress';
 
+export const dynamic = 'force-dynamic';
+
 NProgress.configure({ showSpinner: false });
 
 export function NProgressHandler() {

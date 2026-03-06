@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
@@ -12,6 +13,8 @@ import type {
   SerializedWarehouse,
   SerializedTaskType,
 } from '../../types';
+
+export const dynamic = 'force-dynamic';
 
 interface LotPageProps {
   params: Promise<{ fieldId: string; lotId: string }>;
@@ -259,16 +262,18 @@ export default async function LotPage({ params }: LotPageProps) {
   }));
 
   return (
-    <LotDetailClient
-      field={serializedField}
-      allFields={serializedAllFields}
-      lot={serializedLot}
-      tasks={serializedTasks}
-      harvests={serializedHarvests}
-      workers={serializedWorkers}
-      inventoryItems={serializedItems}
-      warehouses={serializedWarehouses}
-      taskTypes={serializedTaskTypes}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <LotDetailClient
+        field={serializedField}
+        allFields={serializedAllFields}
+        lot={serializedLot}
+        tasks={serializedTasks}
+        harvests={serializedHarvests}
+        workers={serializedWorkers}
+        inventoryItems={serializedItems}
+        warehouses={serializedWarehouses}
+        taskTypes={serializedTaskTypes}
+      />
+    </Suspense>
   );
 }

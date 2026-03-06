@@ -1,7 +1,10 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { ProcesoPageClient } from './ProcesoPageClient';
 import type { SerializedProcessSession, SerializedBin, SerializedBox, ConfigOption, FieldLotOption } from '../types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function ProcesoPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
@@ -156,13 +159,15 @@ export default async function ProcesoPage() {
   );
 
   return (
-    <ProcesoPageClient
-      activeSession={activeSession}
-      history={history}
-      availableBins={availableBins}
-      fruitOptions={fruitOptions}
-      destinationOptions={destinationOptions}
-      fieldLotOptions={fieldLotOptions}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <ProcesoPageClient
+        activeSession={activeSession}
+        history={history}
+        availableBins={availableBins}
+        fruitOptions={fruitOptions}
+        destinationOptions={destinationOptions}
+        fieldLotOptions={fieldLotOptions}
+      />
+    </Suspense>
   );
 }

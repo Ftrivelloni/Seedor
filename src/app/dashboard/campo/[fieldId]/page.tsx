@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
@@ -10,6 +11,8 @@ import type {
   SerializedInventoryItem,
   SerializedWarehouse,
 } from '../types';
+
+export const dynamic = 'force-dynamic';
 
 interface FieldPageProps {
   params: Promise<{ fieldId: string }>;
@@ -190,14 +193,16 @@ export default async function FieldPage({ params }: FieldPageProps) {
   }));
 
   return (
-    <FieldDetailClient
-      field={serializedField}
-      taskTypes={serializedTaskTypes}
-      cropTypes={serializedCropTypes}
-      allFields={serializedAllFields}
-      workers={serializedWorkers}
-      inventoryItems={serializedItems}
-      warehouses={serializedWarehouses}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <FieldDetailClient
+        field={serializedField}
+        taskTypes={serializedTaskTypes}
+        cropTypes={serializedCropTypes}
+        allFields={serializedAllFields}
+        workers={serializedWorkers}
+        inventoryItems={serializedItems}
+        warehouses={serializedWarehouses}
+      />
+    </Suspense>
   );
 }

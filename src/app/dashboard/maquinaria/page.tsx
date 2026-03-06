@@ -1,9 +1,12 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireAuthSession } from '@/lib/auth/auth';
 import { requireModuleEnabled } from '@/lib/auth/module-access';
 import { MaquinariaPageClient } from './MaquinariaPageClient';
 import { computeServiceStatus } from './types';
 import type { SerializedMachine } from './types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function MaquinariaPage() {
   const session = await requireAuthSession();
@@ -62,5 +65,9 @@ export default async function MaquinariaPage() {
     };
   });
 
-  return <MaquinariaPageClient machines={serializedMachines} />;
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <MaquinariaPageClient machines={serializedMachines} />
+    </Suspense>
+  );
 }

@@ -7,6 +7,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import NProgress from 'nprogress';
 
+export const dynamic = 'force-dynamic';
+
 function AcceptInvitationForm() {
   const router = useRouter();
   const searchParams = useSearchParams();

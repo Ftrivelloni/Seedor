@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { InviteUserModal } from './InviteUserModal';
@@ -13,6 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/dashboard/ui/select';
+
+export const dynamic = 'force-dynamic';
 
 export default async function UsuariosPage({
   searchParams,

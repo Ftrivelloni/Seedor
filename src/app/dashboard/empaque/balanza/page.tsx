@@ -1,7 +1,10 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { BalanzaPageClient } from './BalanzaPageClient';
 import type { SerializedTruckEntry, SerializedBin } from '../types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function BalanzaPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
@@ -145,11 +148,13 @@ export default async function BalanzaPage() {
   }));
 
   return (
-    <BalanzaPageClient
-      entries={serializedEntries}
-      yardBins={serializedYardBins}
-      fields={fields}
-      transports={transports}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <BalanzaPageClient
+        entries={serializedEntries}
+        yardBins={serializedYardBins}
+        fields={fields}
+        transports={transports}
+      />
+    </Suspense>
   );
 }

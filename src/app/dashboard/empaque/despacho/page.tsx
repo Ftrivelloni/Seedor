@@ -1,7 +1,10 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { DespachoPageClient } from './DespachoPageClient';
 import type { SerializedDispatch, SerializedPallet, ConfigOption } from '../types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function DespachoPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
@@ -95,10 +98,12 @@ export default async function DespachoPage() {
   const clientOptions: ConfigOption[] = dispatchClients.map((c) => ({ id: c.id, name: c.name }));
 
   return (
-    <DespachoPageClient
-      dispatches={dispatches}
-      availablePallets={availablePallets}
-      clientOptions={clientOptions}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <DespachoPageClient
+        dispatches={dispatches}
+        availablePallets={availablePallets}
+        clientOptions={clientOptions}
+      />
+    </Suspense>
   );
 }
