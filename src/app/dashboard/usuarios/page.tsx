@@ -119,10 +119,10 @@ export default async function UsuariosPage({
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-gray-700">Filtrado por rol</label>
             <Select name="role" defaultValue={params.role || 'ALL'}>
-              <SelectTrigger className="w-full sm:w-[160px] bg-white! border-gray-300 cursor-pointer">
+              <SelectTrigger className="w-full sm:w-40 bg-white! border-gray-300 cursor-pointer">
                 <SelectValue placeholder="Todos los roles" />
               </SelectTrigger>
-              <SelectContent position="popper" sideOffset={5} className="w-[var(--radix-select-trigger-width)] bg-white! border-gray-300">
+              <SelectContent position="popper" sideOffset={5} className="w-(--radix-select-trigger-width) bg-white! border-gray-300">
                 <SelectItem value="ALL">Todos los roles</SelectItem>
                 <SelectItem value="ADMIN">Administrador</SelectItem>
                 <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
@@ -133,10 +133,10 @@ export default async function UsuariosPage({
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-gray-700">Filtrado por estado</label>
             <Select name="status" defaultValue={params.status || 'ALL'}>
-              <SelectTrigger className="w-full sm:w-[140px] bg-white! border-gray-300 cursor-pointer">
+              <SelectTrigger className="w-full sm:w-35 bg-white! border-gray-300 cursor-pointer">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
-              <SelectContent position="popper" sideOffset={5} className="w-[var(--radix-select-trigger-width)] bg-white! border-gray-300">
+              <SelectContent position="popper" sideOffset={5} className="w-(--radix-select-trigger-width) bg-white! border-gray-300">
                 <SelectItem value="ALL">Todos</SelectItem>
                 <SelectItem value="ACTIVE">Activo</SelectItem>
                 <SelectItem value="INACTIVE">Inactivo</SelectItem>
