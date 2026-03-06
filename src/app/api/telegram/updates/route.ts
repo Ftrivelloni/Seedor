@@ -122,23 +122,38 @@ export async function POST(request: Request) {
                         continue;
                     }
 
-                    await prisma.$transaction([
-                        prisma.task.update({
-                            where: { id: event.task_id },
-                            data: {
-                                status: 'COMPLETED',
-                                completedAt,
-                            },
-                        }),
-                        prisma.taskCompletionLog.create({
-                            data: {
-                                taskId: event.task_id,
-                                workerId: event.worker_id,
-                                source: 'telegram',
-                                completedAt,
-                            },
-                        }),
-                    ]);
+                    // Idempotent write: catch P2002 (unique constraint) as success
+                    try {
+                        await prisma.$transaction([
+                            prisma.task.update({
+                                where: { id: event.task_id },
+                                data: {
+                                    status: 'COMPLETED',
+                                    completedAt,
+                                },
+                            }),
+                            prisma.taskCompletionLog.create({
+                                data: {
+                                    taskId: event.task_id,
+                                    workerId: event.worker_id,
+                                    source: 'telegram',
+                                    completedAt,
+                                },
+                            }),
+                        ]);
+                    } catch (txError: unknown) {
+                        if (
+                            txError &&
+                            typeof txError === 'object' &&
+                            'code' in txError &&
+                            (txError as { code: string }).code === 'P2002'
+                        ) {
+                            // Duplicate completion — treat as already completed
+                            processed++;
+                            continue;
+                        }
+                        throw txError;
+                    }
 
                     revalidatePath('/dashboard');
                     revalidatePath('/dashboard/campo');

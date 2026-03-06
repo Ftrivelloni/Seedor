@@ -10,10 +10,10 @@ Phase 0 improvements:
   - Dead-letter queue for failed events
 
 Usage:
-    python sync_service.py              # one-shot sync
-    python sync_service.py --daemon     # periodic sync every 60s
-    python sync_service.py --push       # push pending updates only
-    python sync_service.py --dlq        # show dead-letter queue stats
+    python sync_service.py --tenant <id>              # one-shot sync
+    python sync_service.py --tenant <id> --daemon     # periodic sync every 60s
+    python sync_service.py --push                     # push pending updates only
+    python sync_service.py --dlq                      # show dead-letter queue stats
 """
 
 import json

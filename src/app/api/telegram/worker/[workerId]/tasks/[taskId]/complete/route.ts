@@ -10,7 +10,7 @@ import {
  * POST /api/telegram/worker/:workerId/tasks/:taskId/complete
  *
  * Granular endpoint to mark a single task as completed by a specific worker.
- * Protected by API key (TELEGRAM_SYNC_API_KEY).
+ * Protected by Telegram API key via isTelegramAuthorizedRequest().
  *
  * Body (optional):
  *   { "timestamp": "ISO8601", "source": "telegram" }
@@ -139,24 +139,42 @@ export async function POST(
             );
         }
 
-        // Complete the task in a transaction
-        await prisma.$transaction([
-            prisma.task.update({
-                where: { id: taskId },
-                data: {
-                    status: 'COMPLETED',
-                    completedAt,
-                },
-            }),
-            prisma.taskCompletionLog.create({
-                data: {
-                    taskId,
-                    workerId,
-                    source,
-                    completedAt,
-                },
-            }),
-        ]);
+        // Complete the task in a transaction (idempotent: catch P2002 unique constraint)
+        try {
+            await prisma.$transaction([
+                prisma.task.update({
+                    where: { id: taskId },
+                    data: {
+                        status: 'COMPLETED',
+                        completedAt,
+                    },
+                }),
+                prisma.taskCompletionLog.create({
+                    data: {
+                        taskId,
+                        workerId,
+                        source,
+                        completedAt,
+                    },
+                }),
+            ]);
+        } catch (txError: unknown) {
+            // P2002 = unique constraint violation (duplicate completion)
+            // Treat as success — task was already completed by this worker
+            if (
+                txError &&
+                typeof txError === 'object' &&
+                'code' in txError &&
+                (txError as { code: string }).code === 'P2002'
+            ) {
+                return NextResponse.json({
+                    ok: true,
+                    already_completed: true,
+                    completed_at: completedAt.toISOString(),
+                });
+            }
+            throw txError;
+        }
 
         // Revalidate cache
         revalidatePath('/dashboard');

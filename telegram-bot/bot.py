@@ -128,7 +128,7 @@ def _load_snapshot(tenant_id: str = "") -> dict:
     """Load and return the snapshot for the given tenant.
 
     A.3: No fallback to global snapshot — only per-tenant snapshots are used.
-    Falls back to other known tenant snapshots if specified tenant file is missing.
+    Raises FileNotFoundError if the tenant snapshot file is missing.
     """
     if not tenant_id:
         raise FileNotFoundError("tenant_id is required — no global snapshot fallback")
