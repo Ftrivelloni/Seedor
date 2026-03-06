@@ -15,6 +15,7 @@ import { Button } from '@/components/dashboard/ui/button';
 import { Input } from '@/components/dashboard/ui/input';
 import { Label } from '@/components/dashboard/ui/label';
 import { Warehouse } from 'lucide-react';
+import { toast } from 'sonner';
 import { createWarehouseAction } from './actions';
 
 function SubmitButton() {
@@ -30,14 +31,19 @@ export function CreateWarehouseModal() {
   const [open, setOpen] = useState(false);
 
   async function handleSubmit(formData: FormData) {
-    await createWarehouseAction(formData);
-    setOpen(false);
+    try {
+      await createWarehouseAction(formData);
+      setOpen(false);
+      toast.success('Depósito creado exitosamente');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al crear el depósito');
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-green-600 hover:bg-green-700 gap-2">
+        <Button className="bg-green-600 hover:bg-green-700 gap-2 cursor-pointer">
           <Warehouse className="h-4 w-4" />
           Nuevo depósito
         </Button>

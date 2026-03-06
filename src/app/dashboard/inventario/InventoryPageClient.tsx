@@ -12,7 +12,6 @@ import {
   ChevronUp,
   Check,
 } from 'lucide-react';
-import { useIsMobile } from '@/hooks';
 import { Badge } from '@/components/dashboard/ui/badge';
 import { Button } from '@/components/dashboard/ui/button';
 import { Input } from '@/components/dashboard/ui/input';
@@ -79,7 +78,6 @@ export function InventoryPageClient({
   extraordinaryRequests,
   alerts,
 }: InventoryPageClientProps) {
-  const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
 
   const lowStockCount = alerts.filter((a) => a.level === 'BAJO').length;
@@ -88,16 +86,16 @@ export function InventoryPageClient({
   const pendingExtraordinary = extraordinaryRequests.filter((r) => r.status === 'PENDING').length;
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-6">
       {/* ── Header ── */}
-      <header className="space-y-3">
+      <header className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl md:text-2xl font-semibold text-gray-900">Inventario</h1>
-          <p className="text-xs md:text-sm text-gray-600">
+          <h1 className="text-2xl font-semibold text-gray-900">Inventario</h1>
+          <p className="text-sm text-gray-600">
             Depósitos, insumos, movimientos, alertas de stock y pedidos extraordinarios.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-3">
           <RegisterMovementModal warehouses={warehouses} items={items} />
           <CreateItemModal />
           <CreateWarehouseModal />
@@ -141,22 +139,21 @@ export function InventoryPageClient({
 
       {/* ── Tabs ── */}
       <Tabs defaultValue="depositos" className="w-full">
-        {/* Desktop: todo en una fila */}
-        <div className="hidden sm:flex items-center justify-between gap-4">
-          <TabsList>
-            <TabsTrigger value="depositos" className="gap-1.5">
+        <div className="flex items-center justify-between gap-4">
+          <TabsList className="!bg-white border border-gray-200">
+            <TabsTrigger value="depositos" className="gap-1.5 cursor-pointer">
               <WarehouseIcon className="h-4 w-4" />
               Depósitos
             </TabsTrigger>
-            <TabsTrigger value="insumos" className="gap-1.5">
+            <TabsTrigger value="insumos" className="gap-1.5 cursor-pointer">
               <Package className="h-4 w-4" />
               Insumos
             </TabsTrigger>
-            <TabsTrigger value="movimientos" className="gap-1.5">
+            <TabsTrigger value="movimientos" className="gap-1.5 cursor-pointer">
               <ArrowLeftRight className="h-4 w-4" />
               Movimientos
             </TabsTrigger>
-            <TabsTrigger value="alertas" className="gap-1.5">
+            <TabsTrigger value="alertas" className="gap-1.5 cursor-pointer">
               <AlertTriangle className="h-4 w-4" />
               Alertas
               {alerts.length > 0 && (
@@ -165,7 +162,7 @@ export function InventoryPageClient({
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="extraordinarios" className="gap-1.5">
+            <TabsTrigger value="extraordinarios" className="gap-1.5 cursor-pointer">
               <ListChecks className="h-4 w-4" />
               Extraordinarios
               {pendingExtraordinary > 0 && (
@@ -175,6 +172,7 @@ export function InventoryPageClient({
               )}
             </TabsTrigger>
           </TabsList>
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
@@ -182,62 +180,13 @@ export function InventoryPageClient({
               placeholder="Buscar..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 w-64"
-            />
-          </div>
-        </div>
-        {/* Móvil: tabs principales arriba, secundarios y búsqueda abajo */}
-        <div className="flex flex-col gap-2 sm:hidden">
-          <TabsList className="w-full">
-            <TabsTrigger value="depositos" className="gap-1.5 flex-1">
-              <WarehouseIcon className="h-4 w-4" />
-              Depósitos
-            </TabsTrigger>
-            <TabsTrigger value="insumos" className="gap-1.5 flex-1">
-              <Package className="h-4 w-4" />
-              Insumos
-            </TabsTrigger>
-            <TabsTrigger value="movimientos" className="gap-1.5 flex-1">
-              <ArrowLeftRight className="h-4 w-4" />
-              Movimientos
-            </TabsTrigger>
-          </TabsList>
-          <div className="flex gap-2 w-full">
-            <TabsList className="w-full">
-              <TabsTrigger value="alertas" className="gap-1.5 flex-1">
-                <AlertTriangle className="h-4 w-4" />
-                Alertas
-                {alerts.length > 0 && (
-                  <Badge className="ml-1 bg-red-100 text-red-700 border-0 text-[10px] px-1.5">
-                    {alerts.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="extraordinarios" className="gap-1.5 flex-1">
-                <ListChecks className="h-4 w-4" />
-                Extraordinarios
-                {pendingExtraordinary > 0 && (
-                  <Badge className="ml-1 bg-amber-100 text-amber-700 border-0 text-[10px] px-1.5">
-                    {pendingExtraordinary}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-          </div>
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <Input
-              type="search"
-              placeholder="Buscar..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 w-full"
+              className="pl-10 w-64 !bg-white border-gray-200"
             />
           </div>
         </div>
 
         {/* ── TAB: Depósitos ── */}
-        <TabsContent value="depositos" className="mt-4">
+        <TabsContent value="depositos" className="mt-4 space-y-4">
           {warehouses.length === 0 ? (
             <EmptyCard
               title="Sin depósitos"
@@ -313,7 +262,6 @@ export function InventoryPageClient({
 /* ── Sub-components ── */
 
 function EmptyCard({ title, description }: { title: string; description: string }) {
-  const isMobile = useIsMobile();
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-white p-12">
       <Package className="h-10 w-10 text-gray-300" />
@@ -331,19 +279,18 @@ function matchSearch(text: string, search: string) {
 /* ── Warehouse card with stock table ── */
 
 function WarehouseCard({ warehouse, search }: { warehouse: SerializedWarehouse; search: string }) {
-  const isMobile = useIsMobile();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   const filteredStocks = warehouse.stocks.filter(
     (s) => matchSearch(s.itemName, search) || matchSearch(s.itemCode, search)
   );
 
   return (
-    <article className="overflow-hidden w-full max-w-full rounded-xl border border-gray-200 bg-white">
+    <article className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
+        className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-gray-50 cursor-pointer"
       >
         <div>
           <h3 className="text-base font-semibold text-gray-900">{warehouse.name}</h3>
@@ -361,11 +308,11 @@ function WarehouseCard({ warehouse, search }: { warehouse: SerializedWarehouse; 
       {expanded && (
         <div className="border-t border-gray-200">
           {filteredStocks.length === 0 ? (
-            <p className="px-4 py-3 text-center text-sm text-gray-500">
+            <p className="px-5 py-6 text-center text-sm text-gray-500">
               No hay insumos que coincidan con la búsqueda.
             </p>
           ) : (
-            <div className="w-full overflow-x-auto">
+            <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -407,7 +354,6 @@ function WarehouseCard({ warehouse, search }: { warehouse: SerializedWarehouse; 
 }
 
 function StockRow({ stock }: { stock: SerializedWarehouse['stocks'][number] }) {
-  const isMobile = useIsMobile();
   const [editing, setEditing] = useState(false);
   const [lowVal, setLowVal] = useState(String(stock.lowThreshold));
   const [critVal, setCritVal] = useState(String(stock.criticalThreshold));
@@ -459,10 +405,10 @@ function StockRow({ stock }: { stock: SerializedWarehouse['stocks'][number] }) {
           </td>
           <td className="px-4 py-3 text-right">
             <div className="flex justify-end gap-1">
-              <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+              <Button size="sm" variant="ghost" onClick={() => setEditing(false)} className="cursor-pointer">
                 Cancelar
               </Button>
-              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleSave}>
+              <Button size="sm" className="bg-green-600 hover:bg-green-700 cursor-pointer" onClick={handleSave}>
                 Guardar
               </Button>
             </div>
@@ -477,7 +423,7 @@ function StockRow({ stock }: { stock: SerializedWarehouse['stocks'][number] }) {
             {formatNumber(stock.criticalThreshold)}
           </td>
           <td className="px-4 py-3 text-right">
-            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)} className="cursor-pointer">
               Editar umbrales
             </Button>
           </td>
@@ -829,7 +775,7 @@ function ExtraordinaryRow({ request }: { request: SerializedExtraordinaryRequest
       </td>
       <td className="px-4 py-3 text-right">
         {isPending ? (
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={handleDeliver}>
+          <Button size="sm" variant="outline" className="gap-1.5 cursor-pointer" onClick={handleDeliver}>
             <Check className="h-3.5 w-3.5" />
             Marcar entregado
           </Button>

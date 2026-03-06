@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -22,9 +23,37 @@ const tabs = [
   { icon: Truck, label: 'Despacho', path: '/dashboard/empaque/despacho' },
 ];
 
-export function EmpaqueLayoutClient({ children }: { children: React.ReactNode }) {
+function EmpaqueNav() {
   const pathname = usePathname();
 
+  return (
+    <nav className="flex flex-wrap items-center gap-0 border-b border-gray-200">
+      {tabs.map((tab) => {
+        const isActive =
+          tab.path === '/dashboard/empaque'
+            ? pathname === '/dashboard/empaque'
+            : pathname.startsWith(tab.path);
+        const Icon = tab.icon;
+        return (
+          <Link
+            key={tab.path}
+            href={tab.path}
+            className={`flex items-center gap-1.5 px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-medium border-b-2 transition-colors ${
+              isActive
+                ? 'border-green-600 text-green-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <span className="whitespace-nowrap">{tab.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function EmpaqueLayoutClient({ children }: { children: React.ReactNode }) {
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Module header */}
@@ -42,29 +71,9 @@ export function EmpaqueLayoutClient({ children }: { children: React.ReactNode })
       </header>
 
       {/* Sub-navigation tabs */}
-      <nav className="flex flex-wrap items-center gap-0 border-b border-gray-200">
-        {tabs.map((tab) => {
-          const isActive =
-            tab.path === '/dashboard/empaque'
-              ? pathname === '/dashboard/empaque'
-              : pathname.startsWith(tab.path);
-          const Icon = tab.icon;
-          return (
-            <Link
-              key={tab.path}
-              href={tab.path}
-              className={`flex items-center gap-1.5 px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-medium border-b-2 transition-colors ${
-                isActive
-                  ? 'border-green-600 text-green-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">{tab.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+      <Suspense fallback={<div className="h-12 border-b border-gray-200" />}>
+        <EmpaqueNav />
+      </Suspense>
 
       {/* Page content */}
       {children}

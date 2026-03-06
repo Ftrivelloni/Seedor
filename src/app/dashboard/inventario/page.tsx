@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { resolveStockAlertLevel } from '@/lib/domain/inventory';
@@ -9,6 +10,8 @@ import type {
   SerializedExtraordinaryRequest,
   SerializedAlert,
 } from './types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function InventarioPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
@@ -137,12 +140,14 @@ export default async function InventarioPage() {
   );
 
   return (
-    <InventoryPageClient
-      warehouses={serializedWarehouses}
-      items={serializedItems}
-      movements={serializedMovements}
-      extraordinaryRequests={serializedExtraordinary}
-      alerts={alerts}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <InventoryPageClient
+        warehouses={serializedWarehouses}
+        items={serializedItems}
+        movements={serializedMovements}
+        extraordinaryRequests={serializedExtraordinary}
+        alerts={alerts}
+      />
+    </Suspense>
   );
 }

@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/dashboard/ui/select';
 import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { createMachineAction } from './actions';
 
 function SubmitButton() {
@@ -70,8 +71,11 @@ export function CreateMachineModal() {
       await createMachineAction(formData);
       setOpen(false);
       setSelectedType('');
+      toast.success('Máquina registrada exitosamente');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al registrar la máquina.');
+      const errorMessage = err instanceof Error ? err.message : 'Error al registrar la máquina.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   }
 

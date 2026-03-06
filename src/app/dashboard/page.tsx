@@ -1,9 +1,12 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireAuthSession } from '@/lib/auth/auth';
 import { resolveStockAlertLevel } from '@/lib/domain/inventory';
 import { DashboardPageClient } from './DashboardPageClient';
 import type { DashboardData, TemplateKey } from './dashboard-types';
 import { DEFAULT_WIDGETS } from './dashboard-types';
+
+export const dynamic = 'force-dynamic';
 
 const SERIES_COLORS = ['#16a34a', '#2563eb', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#e11d48', '#65a30d'];
 
@@ -361,11 +364,13 @@ export default async function DashboardPage() {
   };
 
   return (
-    <DashboardPageClient
-      data={data}
-      templateKey={templateKey}
-      enabledWidgets={selectedWidgets}
-      isAdmin={session.role === 'ADMIN'}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <DashboardPageClient
+        data={data}
+        templateKey={templateKey}
+        enabledWidgets={selectedWidgets}
+        isAdmin={session.role === 'ADMIN'}
+      />
+    </Suspense>
   );
 }

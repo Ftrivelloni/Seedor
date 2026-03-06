@@ -1,7 +1,10 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { PreseleccionPageClient } from './PreseleccionPageClient';
 import type { SerializedPreselection, SerializedBin, SerializedWorkerOption } from '../types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function PreseleccionPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
@@ -206,15 +209,17 @@ export default async function PreseleccionPage() {
   }));
 
   return (
-    <PreseleccionPageClient
-      activePreselection={activePs ? serializePs(activePs) : null}
-      history={historyPs.map(serializePs)}
-      availableBins={serializedYardBins}
-      preselectionYardBins={serializedPreselectionYardBins}
-      workers={serializedWorkers}
-      fields={fields}
-      inventoryItems={inventoryItems}
-      warehouses={warehouses}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <PreseleccionPageClient
+        activePreselection={activePs ? serializePs(activePs) : null}
+        history={historyPs.map(serializePs)}
+        availableBins={serializedYardBins}
+        preselectionYardBins={serializedPreselectionYardBins}
+        workers={serializedWorkers}
+        fields={fields}
+        inventoryItems={inventoryItems}
+        warehouses={warehouses}
+      />
+    </Suspense>
   );
 }

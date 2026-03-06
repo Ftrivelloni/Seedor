@@ -27,7 +27,7 @@ import { inviteUserAction } from './actions';
 function SubmitButton() {
     const { pending } = useFormStatus();
     return (
-        <Button type="submit" disabled={pending} className="bg-green-600 hover:bg-green-700">
+        <Button type="submit" disabled={pending} className="bg-green-600 hover:bg-green-700 cursor-pointer">
             {pending ? 'Enviando...' : 'Enviar invitación'}
         </Button>
     );
@@ -37,6 +37,28 @@ export function InviteUserModal() {
     const [open, setOpen] = useState(false);
     const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState('');
+    const [phoneValue, setPhoneValue] = useState('');
+
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        
+        // Si está vacío, permitir
+        if (value === '') {
+            setPhoneValue('');
+            return;
+        }
+
+        // Validar: primer carácter puede ser +, el resto solo números o espacios
+        const firstChar = value[0];
+        const rest = value.slice(1);
+
+        if (firstChar === '+' || /^\d$/.test(firstChar)) {
+            // Validar el resto solo puede contener números y espacios
+            if (/^[\d\s]*$/.test(rest)) {
+                setPhoneValue(value);
+            }
+        }
+    };
 
     async function handleSubmit(formData: FormData) {
         setStatus('idle');
@@ -47,6 +69,7 @@ export function InviteUserModal() {
             setTimeout(() => {
                 setOpen(false);
                 setStatus('idle');
+                setPhoneValue('');
             }, 2000);
         } else {
             setStatus('error');
@@ -55,17 +78,17 @@ export function InviteUserModal() {
     }
 
     return (
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setStatus('idle'); setErrorMessage(''); } }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setStatus('idle'); setErrorMessage(''); setPhoneValue(''); } }}>
             <DialogTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700 gap-2">
+                <Button className="bg-green-600 hover:bg-green-700 gap-2 cursor-pointer">
                     <UserPlus className="h-4 w-4" />
                     Invitar usuario
                 </Button>
             </DialogTrigger>
-            <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle className="text-lg">Invitar usuario</DialogTitle>
-                    <DialogDescription className="text-sm">
+                    <DialogTitle>Invitar usuario</DialogTitle>
+                    <DialogDescription>
                         Se enviará un email de invitación para que el usuario cree su cuenta.
                     </DialogDescription>
                 </DialogHeader>
@@ -91,7 +114,7 @@ export function InviteUserModal() {
                                     type="email"
                                     required
                                     placeholder="usuario@empresa.com"
-                                    className="pl-10"
+                                    className="pl-10 bg-white! border-gray-300"
                                 />
                             </div>
                         </div>
@@ -107,35 +130,27 @@ export function InviteUserModal() {
                                     name="phone"
                                     type="tel"
                                     placeholder="+54 9 11 1234-5678"
-                                    className="pl-10"
+                                    className="pl-10 bg-white! border-gray-300"
+                                    value={phoneValue}
+                                    onChange={handlePhoneChange}
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="role" className="text-sm">
+                            <Label htmlFor="role">
                                 Rol <span className="text-red-500">*</span>
                             </Label>
                             <Select name="role" defaultValue="SUPERVISOR">
-                                <SelectTrigger className="w-full">
+                                <SelectTrigger className="bg-white! border-gray-300 cursor-pointer">
                                     <SelectValue placeholder="Seleccionar rol" />
                                 </SelectTrigger>
-                                <SelectContent position="popper" sideOffset={5} className="w-[var(--radix-select-trigger-width)] max-h-[300px]">
-                                    <SelectItem value="SUPERVISOR" className="text-sm">
-                                        <div className="flex flex-col items-start">
-                                            <span className="font-medium">Operativo</span>
-                                            <span className="text-xs text-gray-500 hidden sm:block">
-                                                Acceso a campo, inventario, trabajadores
-                                            </span>
-                                        </div>
+                                <SelectContent className="bg-white! border-gray-300">
+                                    <SelectItem value="SUPERVISOR">
+                                        Operativo — acceso a campo, inventario, trabajadores
                                     </SelectItem>
-                                    <SelectItem value="ADMIN" className="text-sm">
-                                        <div className="flex flex-col items-start">
-                                            <span className="font-medium">Administrador</span>
-                                            <span className="text-xs text-gray-500 hidden sm:block">
-                                                Acceso completo incluyendo config y ventas
-                                            </span>
-                                        </div>
+                                    <SelectItem value="ADMIN">
+                                        Administrador — acceso completo incluyendo config y ventas
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
@@ -146,7 +161,7 @@ export function InviteUserModal() {
 
                         {status === 'error' && (
                             <div className="flex items-center gap-2 rounded-md bg-red-50 border border-red-200 px-3 py-2">
-                                <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                                <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
                                 <p className="text-sm text-red-700">{errorMessage}</p>
                             </div>
                         )}
@@ -156,6 +171,7 @@ export function InviteUserModal() {
                                 type="button"
                                 variant="outline"
                                 onClick={() => setOpen(false)}
+                                className="cursor-pointer hover:text-gray-600"
                             >
                                 Cancelar
                             </Button>

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { CampoPageClient } from './CampoPageClient';
@@ -10,6 +11,8 @@ import type {
   SerializedInventoryItem,
   SerializedWarehouse,
 } from './types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function CampoPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
@@ -135,14 +138,16 @@ export default async function CampoPage() {
   }));
 
   return (
-    <CampoPageClient
-      fields={serializedFields}
-      recentHarvests={serializedHarvests}
-      taskTypes={serializedTaskTypes}
-      cropTypes={serializedCropTypes}
-      workers={serializedWorkers}
-      inventoryItems={serializedItems}
-      warehouses={serializedWarehouses}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <CampoPageClient
+        fields={serializedFields}
+        recentHarvests={serializedHarvests}
+        taskTypes={serializedTaskTypes}
+        cropTypes={serializedCropTypes}
+        workers={serializedWorkers}
+        inventoryItems={serializedItems}
+        warehouses={serializedWarehouses}
+      />
+    </Suspense>
   );
 }

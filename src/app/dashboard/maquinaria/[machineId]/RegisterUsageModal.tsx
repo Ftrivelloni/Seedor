@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/dashboard/ui/select';
 import { Clock, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { registerUsageAction } from '../actions';
 
 function SubmitButton() {
@@ -90,8 +91,11 @@ export function RegisterUsageModal({
       await registerUsageAction(formData);
       setOpen(false);
       setInventoryRows([]);
+      toast.success('Uso registrado exitosamente');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al registrar el uso.');
+      const errorMessage = err instanceof Error ? err.message : 'Error al registrar el uso.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   }
 

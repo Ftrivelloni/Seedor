@@ -44,9 +44,9 @@ export function ManageCropTypesModal({ cropTypes }: ManageCropTypesModalProps) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors cursor-pointer"
       >
-        <Leaf className="h-3.5 w-3.5" />
+        <Leaf className="h-4 w-4" />
         Tipos de cultivo
       </button>
     );

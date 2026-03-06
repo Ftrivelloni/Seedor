@@ -1,7 +1,10 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/auth';
 import { CamarasPageClient } from './CamarasPageClient';
 import type { SerializedChamber, SerializedBin } from '../types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function CamarasPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
@@ -87,10 +90,12 @@ export default async function CamarasPage() {
   const serializedEgressedBins: SerializedBin[] = egressedBins.map(serializeBin);
 
   return (
-    <CamarasPageClient
-      chambers={serializedChambers}
-      availableBins={serializedAvailableBins}
-      egressedBins={serializedEgressedBins}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <CamarasPageClient
+        chambers={serializedChambers}
+        availableBins={serializedAvailableBins}
+        egressedBins={serializedEgressedBins}
+      />
+    </Suspense>
   );
 }

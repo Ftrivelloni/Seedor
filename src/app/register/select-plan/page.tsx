@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import NProgress from 'nprogress';
 
 interface RegistrationData {
     firstName: string;
@@ -120,6 +121,8 @@ export default function SelectModulesPage() {
     const router = useRouter();
     const [selectedModules, setSelectedModules] = useState<string[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [registrationData, setRegistrationData] = useState<RegistrationData | null>(null);
 
     useEffect(() => {
@@ -149,12 +152,76 @@ export default function SelectModulesPage() {
         );
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!registrationData) return;
 
-        // Save selected modules to sessionStorage for the checkout page
-        sessionStorage.setItem('selectedModules', JSON.stringify(selectedModules));
-        router.push('/register/checkout');
+        setError(null);
+        setIsSubmitting(true);
+        NProgress.start();
+
+        try {
+            if (selectedModules.length === 0) {
+                // Free registration — no optional modules, no payment needed
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...registrationData,
+                        selectedModules,
+                    }),
+                });
+
+                const data = (await response.json()) as { error?: string; tenantSlug?: string };
+
+                if (!response.ok) {
+                    setError(data.error || 'No se pudo completar el registro.');
+                    NProgress.done();
+                    return;
+                }
+
+                // Clear session storage
+                sessionStorage.removeItem('registrationData');
+
+                // Store selected modules for success page
+                sessionStorage.setItem('registrationSuccess', JSON.stringify({
+                    companyName: registrationData.companyName,
+                    selectedModules,
+                }));
+
+                router.push('/register/success');
+                NProgress.done();
+            } else {
+                // Paid registration — redirect to Stripe Checkout
+                // Persist selected modules so the success page can read them after redirect
+                sessionStorage.setItem('pendingModules', JSON.stringify(selectedModules));
+
+                const response = await fetch('/api/stripe/create-checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: registrationData.email,
+                        companyName: registrationData.companyName,
+                        selectedModules,
+                    }),
+                });
+
+                const data = (await response.json()) as { error?: string; url?: string };
+
+                if (!response.ok || !data.url) {
+                    setError(data.error || 'No se pudo crear la sesión de pago.');
+                    NProgress.done();
+                    return;
+                }
+
+                // Redirect to Stripe hosted checkout
+                window.location.href = data.url;
+            }
+        } catch {
+            setError('No se pudo completar el registro. Intentá de nuevo.');
+            NProgress.done();
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (!registrationData) {
@@ -183,7 +250,7 @@ export default function SelectModulesPage() {
                         className={`text-sm text-[#0A0908]/60 transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}
                         style={{ transitionDelay: '100ms' }}
                     >
-                        Paso 2 de 3
+                        Paso 2 de {selectedModules.length > 0 ? '3' : '2'}
                     </div>
                 </div>
             </header>
@@ -292,6 +359,13 @@ export default function SelectModulesPage() {
                         </div>
                     </div>
 
+                    {/* Error Message */}
+                    {error && (
+                        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 text-sm">
+                            {error}
+                        </div>
+                    )}
+
                     {/* Summary and Submit */}
                     <div
                         className={`bg-white rounded-2xl border border-black/10 p-6 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
@@ -314,12 +388,34 @@ export default function SelectModulesPage() {
                             </div>
                             <button
                                 onClick={handleSubmit}
-                                className="w-full md:w-auto inline-flex items-center justify-center gap-2 bg-[#73AC01] text-white font-semibold px-8 py-4 rounded-xl shadow-[0_4px_14px_0_rgba(115,172,1,0.39)] hover:bg-[#5C8A01] hover:shadow-[0_6px_20px_rgba(115,172,1,0.5)] hover:scale-[1.02] transition-all duration-300"
+                                disabled={isSubmitting}
+                                className="w-full md:w-auto inline-flex items-center justify-center gap-2 bg-[#73AC01] text-white font-semibold px-8 py-4 rounded-xl shadow-[0_4px_14px_0_rgba(115,172,1,0.39)] hover:bg-[#5C8A01] hover:shadow-[0_6px_20px_rgba(115,172,1,0.5)] hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-300"
                             >
-                                Continuar al pago
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                                </svg>
+                                {isSubmitting ? (
+                                    <>
+                                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                        </svg>
+                                        Creando cuenta...
+                                    </>
+                                ) : (
+                                    selectedModules.length > 0 ? (
+                                        <>
+                                            Continuar al pago
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                            </svg>
+                                        </>
+                                    ) : (
+                                        <>
+                                            Crear mi cuenta
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                            </svg>
+                                        </>
+                                    )
+                                )}
                             </button>
                         </div>
                         <p className="mt-4 text-xs text-center text-[#0A0908]/50">

@@ -1,8 +1,11 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { requireAuthSession } from '@/lib/auth/auth';
 import { calculateSubscriptionPrice } from '@/lib/domain/subscription';
 import { ConfiguracionPageClient } from './ConfiguracionPageClient';
 import type { SerializedUser, SerializedTenant, SerializedModuleSetting, SubscriptionPricingInfo } from './types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function ConfiguracionPage() {
   const session = await requireAuthSession();
@@ -107,12 +110,14 @@ export default async function ConfiguracionPage() {
   };
 
   return (
-    <ConfiguracionPageClient
-      user={serializedUser}
-      tenant={serializedTenant}
-      moduleSettings={serializedModules}
-      pricing={pricingInfo}
-      isAdmin={isAdmin}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <ConfiguracionPageClient
+        user={serializedUser}
+        tenant={serializedTenant}
+        moduleSettings={serializedModules}
+        pricing={pricingInfo}
+        isAdmin={isAdmin}
+      />
+    </Suspense>
   );
 }

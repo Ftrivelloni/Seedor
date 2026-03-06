@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/dashboard/ui/sonner";
+import { NProgressHandler } from "@/components/NProgressHandler";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,9 +27,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
-        {children}
+        <ThemeProvider>
+          <Suspense fallback={null}>
+            <NProgressHandler />
+          </Suspense>
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

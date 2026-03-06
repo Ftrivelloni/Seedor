@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/dashboard/ui/select';
+import { toast } from 'sonner';
 import { registerPaymentAction } from './actions';
 import type { SerializedWorker } from './types';
 import { paymentTypeLabels } from './types';
@@ -55,8 +56,11 @@ export function RegisterPaymentModal({ worker, open, onOpenChange }: RegisterPay
     try {
       await registerPaymentAction(formData);
       onOpenChange(false);
+      toast.success('Pago registrado exitosamente');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al registrar pago.');
+      const errorMessage = err instanceof Error ? err.message : 'Error al registrar pago.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   }
 

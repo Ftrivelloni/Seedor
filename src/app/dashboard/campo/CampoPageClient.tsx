@@ -13,7 +13,6 @@ import {
   Wheat,
   MapPin,
 } from 'lucide-react';
-import { useIsMobile } from '@/hooks';
 import { StateCard } from '@/components/dashboard/StateCard';
 import { CreateFieldModal } from './CreateFieldModal';
 import { CreateHarvestModal } from './CreateHarvestModal';
@@ -50,7 +49,6 @@ export function CampoPageClient({
   inventoryItems,
   warehouses,
 }: CampoPageClientProps) {
-  const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<LotViewMode>('grid-large');
   const [activeTab, setActiveTab] = useState<'campos' | 'cosecha'>('campos');
@@ -83,20 +81,17 @@ export function CampoPageClient({
   }, [fields, search]);
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <header className="space-y-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-semibold text-gray-900">Campo</h1>
-          <p className="text-xs md:text-sm text-gray-600">
-            Gestión de campos, lotes, cosecha y rendimiento operativo.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <>
-            <ManageCropTypesModal cropTypes={cropTypes} />
-            <ManageTaskTypesModal taskTypes={taskTypes} />
-            <CreateHarvestModal fields={fields} />
+      <header>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Campo</h1>
+            <p className="text-sm text-gray-600">
+              Gestión de campos, lotes, cosecha y rendimiento operativo.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
             <CreateTaskModal
               fields={fields}
               workers={workers}
@@ -105,12 +100,17 @@ export function CampoPageClient({
               taskTypes={taskTypes}
             />
             <CreateFieldModal />
-          </>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <ManageCropTypesModal cropTypes={cropTypes} />
+          <ManageTaskTypesModal taskTypes={taskTypes} />
+          <CreateHarvestModal fields={fields} />
         </div>
       </header>
 
       {/* KPI cards */}
-      <section className="grid gap-3 md:gap-4 grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StateCard title="Campos" value={fields.length} icon={Map} iconColor="text-green-600" />
         <StateCard title="Lotes" value={totalLots} icon={Layers} iconColor="text-blue-600" />
         <StateCard
@@ -129,23 +129,23 @@ export function CampoPageClient({
 
       {/* Tabs */}
       <div>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
-          <div className="flex items-center gap-1 border-b border-gray-200 overflow-x-auto">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-1 border-b border-gray-200">
             <button
               onClick={() => setActiveTab('campos')}
-              className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'campos'
-                  ? 'border-green-600 text-green-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${activeTab === 'campos'
+                  ? 'border-green-600 text-green-700 bg-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 bg-white'
                 }`}
             >
               <MapPin className="h-4 w-4" />
-              {isMobile ? 'Campos' : 'Campos y lotes'}
+              Campos y lotes
             </button>
             <button
               onClick={() => setActiveTab('cosecha')}
-              className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'cosecha'
-                  ? 'border-green-600 text-green-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${activeTab === 'cosecha'
+                  ? 'border-green-600 text-green-700 bg-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 bg-white'
                 }`}
             >
               <Wheat className="h-4 w-4" />
@@ -154,14 +154,14 @@ export function CampoPageClient({
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="relative flex-1 md:flex-initial">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="search"
                 placeholder="Buscar..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full md:w-64 rounded-lg border border-gray-300 pl-10 pr-3 py-2 md:py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-shadow"
+                className="w-64 rounded-lg border border-gray-300 pl-10 pr-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-shadow bg-white"
               />
             </div>
           </div>
@@ -174,21 +174,21 @@ export function CampoPageClient({
             <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1 w-fit">
               <button
                 onClick={() => setViewMode('grid-large')}
-                className={`p-1.5 rounded ${viewMode === 'grid-large' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`p-1.5 rounded cursor-pointer ${viewMode === 'grid-large' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
                 title="Íconos grandes"
               >
                 <LayoutGrid className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('grid-medium')}
-                className={`p-1.5 rounded ${viewMode === 'grid-medium' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`p-1.5 rounded cursor-pointer ${viewMode === 'grid-medium' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
                 title="Íconos medianos"
               >
                 <Grid3X3 className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`p-1.5 rounded cursor-pointer ${viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
                 title="Lista"
               >
                 <List className="h-4 w-4" />
@@ -196,12 +196,12 @@ export function CampoPageClient({
             </div>
 
             {filteredFields.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-8 md:p-12">
-                <div className="flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-full bg-gray-100">
-                  <Map className="h-6 w-6 md:h-8 md:w-8 text-gray-400" />
+              <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-12">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+                  <Map className="h-8 w-8 text-gray-400" />
                 </div>
-                <h3 className="mt-4 text-base md:text-lg font-medium text-gray-900">Sin campos</h3>
-                <p className="mt-2 text-center text-xs md:text-sm text-gray-500">
+                <h3 className="mt-4 text-lg font-medium text-gray-900">Sin campos</h3>
+                <p className="mt-2 text-center text-sm text-gray-500">
                   Creá tu primer campo para empezar a organizar la producción.
                 </p>
               </div>
@@ -219,45 +219,43 @@ export function CampoPageClient({
         {/* TAB: Cosecha */}
         {activeTab === 'cosecha' && (<div className="mt-4 space-y-3">
           {recentHarvests.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-8 md:p-12">
-              <div className="flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-full bg-gray-100">
-                <Wheat className="h-6 w-6 md:h-8 md:w-8 text-gray-400" />
+            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-12">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+                <Wheat className="h-8 w-8 text-gray-400" />
               </div>
-              <h3 className="mt-4 text-base md:text-lg font-medium text-gray-900">Sin registros de cosecha</h3>
-              <p className="mt-2 text-center text-xs md:text-sm text-gray-500">
+              <h3 className="mt-4 text-lg font-medium text-gray-900">Sin registros de cosecha</h3>
+              <p className="mt-2 text-center text-sm text-gray-500">
                 Registrá tu primera cosecha para analizar rendimiento y producción.
               </p>
             </div>
           ) : (
             <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-gray-50">
-                    <th className="px-3 md:px-4 py-2 md:py-3 text-left font-medium text-gray-600 text-xs md:text-sm">Cultivo</th>
-                    <th className="px-3 md:px-4 py-2 md:py-3 text-left font-medium text-gray-600 text-xs md:text-sm">Campo · Lote</th>
-                    <th className="px-3 md:px-4 py-2 md:py-3 text-right font-medium text-gray-600 text-xs md:text-sm">Kilos</th>
-                    <th className="px-3 md:px-4 py-2 md:py-3 text-left font-medium text-gray-600 text-xs md:text-sm">Fecha</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Cultivo</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Campo · Lote</th>
+                    <th className="px-4 py-3 text-right font-medium text-gray-600">Kilos</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Fecha</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {recentHarvests.map((h) => (
                     <tr key={h.id} className="hover:bg-gray-50">
-                      <td className="px-3 md:px-4 py-2 md:py-3 font-medium text-gray-900 text-xs md:text-sm whitespace-nowrap">{h.cropType}</td>
-                      <td className="px-3 md:px-4 py-2 md:py-3 text-gray-600 text-xs md:text-sm whitespace-nowrap">
+                      <td className="px-4 py-3 font-medium text-gray-900">{h.cropType}</td>
+                      <td className="px-4 py-3 text-gray-600">
                         {h.fieldName} · {h.lotName}
                       </td>
-                      <td className="px-3 md:px-4 py-2 md:py-3 text-right text-gray-900 font-medium text-xs md:text-sm whitespace-nowrap">
+                      <td className="px-4 py-3 text-right text-gray-900 font-medium">
                         {h.kilos.toLocaleString('es-AR')} kg
                       </td>
-                      <td className="px-3 md:px-4 py-2 md:py-3 text-gray-500 text-xs md:text-sm whitespace-nowrap">
+                      <td className="px-4 py-3 text-gray-500">
                         {new Date(h.harvestDate).toLocaleDateString('es-AR')}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              </div>
             </div>
           )}
         </div>)}
@@ -275,14 +273,13 @@ function FieldCard({
   field: SerializedField;
   viewMode: LotViewMode;
 }) {
-  const isMobile = useIsMobile();
   return (
-    <article className="rounded-xl border border-gray-200 bg-white p-4 md:p-5">
+    <article className="rounded-xl border border-gray-200 bg-white p-5">
       <div className="flex items-center justify-between">
         <div>
           <Link
             href={`/dashboard/campo/${field.id}`}
-            className="text-base md:text-lg font-semibold text-gray-900 hover:text-green-700 transition-colors"
+            className="text-lg font-semibold text-gray-900 hover:text-green-700 transition-colors"
           >
             {field.name}
           </Link>
@@ -292,9 +289,9 @@ function FieldCard({
         </div>
         <Link
           href={`/dashboard/campo/${field.id}`}
-          className="inline-flex items-center gap-1 rounded-lg px-2 md:px-3 py-1.5 text-xs md:text-sm text-gray-500 hover:bg-gray-100 transition-colors"
+          className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
         >
-          {!isMobile && 'Ver campo'}
+          Ver campo
           <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
@@ -310,7 +307,7 @@ function FieldCard({
               className="flex items-center justify-between py-2.5 px-1 hover:bg-gray-50 rounded transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50 text-green-700">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
                   <Layers className="h-4 w-4" />
                 </div>
                 <div>
@@ -332,24 +329,21 @@ function FieldCard({
         </div>
       ) : (
         <div
-          className={`mt-3 grid gap-2 md:gap-3 ${
-            isMobile 
-              ? 'grid-cols-1' 
-              : viewMode === 'grid-large'
-                ? 'sm:grid-cols-2 xl:grid-cols-3'
-                : 'sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+          className={`mt-3 grid gap-3 ${viewMode === 'grid-large'
+              ? 'sm:grid-cols-2 xl:grid-cols-3'
+              : 'sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
             }`}
         >
           {field.lots.map((lot) => (
             <Link
               key={lot.id}
               href={`/dashboard/campo/${field.id}/${lot.id}`}
-              className={`group rounded-lg border border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/50 transition-colors ${viewMode === 'grid-large' || isMobile ? 'p-3 md:p-4' : 'p-3'
+              className={`group rounded-lg border border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/50 transition-colors ${viewMode === 'grid-large' ? 'p-4' : 'p-3'
                 }`}
             >
               <div className="flex items-center gap-3">
                 <div
-                  className={`flex items-center justify-center rounded-lg bg-green-100 text-green-700 group-hover:bg-green-200 transition-colors ${viewMode === 'grid-large' ? 'h-10 w-10' : 'h-8 w-8'
+                  className={`flex items-center justify-center rounded-lg bg-blue-100 text-blue-700 group-hover:bg-blue-200 transition-colors ${viewMode === 'grid-large' ? 'h-10 w-10' : 'h-8 w-8'
                     }`}
                 >
                   <Layers className={viewMode === 'grid-large' ? 'h-5 w-5' : 'h-4 w-4'} />

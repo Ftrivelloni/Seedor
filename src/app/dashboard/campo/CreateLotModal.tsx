@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { createLotAction } from './actions';
 import type { SerializedCropType } from './types';
 
@@ -36,9 +37,12 @@ export function CreateLotModal({ fieldId, fieldName, cropTypes }: CreateLotModal
         await createLotAction(formData);
         setOpen(false);
         setSelectedCrops([]);
+        toast.success('Lote creado exitosamente');
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al crear el lote.');
+        const errorMessage = err instanceof Error ? err.message : 'Error al crear el lote.';
+        setError(errorMessage);
+        toast.error(errorMessage);
       }
     });
   }
