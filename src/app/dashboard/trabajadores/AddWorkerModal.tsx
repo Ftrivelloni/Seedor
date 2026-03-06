@@ -21,21 +21,42 @@ import {
   SelectValue,
 } from '@/components/dashboard/ui/select';
 import { Checkbox } from '@/components/dashboard/ui/checkbox';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, MessageCircle, Copy, Check } from 'lucide-react';
 import { createWorkerAction } from './actions';
+
+const BOT_LINK =
+  process.env.NEXT_PUBLIC_TELEGRAM_BOT_LINK ?? 'https://t.me/SeedorTestBot';
+
+function buildWhatsAppUrl(phone: string, firstName: string): string {
+  const normalized = phone.replace(/[\s\-()]/g, '').replace(/^\+/, '');
+  const text = encodeURIComponent(
+    `Hola ${firstName}! 👋 Te agregamos al sistema Seedor.\n\nPara ver tus tareas del día a día, escribile al bot de Seedor en Telegram:\n👉 ${BOT_LINK}\n\nTocá el link, abrí la app y mandá /start.`
+  );
+  return `https://wa.me/${normalized}?text=${text}`;
+}
+
+interface CreatedWorker {
+  firstName: string;
+  phone: string;
+}
 
 export function AddWorkerModal() {
   const [open, setOpen] = useState(false);
   const [paymentType, setPaymentType] = useState('HOURLY');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<CreatedWorker | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function handleSubmit(formData: FormData) {
     setSubmitting(true);
     setError(null);
     try {
       await createWorkerAction(formData);
-      setOpen(false);
+      setCreated({
+        firstName: String(formData.get('firstName') || '').trim(),
+        phone: String(formData.get('phone') || '').trim(),
+      });
       setPaymentType('HOURLY');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear el trabajador.');
@@ -44,9 +65,35 @@ export function AddWorkerModal() {
     }
   }
 
+  async function handleCopyLink() {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(BOT_LINK);
+      } else if (typeof document !== 'undefined') {
+        const tempInput = document.createElement('input');
+        tempInput.value = BOT_LINK;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+      } else {
+        throw new Error('Clipboard API no disponible');
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Error al copiar el enlace del bot:', err);
+      setError('No se pudo copiar el enlace automáticamente. Copialo manualmente: ' + BOT_LINK);
+    }
+  }
+
   function handleOpenChange(value: boolean) {
     setOpen(value);
-    if (!value) setError(null);
+    if (!value) {
+      setError(null);
+      setCreated(null);
+      setCopied(false);
+    }
   }
 
   return (
@@ -58,6 +105,60 @@ export function AddWorkerModal() {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
+        {created ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                ✅ Trabajador creado
+              </DialogTitle>
+              <DialogDescription>
+                {created.firstName} fue agregado correctamente. Ahora podés invitarlo al bot de Seedor.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4 space-y-3">
+              <p className="text-sm font-medium text-green-800 flex items-center gap-2">
+                <MessageCircle className="h-4 w-4" />
+                Invitar a Seedor Bot (Telegram)
+              </p>
+              <p className="text-xs text-green-700">
+                El trabajador tiene que escribirle <strong>/start</strong> al bot para activar su cuenta y recibir tareas.
+              </p>
+              <div className="flex items-center gap-2 bg-white rounded border px-3 py-2">
+                <span className="text-sm text-gray-600 flex-1 font-mono">{BOT_LINK}</span>
+                <button
+                  onClick={handleCopyLink}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Copiar link"
+                >
+                  {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                Cerrar
+              </Button>
+              {created.phone && (
+                <Button
+                  asChild
+                  className="bg-[#25D366] hover:bg-[#1ebe5d] text-white gap-2"
+                >
+                  <a
+                    href={buildWhatsAppUrl(created.phone, created.firstName)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Enviar por WhatsApp
+                  </a>
+                </Button>
+              )}
+            </DialogFooter>
+          </>
+        ) : (
+          <>
         <DialogHeader>
           <DialogTitle>Agregar trabajador</DialogTitle>
           <DialogDescription>
@@ -222,6 +323,8 @@ export function AddWorkerModal() {
             </Button>
           </DialogFooter>
         </form>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

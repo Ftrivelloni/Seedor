@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { X } from 'lucide-react';
-import { updateTaskAction } from './actions';
+import { X, Trash2 } from 'lucide-react';
+import { updateTaskAction, deleteTaskAction } from './actions';
 import type { SerializedTask, SerializedTaskType } from './types';
 
 interface EditTaskModalProps {
@@ -26,6 +26,7 @@ export function EditTaskModal({ task, taskTypes, open, onOpenChange }: EditTaskM
     task.dueDate ? task.dueDate.slice(0, 10) : ''
   );
   const [isPending, startTransition] = useTransition();
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!open) return null;
 
@@ -152,20 +153,58 @@ export function EditTaskModal({ task, taskTypes, open, onOpenChange }: EditTaskM
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  onClick={() => onOpenChange(false)}
-                  className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={isPending}
-                  className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
-                >
-                  {isPending ? 'Guardando...' : 'Guardar cambios'}
-                </button>
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <div>
+                  {!confirmDelete ? (
+                    <button
+                      onClick={() => setConfirmDelete(true)}
+                      disabled={isPending}
+                      className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Eliminar
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-red-600">¿Confirmar?</span>
+                      <button
+                        onClick={() => {
+                          startTransition(async () => {
+                            await deleteTaskAction(task.id);
+                            onOpenChange(false);
+                            router.refresh();
+                          });
+                        }}
+                        disabled={isPending}
+                        className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                      >
+                        {isPending ? '...' : 'Sí, eliminar'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(false)}
+                        disabled={isPending}
+                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                      >
+                        No
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => onOpenChange(false)}
+                    className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={isPending}
+                    className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isPending ? 'Guardando...' : 'Guardar cambios'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

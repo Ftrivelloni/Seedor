@@ -9,12 +9,13 @@ import type {
   SerializedWorker,
   SerializedInventoryItem,
   SerializedWarehouse,
+  SerializedTaskHistory,
 } from './types';
 
 export default async function CampoPage() {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
-  const [fields, recentHarvests, taskTypes, cropTypes, workers, inventoryItems, warehouses] = await Promise.all([
+  const [fields, recentHarvests, taskTypes, cropTypes, workers, inventoryItems, warehouses, pendingTasks] = await Promise.all([
     prisma.field.findMany({
       where: { tenantId: session.tenantId },
       include: {
@@ -62,6 +63,26 @@ export default async function CampoPage() {
     prisma.warehouse.findMany({
       where: { tenantId: session.tenantId },
       orderBy: { name: 'asc' },
+    }),
+    prisma.task.findMany({
+      where: {
+        tenantId: session.tenantId,
+        status: { in: ['PENDING', 'LATE'] },
+      },
+      include: {
+        createdBy: { select: { firstName: true, lastName: true } },
+        workerAssignments: {
+          include: { worker: { select: { firstName: true, lastName: true } } },
+        },
+        lotLinks: {
+          include: {
+            lot: {
+              select: { name: true, field: { select: { name: true } } },
+            },
+          },
+        },
+      },
+      orderBy: { dueDate: 'asc' },
     }),
   ]);
 
@@ -134,6 +155,28 @@ export default async function CampoPage() {
     name: w.name,
   }));
 
+  /* ── Serialize task history ── */
+  const serializedTaskHistory: SerializedTaskHistory[] = pendingTasks.map((t) => ({
+    id: t.id,
+    description: t.description,
+    taskType: t.taskType,
+    status: t.status,
+    startDate: t.startDate.toISOString(),
+    dueDate: t.dueDate.toISOString(),
+    createdAt: t.createdAt.toISOString(),
+    createdByName: t.createdBy
+      ? `${t.createdBy.firstName} ${t.createdBy.lastName}`
+      : null,
+    lots: t.lotLinks.map((ll) => ({
+      lotName: ll.lot.name,
+      fieldName: ll.lot.field.name,
+    })),
+    workers: t.workerAssignments.map((wa) => ({
+      firstName: wa.worker.firstName,
+      lastName: wa.worker.lastName,
+    })),
+  }));
+
   return (
     <CampoPageClient
       fields={serializedFields}
@@ -143,6 +186,7 @@ export default async function CampoPage() {
       workers={serializedWorkers}
       inventoryItems={serializedItems}
       warehouses={serializedWarehouses}
+      taskHistory={serializedTaskHistory}
     />
   );
 }

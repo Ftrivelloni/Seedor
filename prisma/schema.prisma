@@ -183,6 +183,7 @@ model Task {
   inventoryUsages    TaskInventoryUsage[]
   lotLinks           TaskLot[]
   workLogs           TaskWorkLog[]
+  completionLogs     TaskCompletionLog[]
 
   @@index([tenantId, status])
   @@index([dueDate])
@@ -257,6 +258,7 @@ model Worker {
   active                 Boolean                 @default(true)
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
+  completionLogs         TaskCompletionLog[]
   machineMovementWorkers MachineMovementWorker[]
   preselectionWorkers    PreselectionWorker[]
   taskAssignments        TaskAssignment[]
@@ -291,6 +293,20 @@ model TaskWorkLog {
   task          Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
   worker        Worker              @relation(fields: [workerId], references: [id], onDelete: Cascade)
 
+  @@index([taskId])
+  @@index([workerId])
+}
+
+model TaskCompletionLog {
+  id          String   @id @default(cuid())
+  taskId      String
+  workerId    String?  // nullable: preserve log if worker is deleted
+  source      String   @default("telegram") // "telegram" | "web"
+  completedAt DateTime @default(now())
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  worker      Worker?  @relation(fields: [workerId], references: [id], onDelete: SetNull)
+
+  @@unique([taskId, workerId, source])
   @@index([taskId])
   @@index([workerId])
 }

@@ -43,6 +43,19 @@ export async function POST(request: Request) {
         for (const event of events) {
             try {
                 if (event.type === 'TASK_COMPLETED' && event.task_id) {
+                    // Sanitize IDs: must be non-empty strings within reasonable length
+                    if (
+                        typeof event.task_id !== 'string' ||
+                        event.task_id.trim().length === 0 ||
+                        event.task_id.length > 256 ||
+                        typeof event.worker_id !== 'string' ||
+                        event.worker_id.trim().length === 0 ||
+                        event.worker_id.length > 256
+                    ) {
+                        errors.push('Invalid task_id or worker_id format');
+                        continue;
+                    }
+
                     // Verify the task exists and the worker is assigned
                     const task = await prisma.task.findUnique({
                         where: { id: event.task_id },
@@ -59,6 +72,24 @@ export async function POST(request: Request) {
                         continue;
                     }
 
+                    if (task.status === 'COMPLETED') {
+                        processed++;
+                        continue;
+                    }
+
+                    // Cross-tenant check: verify worker belongs to the same tenant as the task
+                    const workerInTenant = await prisma.worker.findFirst({
+                        where: { id: event.worker_id, tenantId: task.tenantId },
+                        select: { id: true },
+                    });
+
+                    if (!workerInTenant) {
+                        errors.push(
+                            `Worker ${event.worker_id} not found in tenant for task ${event.task_id}`
+                        );
+                        continue;
+                    }
+
                     const isAssigned = task.workerAssignments.some(
                         (a) => a.workerId === event.worker_id
                     );
@@ -70,13 +101,34 @@ export async function POST(request: Request) {
                         continue;
                     }
 
-                    await prisma.task.update({
-                        where: { id: event.task_id },
-                        data: {
-                            status: 'COMPLETED',
-                            completedAt: new Date(event.timestamp),
-                        },
-                    });
+                    const rawTimestamp = event.timestamp;
+                    const completedAt = typeof rawTimestamp === 'string' && rawTimestamp
+                        ? new Date(rawTimestamp)
+                        : new Date(NaN);
+                    if (isNaN(completedAt.getTime())) {
+                        errors.push(
+                            `Invalid timestamp "${rawTimestamp}" (type: ${typeof rawTimestamp}) for event on task ${event.task_id}`
+                        );
+                        continue;
+                    }
+
+                    await prisma.$transaction([
+                        prisma.task.update({
+                            where: { id: event.task_id },
+                            data: {
+                                status: 'COMPLETED',
+                                completedAt,
+                            },
+                        }),
+                        prisma.taskCompletionLog.create({
+                            data: {
+                                taskId: event.task_id,
+                                workerId: event.worker_id,
+                                source: 'telegram',
+                                completedAt,
+                            },
+                        }),
+                    ]);
 
                     revalidatePath('/dashboard');
                     revalidatePath('/dashboard/campo');

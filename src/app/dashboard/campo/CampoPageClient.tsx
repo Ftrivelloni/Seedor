@@ -12,6 +12,10 @@ import {
   ChevronRight,
   Wheat,
   MapPin,
+  ClipboardList,
+  Clock,
+  Filter,
+  User,
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks';
 import { StateCard } from '@/components/dashboard/StateCard';
@@ -28,8 +32,10 @@ import type {
   SerializedWorker,
   SerializedInventoryItem,
   SerializedWarehouse,
+  SerializedTaskHistory,
   LotViewMode,
 } from './types';
+import { taskStatusLabels, taskStatusColors } from './types';
 
 interface CampoPageClientProps {
   fields: SerializedField[];
@@ -39,6 +45,7 @@ interface CampoPageClientProps {
   workers: SerializedWorker[];
   inventoryItems: SerializedInventoryItem[];
   warehouses: SerializedWarehouse[];
+  taskHistory: SerializedTaskHistory[];
 }
 
 export function CampoPageClient({
@@ -49,11 +56,21 @@ export function CampoPageClient({
   workers,
   inventoryItems,
   warehouses,
+  taskHistory,
 }: CampoPageClientProps) {
   const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<LotViewMode>('grid-large');
-  const [activeTab, setActiveTab] = useState<'campos' | 'cosecha'>('campos');
+  const [activeTab, setActiveTab] = useState<'campos' | 'cosecha' | 'historial'>('campos');
+  const [columnFilters, setColumnFilters] = useState({
+    tarea: '',
+    tipo: '',
+    estado: '',
+    lugar: '',
+    trabajador: '',
+    asignador: '',
+    vencimiento: '',
+  });
 
   const totalLots = fields.reduce((acc, f) => acc + f.lots.length, 0);
   const totalHarvestKilos = recentHarvests.reduce((acc, h) => acc + h.kilos, 0);
@@ -81,6 +98,29 @@ export function CampoPageClient({
           f.lots.length > 0
       );
   }, [fields, search]);
+
+  const filteredTaskHistory = useMemo(() => {
+    const hasFilters = Object.values(columnFilters).some((v) => v.trim());
+    if (!hasFilters) return taskHistory;
+    return taskHistory.filter((t) => {
+      const statusLabel = (taskStatusLabels[t.status] || t.status).toLowerCase();
+      const lotsText = t.lots.map((l) => `${l.fieldName} ${l.lotName}`).join(' ').toLowerCase();
+      const workersText = t.workers.map((w) => `${w.firstName} ${w.lastName}`).join(' ').toLowerCase();
+      const createdBy = (t.createdByName || '').toLowerCase();
+      const dueDate = new Date(t.dueDate).toLocaleDateString('es-AR');
+      return (
+        (!columnFilters.tarea || t.description.toLowerCase().includes(columnFilters.tarea.toLowerCase())) &&
+        (!columnFilters.tipo || t.taskType.toLowerCase().includes(columnFilters.tipo.toLowerCase())) &&
+        (!columnFilters.estado || statusLabel.includes(columnFilters.estado.toLowerCase())) &&
+        (!columnFilters.lugar || lotsText.includes(columnFilters.lugar.toLowerCase())) &&
+        (!columnFilters.trabajador || workersText.includes(columnFilters.trabajador.toLowerCase())) &&
+        (!columnFilters.asignador || createdBy.includes(columnFilters.asignador.toLowerCase())) &&
+        (!columnFilters.vencimiento || dueDate.includes(columnFilters.vencimiento.toLowerCase()))
+      );
+    });
+  }, [taskHistory, columnFilters]);
+
+  const activeFilterCount = Object.values(columnFilters).filter((v) => v.trim()).length;
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -134,8 +174,8 @@ export function CampoPageClient({
             <button
               onClick={() => setActiveTab('campos')}
               className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'campos'
-                  ? 'border-green-600 text-green-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-green-600 text-green-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
               <MapPin className="h-4 w-4" />
@@ -144,12 +184,22 @@ export function CampoPageClient({
             <button
               onClick={() => setActiveTab('cosecha')}
               className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'cosecha'
-                  ? 'border-green-600 text-green-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-green-600 text-green-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
               <Wheat className="h-4 w-4" />
               Cosecha
+            </button>
+            <button
+              onClick={() => setActiveTab('historial')}
+              className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'historial'
+                ? 'border-green-600 text-green-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+            >
+              <ClipboardList className="h-4 w-4" />
+              Historial de tareas
             </button>
           </div>
 
@@ -231,33 +281,155 @@ export function CampoPageClient({
           ) : (
             <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
               <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="px-3 md:px-4 py-2 md:py-3 text-left font-medium text-gray-600 text-xs md:text-sm">Cultivo</th>
+                      <th className="px-3 md:px-4 py-2 md:py-3 text-left font-medium text-gray-600 text-xs md:text-sm">Campo · Lote</th>
+                      <th className="px-3 md:px-4 py-2 md:py-3 text-right font-medium text-gray-600 text-xs md:text-sm">Kilos</th>
+                      <th className="px-3 md:px-4 py-2 md:py-3 text-left font-medium text-gray-600 text-xs md:text-sm">Fecha</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {recentHarvests.map((h) => (
+                      <tr key={h.id} className="hover:bg-gray-50">
+                        <td className="px-3 md:px-4 py-2 md:py-3 font-medium text-gray-900 text-xs md:text-sm whitespace-nowrap">{h.cropType}</td>
+                        <td className="px-3 md:px-4 py-2 md:py-3 text-gray-600 text-xs md:text-sm whitespace-nowrap">
+                          {h.fieldName} · {h.lotName}
+                        </td>
+                        <td className="px-3 md:px-4 py-2 md:py-3 text-right text-gray-900 font-medium text-xs md:text-sm whitespace-nowrap">
+                          {h.kilos.toLocaleString('es-AR')} kg
+                        </td>
+                        <td className="px-3 md:px-4 py-2 md:py-3 text-gray-500 text-xs md:text-sm whitespace-nowrap">
+                          {new Date(h.harvestDate).toLocaleDateString('es-AR')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>)}
+
+        {/* TAB: Historial de tareas */}
+        {activeTab === 'historial' && (<div className="mt-4 space-y-3">
+          {taskHistory.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-12">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+                <ClipboardList className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="mt-4 text-lg font-medium text-gray-900">Sin tareas pendientes</h3>
+              <p className="mt-2 text-center text-sm text-gray-500">
+                No hay tareas pendientes ni atrasadas en este momento.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-gray-50">
-                    <th className="px-3 md:px-4 py-2 md:py-3 text-left font-medium text-gray-600 text-xs md:text-sm">Cultivo</th>
-                    <th className="px-3 md:px-4 py-2 md:py-3 text-left font-medium text-gray-600 text-xs md:text-sm">Campo · Lote</th>
-                    <th className="px-3 md:px-4 py-2 md:py-3 text-right font-medium text-gray-600 text-xs md:text-sm">Kilos</th>
-                    <th className="px-3 md:px-4 py-2 md:py-3 text-left font-medium text-gray-600 text-xs md:text-sm">Fecha</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Tarea</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Tipo</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Estado</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Campo · Lote</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Trabajador(es)</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Asignada por</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Vencimiento</th>
+                  </tr>
+                  <tr className="border-b bg-gray-50/50">
+                    {[
+                      { key: 'tarea', placeholder: 'Buscar tarea...' },
+                      { key: 'tipo', placeholder: 'Tipo...' },
+                      { key: 'estado', placeholder: 'Estado...' },
+                      { key: 'lugar', placeholder: 'Campo o lote...' },
+                      { key: 'trabajador', placeholder: 'Trabajador...' },
+                      { key: 'asignador', placeholder: 'Asignó...' },
+                      { key: 'vencimiento', placeholder: 'Fecha...' },
+                    ].map(({ key, placeholder }) => (
+                      <th key={key} className="px-3 py-2">
+                        <input
+                          type="text"
+                          placeholder={placeholder}
+                          value={columnFilters[key as keyof typeof columnFilters]}
+                          onChange={(e) => setColumnFilters((prev) => ({ ...prev, [key]: e.target.value }))}
+                          className="w-full rounded-md border border-gray-200 bg-white py-1.5 px-2.5 text-xs font-normal text-gray-700 placeholder-gray-400 outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/30 transition-all"
+                        />
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {recentHarvests.map((h) => (
-                    <tr key={h.id} className="hover:bg-gray-50">
-                      <td className="px-3 md:px-4 py-2 md:py-3 font-medium text-gray-900 text-xs md:text-sm whitespace-nowrap">{h.cropType}</td>
-                      <td className="px-3 md:px-4 py-2 md:py-3 text-gray-600 text-xs md:text-sm whitespace-nowrap">
-                        {h.fieldName} · {h.lotName}
-                      </td>
-                      <td className="px-3 md:px-4 py-2 md:py-3 text-right text-gray-900 font-medium text-xs md:text-sm whitespace-nowrap">
-                        {h.kilos.toLocaleString('es-AR')} kg
-                      </td>
-                      <td className="px-3 md:px-4 py-2 md:py-3 text-gray-500 text-xs md:text-sm whitespace-nowrap">
-                        {new Date(h.harvestDate).toLocaleDateString('es-AR')}
+                  {filteredTaskHistory.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-500">
+                        <div className="flex flex-col items-center gap-2">
+                          <Filter className="h-5 w-5 text-gray-300" />
+                          <p>No se encontraron tareas con los filtros aplicados.</p>
+                          <button
+                            type="button"
+                            onClick={() => setColumnFilters({ tarea: '', tipo: '', estado: '', lugar: '', trabajador: '', asignador: '', vencimiento: '' })}
+                            className="text-green-600 hover:text-green-700 font-medium text-xs hover:underline"
+                          >
+                            Limpiar filtros
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredTaskHistory.map((t) => {
+                      const isOverdue = t.dueDate
+                        ? t.dueDate.slice(0, 10) < new Date().toISOString().slice(0, 10)
+                        : false;
+                      return (
+                        <tr key={t.id} className={`hover:bg-gray-50 ${isOverdue ? 'bg-red-50/40' : ''}`}>
+                          <td className="px-4 py-3 font-medium text-gray-900">{t.description}</td>
+                          <td className="px-4 py-3 text-gray-600">{t.taskType}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${taskStatusColors[t.status] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
+                              {t.status === 'LATE' && <Clock className="h-3 w-3" />}
+                              {taskStatusLabels[t.status] || t.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">
+                            {t.lots.length > 0
+                              ? t.lots.map((l, i) => (
+                                <span key={i}>
+                                  {i > 0 && ', '}
+                                  <span className="font-medium text-gray-900">{l.fieldName}</span>
+                                  {' · '}
+                                  {l.lotName}
+                                </span>
+                              ))
+                              : <span className="text-gray-400 italic">Sin lote</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {t.workers.length > 0
+                              ? t.workers.map((w, i) => (
+                                <span key={i} className="inline-flex items-center gap-1 text-gray-700">
+                                  {i > 0 && ', '}
+                                  {w.firstName} {w.lastName}
+                                </span>
+                              ))
+                              : <span className="text-gray-400 italic">Sin asignar</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {t.createdByName
+                              ? <span className="inline-flex items-center gap-1 text-gray-600"><User className="h-3.5 w-3.5" />{t.createdByName}</span>
+                              : <span className="text-gray-400 italic">Sistema</span>}
+                          </td>
+                          <td className={`px-4 py-3 font-medium ${isOverdue ? 'text-red-600' : 'text-gray-900'}`}>
+                            {new Date(t.dueDate).toLocaleDateString('es-AR')}
+                            {isOverdue && (
+                              <span className="ml-1.5 text-xs text-red-500 font-normal">Vencida</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
-              </div>
             </div>
           )}
         </div>)}
@@ -332,9 +504,8 @@ function FieldCard({
         </div>
       ) : (
         <div
-          className={`mt-3 grid gap-2 md:gap-3 ${
-            isMobile 
-              ? 'grid-cols-1' 
+          className={`mt-3 grid gap-2 md:gap-3 ${isMobile
+              ? 'grid-cols-1'
               : viewMode === 'grid-large'
                 ? 'sm:grid-cols-2 xl:grid-cols-3'
                 : 'sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
