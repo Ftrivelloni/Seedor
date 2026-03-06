@@ -315,11 +315,19 @@ export async function createTaskAction(formData: FormData) {
   );
 
   if (assignedWorkers.length > 0 && createdTasks.length > 0) {
+    // Get tenant name for notification
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: session.tenantId },
+      select: { name: true },
+    });
+    const tenantName = tenant?.name ?? '';
+
     const tasksForNotify = createdTasks.map((task) => ({
       description: task.description,
       taskType: task.taskType,
       dueDate: task.dueDate.toISOString().split('T')[0],
       lotDisplay: lotDisplayById.get(task.lotId) ?? task.lotId,
+      tenantName,
     }));
 
     try {
@@ -331,6 +339,30 @@ export async function createTaskAction(formData: FormData) {
 
   revalidatePath('/dashboard/campo');
   revalidatePath('/dashboard/inventario');
+  revalidatePath('/dashboard');
+}
+
+/**
+ * Delete a task and all its subtasks.
+ */
+export async function deleteTaskAction(taskId: string) {
+  const session = await requireRole(['ADMIN', 'SUPERVISOR']);
+
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, tenantId: session.tenantId },
+    select: { id: true, subtasks: { select: { id: true } } },
+  });
+
+  if (!task) throw new Error('Tarea no encontrada.');
+
+  await prisma.$transaction(async (tx) => {
+    if (task.subtasks.length > 0) {
+      await tx.task.deleteMany({ where: { parentTaskId: task.id } });
+    }
+    await tx.task.delete({ where: { id: task.id } });
+  });
+
+  revalidatePath('/dashboard/campo');
   revalidatePath('/dashboard');
 }
 
@@ -505,19 +537,40 @@ export async function toggleSubtaskStatusAction(subtaskId: string) {
 
   const subtask = await prisma.task.findFirst({
     where: { id: subtaskId, tenantId: session.tenantId, parentTaskId: { not: null } },
-    select: { id: true, status: true },
+    select: { id: true, status: true, workerAssignments: { select: { workerId: true } } },
   });
 
   if (!subtask) throw new Error('Subtarea no encontrada.');
 
   const newStatus = subtask.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
 
-  await prisma.task.update({
-    where: { id: subtask.id },
-    data: {
-      status: newStatus,
-      completedAt: newStatus === 'COMPLETED' ? new Date() : null,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.task.update({
+      where: { id: subtask.id },
+      data: {
+        status: newStatus,
+        completedAt: newStatus === 'COMPLETED' ? new Date() : null,
+      },
+    });
+
+    if (newStatus === 'COMPLETED') {
+      const logsToCreate = subtask.workerAssignments.map((wa) => ({
+        taskId: subtask.id,
+        workerId: wa.workerId,
+        source: 'web',
+        completedAt: new Date(),
+      }));
+      if (logsToCreate.length > 0) {
+        await tx.taskCompletionLog.createMany({
+          data: logsToCreate,
+          skipDuplicates: true,
+        });
+      }
+    } else {
+      await tx.taskCompletionLog.deleteMany({
+        where: { taskId: subtask.id },
+      });
+    }
   });
 
   revalidatePath('/dashboard/campo');
@@ -535,17 +588,38 @@ export async function updateTaskStatusAction(taskId: string, status: TaskStatus)
 
   const task = await prisma.task.findFirst({
     where: { id: taskId, tenantId: session.tenantId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, workerAssignments: { select: { workerId: true } } },
   });
 
   if (!task) throw new Error('Tarea no encontrada.');
 
-  await prisma.task.update({
-    where: { id: task.id },
-    data: {
-      status,
-      completedAt: status === 'COMPLETED' ? new Date() : null,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.task.update({
+      where: { id: task.id },
+      data: {
+        status,
+        completedAt: status === 'COMPLETED' ? new Date() : null,
+      },
+    });
+
+    if (status === 'COMPLETED' && task.status !== 'COMPLETED') {
+      const logsToCreate = task.workerAssignments.map((wa) => ({
+        taskId: task.id,
+        workerId: wa.workerId,
+        source: 'web',
+        completedAt: new Date(),
+      }));
+      if (logsToCreate.length > 0) {
+        await tx.taskCompletionLog.createMany({
+          data: logsToCreate,
+          skipDuplicates: true,
+        });
+      }
+    } else if (status !== 'COMPLETED' && task.status === 'COMPLETED') {
+      await tx.taskCompletionLog.deleteMany({
+        where: { taskId: task.id },
+      });
+    }
   });
 
   revalidatePath('/dashboard/campo');

@@ -6,6 +6,7 @@ type TaskNotification = {
   taskType: string;
   dueDate: string;
   lotDisplay: string;
+  tenantName?: string;
 };
 
 type NotifyWorkersInput = {
@@ -109,22 +110,29 @@ async function loadWorkerChatIds(): Promise<{
 function buildTasksMessage(tasks: TaskNotification[]): string {
   if (tasks.length === 1) {
     const task = tasks[0];
-    return [
-      'Nueva tarea asignada',
-      '',
-      `Tarea: ${task.description}`,
+    const lines = ['Nueva tarea asignada', ''];
+    if (task.tenantName) {
+      lines.push(`🏢 Empresa: ${task.tenantName}`);
+    }
+    lines.push(
+      `📌 Tarea: ${task.description}`,
       `Tipo: ${task.taskType}`,
-      `Lote: ${task.lotDisplay}`,
-      `Vence: ${task.dueDate}`,
-    ].join('\n');
+      `🌱 Lote: ${task.lotDisplay}`,
+      `📅 Vence: ${task.dueDate}`,
+    );
+    return lines.join('\n');
   }
 
   const lines = ['Nuevas tareas asignadas', ''];
+  const tenantName = tasks[0]?.tenantName;
+  if (tenantName) {
+    lines.push(`🏢 Empresa: ${tenantName}`, '');
+  }
   for (const task of tasks) {
-    lines.push(`- ${task.description}`);
+    lines.push(`- 📌 ${task.description}`);
     lines.push(`  Tipo: ${task.taskType}`);
-    lines.push(`  Lote: ${task.lotDisplay}`);
-    lines.push(`  Vence: ${task.dueDate}`);
+    lines.push(`  🌱 Lote: ${task.lotDisplay}`);
+    lines.push(`  📅 Vence: ${task.dueDate}`);
     lines.push('');
   }
   return lines.join('\n').trim();

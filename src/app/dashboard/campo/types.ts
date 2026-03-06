@@ -90,6 +90,27 @@ export interface SerializedCropType {
   color: string;
 }
 
+export interface SerializedCompletionLog {
+  id: string;
+  taskDescription: string;
+  workerName: string;
+  source: string;
+  completedAt: string;
+}
+
+export interface SerializedTaskHistory {
+  id: string;
+  description: string;
+  taskType: string;
+  status: string;
+  startDate: string;
+  dueDate: string;
+  createdAt: string;
+  createdByName: string | null;
+  lots: { lotName: string; fieldName: string }[];
+  workers: { firstName: string; lastName: string }[];
+}
+
 export type LotViewMode = 'grid-large' | 'grid-medium' | 'list';
 
 export const taskStatusLabels: Record<string, string> = {

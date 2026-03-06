@@ -12,6 +12,7 @@ import type {
   SerializedInventoryItem,
   SerializedWarehouse,
   SerializedTaskType,
+  SerializedCompletionLog,
 } from '../../types';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +25,7 @@ export default async function LotPage({ params }: LotPageProps) {
   const { fieldId, lotId } = await params;
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
-  const [field, lot, tasks, harvests, workers, inventoryItems, warehouses, taskTypes, allFields] =
+  const [field, lot, tasks, harvests, workers, inventoryItems, warehouses, taskTypes, allFields, completionLogs] =
     await Promise.all([
       prisma.field.findFirst({
         where: { id: fieldId, tenantId: session.tenantId },
@@ -112,6 +113,19 @@ export default async function LotPage({ params }: LotPageProps) {
         },
         orderBy: { name: 'asc' },
       }),
+      prisma.taskCompletionLog.findMany({
+        where: {
+          task: {
+            tenantId: session.tenantId,
+            lotLinks: { some: { lotId } },
+          },
+        },
+        include: {
+          task: { select: { description: true } },
+          worker: { select: { firstName: true, lastName: true } },
+        },
+        orderBy: { completedAt: 'desc' },
+      }),
     ]);
 
   if (!field || !lot) notFound();
@@ -122,7 +136,7 @@ export default async function LotPage({ params }: LotPageProps) {
     name: field.name,
     location: field.location,
     description: field.description,
-    lots: field.lots.map((l) => ({
+    lots: field.lots.map((l: any) => ({
       id: l.id,
       fieldId: l.fieldId,
       name: l.name,
@@ -132,10 +146,10 @@ export default async function LotPage({ params }: LotPageProps) {
       crops: (l as any).lotCrops?.map((lc: { cropType: { name: string } }) => lc.cropType.name) ?? [],
       lastTaskAt: l.lastTaskAt?.toISOString() ?? null,
       taskCost: l.taskLinks.reduce(
-        (acc, link) => acc + Number(link.task.costValue || 0),
+        (acc: number, link: any) => acc + Number(link.task.costValue || 0),
         0
       ),
-      totalHarvestKilos: l.harvestRecords.reduce((acc, h) => acc + h.kilos, 0),
+      totalHarvestKilos: l.harvestRecords.reduce((acc: number, h: any) => acc + h.kilos, 0),
       taskCount: l.taskLinks.length,
       taskRecency: {},
     })),
@@ -152,23 +166,23 @@ export default async function LotPage({ params }: LotPageProps) {
     crops: (lot as any).lotCrops?.map((lc: { cropType: { name: string } }) => lc.cropType.name) ?? [],
     lastTaskAt: lot.lastTaskAt?.toISOString() ?? null,
     taskCost: lot.taskLinks.reduce(
-      (acc, link) => acc + Number(link.task.costValue || 0),
+      (acc: number, link: any) => acc + Number(link.task.costValue || 0),
       0
     ),
-    totalHarvestKilos: lot.harvestRecords.reduce((acc, h) => acc + h.kilos, 0),
+    totalHarvestKilos: lot.harvestRecords.reduce((acc: number, h: any) => acc + h.kilos, 0),
     taskCount: lot.taskLinks.length,
     taskRecency: {},
   };
 
   /* ── Serialize tasks ── */
   const now = new Date();
-  const serializedTasks: SerializedTask[] = tasks.map((t) => {
+  const serializedTasks: SerializedTask[] = tasks.map((t: any) => {
     const calculatedStatus =
       t.status !== 'COMPLETED' && t.dueDate < now && t.status !== 'LATE'
         ? 'LATE'
         : t.status;
 
-    const completedSubs = t.subtasks.filter((s) => s.status === 'COMPLETED').length;
+    const completedSubs = t.subtasks.filter((s: any) => s.status === 'COMPLETED').length;
     const subtaskProgress = t.subtasks.length
       ? Math.round((completedSubs / t.subtasks.length) * 100)
       : 0;
@@ -186,21 +200,21 @@ export default async function LotPage({ params }: LotPageProps) {
       isComposite: t.isComposite,
       parentTaskId: t.parentTaskId ?? null,
       subtaskProgress,
-      subtasks: t.subtasks.map((s) => ({
+      subtasks: t.subtasks.map((s: any) => ({
         id: s.id,
         description: s.description,
         status: s.status,
       })),
-      lots: t.lotLinks.map((l) => l.lot.name),
+      lots: t.lotLinks.map((l: any) => l.lot.name),
       workers: t.workerAssignments.map(
-        (a) => `${a.worker.firstName} ${a.worker.lastName}`
+        (a: any) => `${a.worker.firstName} ${a.worker.lastName}`
       ),
       createdAt: t.createdAt.toISOString(),
     };
   });
 
   /* ── Serialize harvests ── */
-  const serializedHarvests: SerializedHarvest[] = harvests.map((h) => ({
+  const serializedHarvests: SerializedHarvest[] = harvests.map((h: any) => ({
     id: h.id,
     lotId: h.lotId,
     lotName: h.lot.name,
@@ -211,7 +225,7 @@ export default async function LotPage({ params }: LotPageProps) {
   }));
 
   /* ── Serialize workers ── */
-  const serializedWorkers: SerializedWorker[] = workers.map((w) => ({
+  const serializedWorkers: SerializedWorker[] = workers.map((w: any) => ({
     id: w.id,
     firstName: w.firstName,
     lastName: w.lastName,
@@ -219,7 +233,7 @@ export default async function LotPage({ params }: LotPageProps) {
   }));
 
   /* ── Serialize inventory items ── */
-  const serializedItems: SerializedInventoryItem[] = inventoryItems.map((i) => ({
+  const serializedItems: SerializedInventoryItem[] = inventoryItems.map((i: any) => ({
     id: i.id,
     code: i.code,
     name: i.name,
@@ -227,25 +241,34 @@ export default async function LotPage({ params }: LotPageProps) {
   }));
 
   /* ── Serialize warehouses ── */
-  const serializedWarehouses: SerializedWarehouse[] = warehouses.map((w) => ({
+  const serializedWarehouses: SerializedWarehouse[] = warehouses.map((w: any) => ({
     id: w.id,
     name: w.name,
   }));
 
   /* ── Serialize task types ── */
-  const serializedTaskTypes: SerializedTaskType[] = taskTypes.map((tt) => ({
+  const serializedTaskTypes: SerializedTaskType[] = taskTypes.map((tt: any) => ({
     id: tt.id,
     name: tt.name,
     color: tt.color,
   }));
 
+  /* ── Serialize completion logs ── */
+  const serializedCompletionLogs: SerializedCompletionLog[] = completionLogs.map((cl: any) => ({
+    id: cl.id,
+    taskDescription: cl.task.description,
+    workerName: cl.worker ? `${cl.worker.firstName} ${cl.worker.lastName}` : 'Trabajador eliminado',
+    source: cl.source,
+    completedAt: cl.completedAt.toISOString(),
+  }));
+
   /* ── Serialize all fields for task modal ── */
-  const serializedAllFields: SerializedField[] = allFields.map((f) => ({
+  const serializedAllFields: SerializedField[] = allFields.map((f: any) => ({
     id: f.id,
     name: f.name,
     location: f.location,
     description: f.description,
-    lots: f.lots.map((l) => ({
+    lots: f.lots.map((l: any) => ({
       id: l.id,
       fieldId: l.fieldId,
       name: l.name,
@@ -254,26 +277,25 @@ export default async function LotPage({ params }: LotPageProps) {
       plantedFruitsDescription: l.plantedFruitsDescription,
       crops: l.lotCrops.map((lc: { cropType: { name: string } }) => lc.cropType.name),
       lastTaskAt: l.lastTaskAt?.toISOString() ?? null,
-      taskCost: l.taskLinks.reduce((acc, link) => acc + Number(link.task.costValue || 0), 0),
-      totalHarvestKilos: l.harvestRecords.reduce((acc, h) => acc + h.kilos, 0),
+      taskCost: l.taskLinks.reduce((acc: number, link: any) => acc + Number(link.task.costValue || 0), 0),
+      totalHarvestKilos: l.harvestRecords.reduce((acc: number, h: any) => acc + h.kilos, 0),
       taskCount: l.taskLinks.length,
       taskRecency: {},
     })),
   }));
 
   return (
-    <Suspense fallback={<div>Cargando...</div>}>
-      <LotDetailClient
-        field={serializedField}
-        allFields={serializedAllFields}
-        lot={serializedLot}
-        tasks={serializedTasks}
-        harvests={serializedHarvests}
-        workers={serializedWorkers}
-        inventoryItems={serializedItems}
-        warehouses={serializedWarehouses}
-        taskTypes={serializedTaskTypes}
-      />
-    </Suspense>
+    <LotDetailClient
+      field={serializedField}
+      allFields={serializedAllFields}
+      lot={serializedLot}
+      tasks={serializedTasks}
+      harvests={serializedHarvests}
+      workers={serializedWorkers}
+      inventoryItems={serializedItems}
+      warehouses={serializedWarehouses}
+      taskTypes={serializedTaskTypes}
+      completionLogs={serializedCompletionLogs}
+    />
   );
 }
