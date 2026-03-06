@@ -19,8 +19,8 @@ COPY sync_service.py .
 # Create persistent data directory
 RUN mkdir -p data
 
-# Expose webhook port
-EXPOSE 8443
+# Expose webhook port (runtime port is provided via $PORT, e.g. by Railway)
+EXPOSE 8080
 
 # Default: run the bot
 CMD ["python", "bot.py"]

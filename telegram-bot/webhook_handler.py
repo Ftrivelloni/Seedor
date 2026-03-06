@@ -13,7 +13,6 @@ Usage:
 
 import asyncio
 import os
-import sys
 
 from aiohttp import web
 
@@ -36,17 +35,23 @@ async def run_webhook(app) -> None:
     """Start the webhook server with the given telegram Application."""
     from telegram import Update
 
+    # WEBHOOK_SECRET is required when running in webhook mode
+    if not WEBHOOK_SECRET:
+        raise RuntimeError(
+            "WEBHOOK_SECRET must be set when WEBHOOK_URL is configured. "
+            "Generate a strong random token and set it as an environment variable."
+        )
+
     # Build the aiohttp web app
     webapp = web.Application()
 
     # Webhook endpoint
     async def webhook_handler(request: web.Request) -> web.Response:
         """POST /webhook — receive Telegram updates."""
-        # Verify secret token if configured
-        if WEBHOOK_SECRET:
-            token_header = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
-            if token_header != WEBHOOK_SECRET:
-                return web.Response(status=403, text="Forbidden")
+        # Always validate the secret token header
+        token_header = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if token_header != WEBHOOK_SECRET:
+            return web.Response(status=403, text="Forbidden")
 
         try:
             data = await request.json()
@@ -54,9 +59,9 @@ async def run_webhook(app) -> None:
             # Process update in-band
             await app.process_update(update)
             return web.Response(status=200, text="OK")
-        except Exception as e:
-            log.error("Webhook update processing failed", error=str(e))
-            return web.Response(status=200, text="OK")  # always 200 to avoid retries
+        except Exception:
+            log.exception("Webhook update processing failed")
+            return web.Response(status=500, text="Internal Server Error")
 
     webapp.router.add_post("/webhook", webhook_handler)
     webapp.router.add_get("/health", health_handler)
