@@ -181,6 +181,31 @@ export async function reactivateSubscriptionAction(): Promise<{
   }
 
   try {
+    // Check if there's already a pending reactivation
+    // If mpPreapprovalId exists and cancelAtPeriodEnd is still true,
+    // it means the user started reactivation but didn't complete payment
+    if (tenant.mpPreapprovalId && tenant.subscriptionStatus === 'ACTIVE') {
+      // There's already an active preapproval, try to get its init_point
+      try {
+        const existingPreapproval = await mpPreApproval.get({ id: tenant.mpPreapprovalId });
+        const raw = existingPreapproval as unknown as Record<string, unknown>;
+        
+        // If it's in pending status, reuse it
+        if (existingPreapproval.status === 'pending') {
+          const initPoint = typeof raw.init_point === 'string' ? raw.init_point : null;
+          const sandboxInitPoint = typeof raw.sandbox_init_point === 'string' ? raw.sandbox_init_point : null;
+          
+          if (initPoint || sandboxInitPoint) {
+            console.log(`[reactivateSubscriptionAction] Reusando preapproval pendiente ${tenant.mpPreapprovalId}`);
+            return { success: true, redirectUrl: (initPoint || sandboxInitPoint)! };
+          }
+        }
+      } catch (mpErr) {
+        // If fetching fails, continue to create a new one
+        console.warn('[reactivateSubscriptionAction] Error al obtener preapproval existente:', mpErr);
+      }
+    }
+
     // Recalculate price based on current modules
     const pricing = await calculateSubscriptionPrice(session.tenantId);
     const exchangeRate = await getUsdToArsRate();
@@ -235,12 +260,13 @@ export async function reactivateSubscriptionAction(): Promise<{
       return { success: false, error: 'No se pudo crear la nueva suscripción. Intentá de nuevo.' };
     }
 
-    // Update tenant: new preapproval, clear cancellation
+    // Update tenant: new preapproval, but KEEP cancelAtPeriodEnd=true
+    // It will be cleared by the webhook when MP confirms the subscription is authorized
     await prisma.tenant.update({
       where: { id: session.tenantId },
       data: {
-        cancelAtPeriodEnd: false,
         mpPreapprovalId: preapproval.id,
+        // Don't clear cancelAtPeriodEnd yet - wait for webhook confirmation
       },
     });
 

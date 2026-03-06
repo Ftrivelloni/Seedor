@@ -199,21 +199,32 @@ async function handlePreapprovalEvent(preapprovalId: string) {
   }
 
   // ── Handle status updates (ACTIVE or PAST_DUE) ──
-  if (tenant.subscriptionStatus === action) {
-    return; // No change needed
-  }
-
   // Extract end_date from auto_recurring
   const autoRecurring = preapproval.auto_recurring as Record<string, unknown> | undefined;
   const endDate = autoRecurring?.end_date;
 
+  // Prepare update data
+  const updateData: {
+    subscriptionStatus: typeof action;
+    currentPeriodEnd?: Date;
+    mpLastEventAt: Date;
+    cancelAtPeriodEnd?: boolean;
+  } = {
+    subscriptionStatus: action,
+    currentPeriodEnd: typeof endDate === 'string' ? new Date(endDate) : undefined,
+    mpLastEventAt: new Date(),
+  };
+
+  // If the subscription becomes ACTIVE and was marked for cancellation,
+  // clear the cancellation flag (this means a reactivation was confirmed)
+  if (action === 'ACTIVE' && tenant.cancelAtPeriodEnd) {
+    updateData.cancelAtPeriodEnd = false;
+    console.log(`[MP Webhook] Suscripción reactivada confirmada para Tenant ${tenant.id}. Limpiando cancelAtPeriodEnd.`);
+  }
+
   await prisma.tenant.update({
     where: { id: tenant.id },
-    data: {
-      subscriptionStatus: action,
-      currentPeriodEnd: typeof endDate === 'string' ? new Date(endDate) : undefined,
-      mpLastEventAt: new Date(),
-    },
+    data: updateData,
   });
 
   console.log(`[MP Webhook] Tenant ${tenant.id} status actualizado a ${action}`);
