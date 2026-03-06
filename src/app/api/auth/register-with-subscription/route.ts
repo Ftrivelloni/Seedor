@@ -90,7 +90,7 @@ export async function POST(request: Request) {
         if (email !== payerEmail) {
             return NextResponse.json(
                 { 
-                    error: 'Por seguridad y sincronización de facturación, el email de registro debe coincidir exactamente con el email de tu cuenta de Mercado Pago.' 
+                    error: 'El email de facturación debe coincidir con el email de registro.' 
                 },
                 { status: 400 }
             );

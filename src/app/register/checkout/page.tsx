@@ -81,7 +81,7 @@ export default function CheckoutPage() {
 
         // Validar que el email de pago coincida con el de registro
         if (payerEmail !== registrationData.email) {
-            setError('Por seguridad, el email de facturación debe coincidir con el email de registro.');
+            setError('El email de facturación debe coincidir con el email de registro.');
             return;
         }
 
@@ -399,23 +399,9 @@ export default function CheckoutPage() {
                         className={`bg-white rounded-2xl border border-black/10 shadow-sm hover:shadow-md transition-all duration-300 p-6 mb-6 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                         style={{ transitionDelay: '350ms' }}
                     >
-                        <label htmlFor="payerEmail" className="block text-sm font-bold text-[#0A0908] mb-2">
-                            Email para la facturación
-                        </label>
-                        
-                        {/* Email matching warning */}
-                        <div className="mb-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 px-4 py-3">
-                            <div className="flex items-start gap-2">
-                                <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                </svg>
-                                <p className="text-sm text-amber-900/90 leading-relaxed">
-                                    <strong className="font-semibold">Atención:</strong> Por seguridad y sincronización de facturación, el email de registro debe coincidir con el email de tu cuenta de Mercado Pago.
-                                </p>
-                            </div>
-                        </div>
+                        <h2 className="text-base font-bold text-[#0A0908] mb-5">Email para la facturación</h2>
 
-                        <div className="relative">
+                        <div className="relative mb-4">
                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <svg className="w-5 h-5 text-[#0A0908]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -437,13 +423,26 @@ export default function CheckoutPage() {
                         </div>
                         
                         {payerEmail && payerEmail !== registrationData?.email && (
-                            <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
+                            <p className="mb-4 text-xs text-red-600 flex items-center gap-1">
                                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                                 </svg>
                                 El email debe coincidir con tu email de registro: {registrationData?.email}
                             </p>
                         )}
+
+                        <div className="mt-5 pt-5 border-t border-gray-100 space-y-3">
+                            <div className="rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/50 px-4 py-3">
+                                <div className="flex items-start gap-2">
+                                    <svg className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                    </svg>
+                                    <p className="text-xs text-amber-900/90 leading-relaxed">
+                                        <strong className="font-semibold">Atención:</strong> El email de facturación debe coincidir con el de registro. Si vas a pagar con Mercado Pago, asegurate de que sea el email de tu cuenta de Mercado Pago.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     {/* Error */}
                     {error && (
