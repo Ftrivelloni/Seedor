@@ -105,13 +105,18 @@ export async function cancelSubscriptionAction(): Promise<{ success: boolean; er
     select: {
       subscriptionStatus: true,
       mpPreapprovalId: true,
+      cancelAtPeriodEnd: true,
     },
   });
 
   if (!tenant) return { success: false, error: 'Tenant no encontrado.' };
 
-  if (tenant.subscriptionStatus !== 'ACTIVE') {
+  if (tenant.subscriptionStatus !== 'ACTIVE' && tenant.subscriptionStatus !== 'PAST_DUE') {
     return { success: false, error: 'No hay una suscripción activa para cancelar.' };
+  }
+
+  if (tenant.cancelAtPeriodEnd) {
+    return { success: false, error: 'La suscripción ya está marcada para cancelar al fin del período.' };
   }
 
   if (!tenant.mpPreapprovalId) {
@@ -119,23 +124,24 @@ export async function cancelSubscriptionAction(): Promise<{ success: boolean; er
   }
 
   try {
-    // Call the API route to handle MP cancellation
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const res = await fetch(`${appUrl}/api/subscriptions/cancel`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenantId: session.tenantId }),
+    // Cancel directly in Mercado Pago
+    await mpPreApproval.update({
+      id: tenant.mpPreapprovalId,
+      body: { status: 'cancelled' },
     });
 
-    if (!res.ok) {
-      const data = await res.json();
-      return { success: false, error: data.error || 'Error al cancelar la suscripción.' };
-    }
+    // Mark tenant for cancellation at period end
+    await prisma.tenant.update({
+      where: { id: session.tenantId },
+      data: { cancelAtPeriodEnd: true },
+    });
 
     revalidatePath('/dashboard/configuracion');
     return { success: true };
-  } catch {
-    return { success: false, error: 'Error de comunicación al cancelar la suscripción.' };
+  } catch (err: unknown) {
+    console.error('[cancelSubscriptionAction] Error:', err);
+    const message = err instanceof Error ? err.message : 'Error desconocido al cancelar.';
+    return { success: false, error: `Error al cancelar la suscripción: ${message}` };
   }
 }
 

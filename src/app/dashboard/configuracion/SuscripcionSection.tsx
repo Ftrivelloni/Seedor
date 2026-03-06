@@ -185,8 +185,8 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
     <div className="space-y-4">
 
       {/* Card 1: Estado del plan */}
-      <Card>
-        <CardHeader className="pb-4">
+      <Card className="gap-3">
+        <CardHeader className={tenant.cancelAtPeriodEnd ? "pb-3" : "pb-4"}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Plan actual</h3>
@@ -202,13 +202,13 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
               );
             })()}
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
           {tenant.cancelAtPeriodEnd && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mt-3">
               <p className="text-sm text-amber-800">Tu suscripción se cancelará al finalizar el período actual.</p>
             </div>
           )}
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Facturación</p>
@@ -521,48 +521,76 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
         </CardContent>
       </Card>
 
-      {/* Card 4: Zona de peligro */}
+      {/* Zona de peligro */}
       {canCancel && !tenant.cancelAtPeriodEnd && (
-        <Card className="border-red-200">
-          <CardHeader className="pb-4">
-            <h3 className="text-sm font-semibold text-red-700">Zona de peligro</h3>
-            <p className="mt-0.5 text-sm text-gray-500">Acciones destructivas sobre tu suscripción.</p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {cancelError && (
-              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{cancelError}</p>
-            )}
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3">
-              <div>
-                <p className="text-sm font-medium text-red-900">Cancelar suscripción</p>
-                <p className="text-xs text-red-600">Mantiene el acceso hasta el fin del período actual.</p>
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" className="shrink-0" disabled={isCanceling}>
-                    {isCanceling ? 'Cancelando...' : 'Cancelar'}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>¿Cancelar suscripción?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Tu suscripción seguirá activa hasta el final del período actual. Después perderás
-                      acceso a las funciones premium. Esta acción puede revertirse contactando soporte
-                      antes de que finalice el período.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Volver</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleCancelSubscription} className="bg-red-600 hover:bg-red-700">
-                      Sí, cancelar suscripción
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+        <>
+          <div className="relative mt-8 mb-2">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-red-200" />
             </div>
-          </CardContent>
-        </Card>
+            <div className="relative flex justify-start">
+              <span className="bg-gray-50 pr-3 text-xs font-medium uppercase tracking-wide text-red-400">
+                Zona de peligro
+              </span>
+            </div>
+          </div>
+          <Card className="border-red-200">
+            <CardHeader className="pb-0">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-100">
+                    <XCircle className="h-4 w-4 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">Cancelar suscripción</h3>
+                    <p className="mt-0.5 text-sm text-gray-500">
+                      Cancelá tu suscripción a Seedor. Mantenés el acceso hasta el fin del período actual.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 mt-0 pt-0">
+              {cancelError && (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{cancelError}</p>
+              )}
+              <div className="flex items-center justify-between gap-4 rounded-lg border border-red-100 bg-red-50/60 px-4 py-3">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                  <p className="text-sm text-red-700">
+                    Tu suscripción seguirá activa hasta el final del período actual. Después se eliminará tu cuenta y todos los datos asociados.
+                  </p>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="shrink-0" disabled={isCanceling}>
+                      {isCanceling ? 'Cancelando...' : 'Cancelar'}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="flex items-center gap-2 text-red-700">
+                        <AlertTriangle className="h-5 w-5" />
+                        ¿Cancelar suscripción?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Tu suscripción seguirá activa hasta el final del período actual. Después perderás
+                        acceso a las funciones premium. Esta acción puede revertirse contactando soporte
+                        antes de que finalice el período.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Volver</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleCancelSubscription} className="bg-red-600 hover:bg-red-700">
+                        Sí, cancelar suscripción
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );
