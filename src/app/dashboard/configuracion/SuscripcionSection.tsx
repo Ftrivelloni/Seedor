@@ -23,6 +23,8 @@ import { Card, CardContent, CardHeader } from '@/components/dashboard/ui/card';
 import { Button } from '@/components/dashboard/ui/button';
 import { Switch } from '@/components/dashboard/ui/switch';
 import { Separator } from '@/components/dashboard/ui/separator';
+import { Input } from '@/components/dashboard/ui/input';
+import { Label } from '@/components/dashboard/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -92,6 +94,11 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [reactivateError, setReactivateError] = useState<string | null>(null);
 
+  // ── Cancel subscription: 2-step confirmation flow ──
+  const [cancelStep, setCancelStep] = useState<'closed' | 'warning' | 'confirm'>('closed');
+  const [cancelConfirmText, setCancelConfirmText] = useState('');
+  const [cancelAccepted, setCancelAccepted] = useState(false);
+
   const statusInfo = STATUS_CONFIG[tenant.subscriptionStatus] ?? null;
   const canCancel = tenant.subscriptionStatus === 'ACTIVE';
   const hasActiveSubscription = canCancel;
@@ -156,15 +163,26 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
   function handleCancelSubscription() {
     setCancelError(null);
     startCancel(async () => {
-      const result = await cancelSubscriptionAction();
+      const result = await cancelSubscriptionAction(cancelConfirmText);
       if (result.success) {
         toast.success('Suscripción marcada para cancelar al fin del período.');
+        handleCloseCancelFlow();
         router.refresh();
       } else {
         setCancelError(result.error ?? 'Error al cancelar la suscripción.');
       }
     });
   }
+
+  function handleCloseCancelFlow() {
+    setCancelStep('closed');
+    setCancelConfirmText('');
+    setCancelAccepted(false);
+    setCancelError(null);
+  }
+
+  const isCancelConfirmValid = cancelConfirmText.trim().toLowerCase() === tenant.name.trim().toLowerCase();
+  const canConfirmCancel = isCancelConfirmValid && cancelAccepted && !isCanceling;
 
   function handleReactivateSubscription() {
     setReactivateError(null);
@@ -593,7 +611,7 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
                     <XCircle className="h-4 w-4 text-red-600" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-900">Cancelar suscripción</h3>
+                    <h3 className="text-sm font-semibold text-gray-900">Anular suscripción</h3>
                     <p className="mt-0.5 text-sm text-gray-500">
                       Cancelá tu suscripción a Seedor. Mantenés el acceso hasta el fin del período actual.
                     </p>
@@ -609,45 +627,150 @@ export function SuscripcionSection({ tenant, pricing, moduleSettings }: Suscripc
                 <div className="flex items-start gap-2.5">
                   <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
                   <p className="text-sm text-red-700">
-                    Tu suscripción seguirá activa hasta el final del período actual. Después se eliminará tu cuenta y todos los datos asociados.
+                    Al anular la suscripción, tu acceso continuará hasta el fin del período pago.
+                    Después, tu cuenta y todos los datos asociados serán eliminados permanentemente.
                   </p>
                 </div>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" className="shrink-0" disabled={isCanceling}>
-                      {isCanceling ? 'Cancelando...' : 'Cancelar'}
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle className="flex items-center gap-2 text-red-700">
-                        <AlertTriangle className="h-5 w-5" />
-                        ¿Cancelar suscripción?
-                      </AlertDialogTitle>
-                      <AlertDialogDescription asChild>
-                        <div className="space-y-3 text-sm text-gray-600">
-                          <p>
-                            Tu suscripción seguirá activa hasta el final del período actual.
-                            Al finalizar, <strong className="text-red-700">tu cuenta y todos los datos serán eliminados permanentemente</strong>.
-                          </p>
-                          <p>
-                            Si cambiás de opinión, podés reactivar la suscripción desde esta misma sección
-                            antes de que termine el período.
-                          </p>
-                        </div>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Volver</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleCancelSubscription} className="bg-red-600 hover:bg-red-700">
-                        Sí, cancelar suscripción
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setCancelStep('warning')}
+                  disabled={isCanceling}
+                >
+                  Anular
+                </Button>
               </div>
             </CardContent>
           </Card>
+
+          {/* ── Modal 1: Advertencia inicial ── */}
+          <AlertDialog open={cancelStep === 'warning'} onOpenChange={(open) => { if (!open) handleCloseCancelFlow(); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-red-700">
+                  <AlertTriangle className="h-5 w-5" />
+                  ¿Estás seguro de que querés anular tu suscripción?
+                </AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-4 text-sm text-gray-600 mt-2">
+                    <p>
+                      Al confirmar, tu suscripción <strong>no se renovará</strong> en la próxima fecha de cobro.
+                      {tenant.currentPeriodEnd && (
+                        <> Podrás seguir accediendo a tus datos hasta el{' '}
+                          <strong className="text-gray-900">
+                            {format(new Date(tenant.currentPeriodEnd), "d 'de' MMMM 'de' yyyy", { locale: es })}
+                          </strong>,
+                          {' '}momento en el cual tu acceso será restringido y tus datos marcados para eliminación.
+                        </>
+                      )}
+                    </p>
+
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                      <p className="font-semibold text-red-900 mb-2">Se eliminará permanentemente:</p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-red-800">
+                        <span>• Campos y lotes</span>
+                        <span>• Cosechas y tareas</span>
+                        <span>• Inventario y depósitos</span>
+                        <span>• Trabajadores</span>
+                        <span>• Maquinaria</span>
+                        <span>• Empaque y despachos</span>
+                        <span>• Usuarios</span>
+                        <span>• Configuración</span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                      <p className="text-sm text-amber-800">
+                        <strong>Nota:</strong> Si cambiás de opinión, podés reactivar la suscripción
+                        desde esta misma sección antes de que finalice el período.
+                      </p>
+                    </div>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={handleCloseCancelFlow}>Volver</AlertDialogCancel>
+                <Button
+                  variant="destructive"
+                  onClick={() => setCancelStep('confirm')}
+                >
+                  Continuar con la anulación
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* ── Modal 2: Confirmación con texto ── */}
+          <AlertDialog open={cancelStep === 'confirm'} onOpenChange={(open) => { if (!open) handleCloseCancelFlow(); }}>
+            <AlertDialogContent className="max-w-lg">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-red-700">
+                  <AlertTriangle className="h-5 w-5" />
+                  Confirmación final
+                </AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-4 text-sm text-gray-600 mt-2">
+                    <p>
+                      Para confirmar la anulación de la suscripción de{' '}
+                      <strong className="text-gray-900">{tenant.name}</strong>,
+                      escribí el nombre de tu empresa a continuación.
+                    </p>
+
+                    {/* Confirmation input */}
+                    <div className="space-y-2">
+                      <Label htmlFor="cancel-confirm" className="text-gray-700">
+                        Escribí <strong className="text-red-700 select-all">{tenant.name}</strong> para confirmar:
+                      </Label>
+                      <Input
+                        id="cancel-confirm"
+                        value={cancelConfirmText}
+                        onChange={(e) => { setCancelConfirmText(e.target.value); setCancelError(null); }}
+                        placeholder={tenant.name}
+                        className="border-gray-300 focus:border-red-500 focus:ring-red-500"
+                        autoComplete="off"
+                        disabled={isCanceling}
+                      />
+                    </div>
+
+                    {/* Terms checkbox */}
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={cancelAccepted}
+                        onChange={(e) => setCancelAccepted(e.target.checked)}
+                        disabled={isCanceling}
+                        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Entiendo que al finalizar el período actual, mi cuenta y <strong>todos los datos
+                        de la organización serán eliminados permanentemente</strong>.
+                      </span>
+                    </label>
+
+                    {cancelError && (
+                      <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                        {cancelError}
+                      </p>
+                    )}
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={handleCloseCancelFlow} disabled={isCanceling}>
+                  Cancelar
+                </AlertDialogCancel>
+                <Button
+                  variant="destructive"
+                  onClick={handleCancelSubscription}
+                  disabled={!canConfirmCancel}
+                  className="disabled:opacity-50"
+                >
+                  {isCanceling ? 'Procesando...' : 'Confirmar anulación'}
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </div>
