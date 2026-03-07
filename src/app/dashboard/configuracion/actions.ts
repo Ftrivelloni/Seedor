@@ -171,6 +171,7 @@ export async function reactivateSubscriptionAction(): Promise<{
       planInterval: true,
       mpPayerEmail: true,
       subscriptionStatus: true,
+      mpPreapprovalId: true,
     },
   });
 
