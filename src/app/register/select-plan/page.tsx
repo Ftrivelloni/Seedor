@@ -191,30 +191,10 @@ export default function SelectModulesPage() {
                 router.push('/register/success');
                 NProgress.done();
             } else {
-                // Paid registration — redirect to Stripe Checkout
-                // Persist selected modules so the success page can read them after redirect
-                sessionStorage.setItem('pendingModules', JSON.stringify(selectedModules));
-
-                const response = await fetch('/api/stripe/create-checkout', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: registrationData.email,
-                        companyName: registrationData.companyName,
-                        selectedModules,
-                    }),
-                });
-
-                const data = (await response.json()) as { error?: string; url?: string };
-
-                if (!response.ok || !data.url) {
-                    setError(data.error || 'No se pudo crear la sesión de pago.');
-                    NProgress.done();
-                    return;
-                }
-
-                // Redirect to Stripe hosted checkout
-                window.location.href = data.url;
+                // Paid registration — navigate to MP checkout step
+                sessionStorage.setItem('selectedModules', JSON.stringify(selectedModules));
+                NProgress.done();
+                router.push('/register/checkout');
             }
         } catch {
             setError('No se pudo completar el registro. Intentá de nuevo.');
