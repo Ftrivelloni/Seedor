@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { MiCuentaSection } from './MiCuentaSection';
 import { EmpresaSection } from './EmpresaSection';
 import { SuscripcionSection } from './SuscripcionSection';
-import { EliminarCuentaSection } from './EliminarCuentaSection';
 import type { ConfiguracionPageProps, ConfigTab } from './types';
 
 const TABS: { key: ConfigTab; label: string; icon: typeof User; adminOnly: boolean }[] = [
@@ -58,7 +57,7 @@ export function ConfiguracionPageClient({ user, tenant, moduleSettings, pricing,
       {/* Content area */}
       <div>
         {activeTab === 'mi-cuenta' && (
-          <MiCuentaSection user={user} tenant={isAdmin ? tenant : undefined} isAdmin={isAdmin} />
+          <MiCuentaSection user={user} />
         )}
         {activeTab === 'empresa' && <EmpresaSection tenant={tenant} isAdmin={isAdmin} />}
         {activeTab === 'suscripcion' && isAdmin && (
