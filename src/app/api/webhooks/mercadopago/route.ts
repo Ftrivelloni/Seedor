@@ -164,7 +164,7 @@ async function handlePreapprovalEvent(preapprovalId: string) {
   // Find the tenant that owns this preapproval
   const tenant = await prisma.tenant.findFirst({
     where: { mpPreapprovalId: preapprovalId },
-    select: { id: true, subscriptionStatus: true, name: true },
+    select: { id: true, subscriptionStatus: true, name: true, cancelAtPeriodEnd: true },
   });
 
   if (!tenant) {
