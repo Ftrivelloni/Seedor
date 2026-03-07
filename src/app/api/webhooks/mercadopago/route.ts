@@ -7,11 +7,11 @@ import type { SubscriptionStatus } from '@prisma/client';
 
 // ── Mapping: MP preapproval status → Seedor SubscriptionStatus ──
 // Simplified model: Only ACTIVE and PAST_DUE
-// Cancelled subscriptions will DELETE the tenant entirely (no account without payment)
-const MP_STATUS_MAP: Record<string, SubscriptionStatus | 'DELETE'> = {
+// Cancelled subscriptions mark tenant for deletion at period end
+const MP_STATUS_MAP: Record<string, SubscriptionStatus | 'CANCEL_AT_PERIOD_END'> = {
   authorized: 'ACTIVE',
   paused: 'PAST_DUE',
-  cancelled: 'DELETE', // Special marker to delete tenant
+  cancelled: 'CANCEL_AT_PERIOD_END', // Mark for deletion at end of period
   pending: 'ACTIVE', // Treat pending as active initially
 };
 
@@ -164,7 +164,7 @@ async function handlePreapprovalEvent(preapprovalId: string) {
   // Find the tenant that owns this preapproval
   const tenant = await prisma.tenant.findFirst({
     where: { mpPreapprovalId: preapprovalId },
-    select: { id: true, subscriptionStatus: true, name: true },
+    select: { id: true, subscriptionStatus: true, name: true, cancelAtPeriodEnd: true },
   });
 
   if (!tenant) {
@@ -180,39 +180,51 @@ async function handlePreapprovalEvent(preapprovalId: string) {
     return;
   }
 
-  // ── Handle cancellation: DELETE tenant (no account without payment) ──
-  if (action === 'DELETE') {
-    console.log(`[MP Webhook] Suscripción cancelada. Eliminando Tenant ${tenant.id} (${tenant.name})...`);
+  // ── Handle cancellation: mark for deletion at period end ──
+  if (action === 'CANCEL_AT_PERIOD_END') {
+    console.log(`[MP Webhook] Suscripción cancelada. Marcando Tenant ${tenant.id} (${tenant.name}) para eliminación al fin del período.`);
     
     try {
-      await prisma.tenant.delete({
+      await prisma.tenant.update({
         where: { id: tenant.id },
+        data: { cancelAtPeriodEnd: true },
       });
       
-      console.log(`[MP Webhook] ✓ Tenant ${tenant.id} eliminado exitosamente (cascada).`);
-    } catch (deleteErr) {
-      console.error(`[MP Webhook] Error eliminando Tenant ${tenant.id}:`, deleteErr);
+      console.log(`[MP Webhook] ✓ Tenant ${tenant.id} marcado para cancelación al fin del período.`);
+    } catch (updateErr) {
+      console.error(`[MP Webhook] Error marcando Tenant ${tenant.id} para cancelación:`, updateErr);
     }
     
     return;
   }
 
   // ── Handle status updates (ACTIVE or PAST_DUE) ──
-  if (tenant.subscriptionStatus === action) {
-    return; // No change needed
-  }
-
   // Extract end_date from auto_recurring
   const autoRecurring = preapproval.auto_recurring as Record<string, unknown> | undefined;
   const endDate = autoRecurring?.end_date;
 
+  // Prepare update data
+  const updateData: {
+    subscriptionStatus: typeof action;
+    currentPeriodEnd?: Date;
+    mpLastEventAt: Date;
+    cancelAtPeriodEnd?: boolean;
+  } = {
+    subscriptionStatus: action,
+    currentPeriodEnd: typeof endDate === 'string' ? new Date(endDate) : undefined,
+    mpLastEventAt: new Date(),
+  };
+
+  // If the subscription becomes ACTIVE and was marked for cancellation,
+  // clear the cancellation flag (this means a reactivation was confirmed)
+  if (action === 'ACTIVE' && tenant.cancelAtPeriodEnd) {
+    updateData.cancelAtPeriodEnd = false;
+    console.log(`[MP Webhook] Suscripción reactivada confirmada para Tenant ${tenant.id}. Limpiando cancelAtPeriodEnd.`);
+  }
+
   await prisma.tenant.update({
     where: { id: tenant.id },
-    data: {
-      subscriptionStatus: action,
-      currentPeriodEnd: typeof endDate === 'string' ? new Date(endDate) : undefined,
-      mpLastEventAt: new Date(),
-    },
+    data: updateData,
   });
 
   console.log(`[MP Webhook] Tenant ${tenant.id} status actualizado a ${action}`);
