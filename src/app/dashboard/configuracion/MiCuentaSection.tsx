@@ -32,7 +32,7 @@ export function MiCuentaSection({ user, tenant, isAdmin }: MiCuentaSectionProps)
               <div className="w-full border-t border-red-200" />
             </div>
             <div className="relative flex justify-start">
-              <span className="bg-white pr-3 text-xs font-medium uppercase tracking-wide text-red-400">
+              <span className="bg-gray-50 pr-3 text-xs font-medium uppercase tracking-wide text-red-400">
                 Zona de peligro
               </span>
             </div>
