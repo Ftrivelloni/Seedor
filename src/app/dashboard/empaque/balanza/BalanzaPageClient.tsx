@@ -18,6 +18,7 @@ import {
   LayoutGrid,
   Grid3X3,
   List,
+  Printer,
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
@@ -39,6 +40,7 @@ import {
   deleteTransportAction,
 } from '../actions';
 import type { SerializedTruckEntry, SerializedBin } from '../types';
+import { printBinLabel } from '../pdf-tarjetones';
 import { truckEntryStatusLabels, truckEntryStatusColors, binStatusLabels } from '../types';
 
 interface FieldData {
@@ -406,6 +408,9 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
                     <button onClick={() => handleViewBin(bin)} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700">
                       <Eye className="h-3.5 w-3.5" />
                     </button>
+                    <button onClick={() => printBinLabel(bin)} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700" title="Imprimir etiqueta">
+                      <Printer className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -451,13 +456,20 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
                       </>
                     )}
                   </div>
-                  <div className="mt-3">
+                  <div className="mt-3 flex gap-2">
                     <button
                       onClick={() => handleViewBin(bin)}
-                      className="w-full inline-flex items-center justify-center gap-1 text-xs text-gray-600 hover:text-gray-900 py-1.5 rounded border border-gray-200 hover:bg-gray-50"
+                      className="flex-1 inline-flex items-center justify-center gap-1 text-xs text-gray-600 hover:text-gray-900 py-1.5 rounded border border-gray-200 hover:bg-gray-50"
                     >
                       <Eye className="h-3 w-3" />
                       Ver Detalle
+                    </button>
+                    <button
+                      onClick={() => printBinLabel(bin)}
+                      className="inline-flex items-center justify-center gap-1 text-xs text-gray-600 hover:text-gray-900 py-1.5 px-2 rounded border border-gray-200 hover:bg-gray-50"
+                      title="Imprimir etiqueta"
+                    >
+                      <Printer className="h-3 w-3" />
                     </button>
                   </div>
                 </div>
@@ -546,6 +558,13 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
                             className="text-green-600 hover:text-green-700"
                           >
                             <Eye className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => printBinLabel(bin)}
+                            className="text-gray-500 hover:text-gray-700"
+                            title="Imprimir etiqueta"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </div>
@@ -644,6 +663,15 @@ export function BalanzaPageClient({ entries, yardBins, fields, transports }: Pro
                     {new Date(selectedBin.createdAt).toLocaleString('es-AR')}
                   </p>
                 </div>
+              </div>
+              <div className="pt-2">
+                <button
+                  onClick={() => printBinLabel(selectedBin)}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <Printer className="h-4 w-4" />
+                  Imprimir Etiqueta
+                </button>
               </div>
             </div>
           )}

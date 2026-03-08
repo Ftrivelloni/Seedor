@@ -3,7 +3,7 @@
  * Opens a print-friendly window that the user can print/save as PDF.
  */
 
-import type { SerializedBox, SerializedPallet } from './types';
+import type { SerializedBin, SerializedBox, SerializedPallet } from './types';
 
 const baseStyles = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -209,4 +209,141 @@ export function printMultipleBoxTarjetones(boxes: SerializedBox[]) {
     })
     .join('');
   openPrintWindow(cards, `Tarjetones de Cajas (${boxes.length})`);
+}
+
+/* ════════════════════════════════════════════════════════
+   BIN LABEL — compact format designed to be printed and
+   physically attached to fruit bins.  ~10 × 15 cm approx.
+   ════════════════════════════════════════════════════════ */
+
+const binLabelStyles = `
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: 150mm 100mm; margin: 5mm; }
+  body { font-family: 'Segoe UI', Arial, Helvetica, sans-serif; color: #1a1a1a; }
+  .bin-label { border: 2.5px solid #222; border-radius: 6px; padding: 12px 16px; width: 140mm; }
+  .bin-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2.5px solid #222; padding-bottom: 8px; margin-bottom: 8px; }
+  .bin-brand { font-size: 11px; font-weight: 700; color: #16a34a; text-transform: uppercase; letter-spacing: 2px; }
+  .bin-title { font-size: 12px; font-weight: 600; color: #555; margin-top: 1px; }
+  .bin-code { font-size: 28px; font-weight: 900; font-family: monospace; letter-spacing: 1px; }
+  .bin-weight-row { display: flex; justify-content: space-between; align-items: baseline; margin: 6px 0 8px; border-bottom: 1px dashed #ccc; padding-bottom: 8px; }
+  .bin-weight { font-size: 36px; font-weight: 900; font-family: monospace; }
+  .bin-weight-unit { font-size: 14px; font-weight: 600; color: #666; margin-left: 2px; }
+  .bin-fruit { font-size: 18px; font-weight: 700; }
+  .bin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; }
+  .bin-field .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; font-weight: 600; }
+  .bin-field .val { font-size: 13px; font-weight: 600; }
+  .bin-footer { text-align: center; font-size: 8px; color: #aaa; margin-top: 8px; border-top: 1px solid #e5e7eb; padding-top: 4px; }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+`;
+
+function openBinPrintWindow(html: string, title: string) {
+  const win = window.open('', '_blank');
+  if (!win) {
+    alert('No se pudo abrir la ventana de impresión. Verifique que los pop-ups estén habilitados.');
+    return;
+  }
+  win.document.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>${title}</title>
+  <style>${binLabelStyles}</style>
+</head>
+<body>
+  ${html}
+  <script>window.onload = function() { window.print(); };<\/script>
+</body>
+</html>`);
+  win.document.close();
+}
+
+/**
+ * Generate a compact printable label for a single bin.
+ * Designed to be printed and physically stuck on the bin.
+ */
+export function printBinLabel(bin: SerializedBin) {
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(bin.code)}&size=100x100&format=svg`;
+
+  const html = `
+    <div class="bin-label">
+      <div class="bin-header">
+        <div>
+          <div class="bin-brand">Seedor</div>
+          <div class="bin-title">Etiqueta de Bin</div>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 10px;">
+          <div class="bin-code">${bin.code}</div>
+          <img src="${qrUrl}" alt="QR ${bin.code}" style="width: 64px; height: 64px;" />
+        </div>
+      </div>
+
+      <div class="bin-weight-row">
+        <div>
+          <span class="bin-weight">${bin.netWeight}</span>
+          <span class="bin-weight-unit">kg neto</span>
+        </div>
+        ${bin.fruitType ? `<div class="bin-fruit">${bin.fruitType}</div>` : ''}
+      </div>
+
+      <div class="bin-grid">
+        ${bin.fieldName ? `
+        <div class="bin-field">
+          <div class="lbl">Campo</div>
+          <div class="val">${bin.fieldName}</div>
+        </div>` : ''}
+        ${bin.lotName ? `
+        <div class="bin-field">
+          <div class="lbl">Lote</div>
+          <div class="val">${bin.lotName}</div>
+        </div>` : ''}
+        ${bin.unidadProductora ? `
+        <div class="bin-field">
+          <div class="lbl">Unidad Productora</div>
+          <div class="val">${bin.unidadProductora}</div>
+        </div>` : ''}
+        ${bin.harvestType ? `
+        <div class="bin-field">
+          <div class="lbl">Tipo Cosecha</div>
+          <div class="val">${bin.harvestType}</div>
+        </div>` : ''}
+        ${bin.binType ? `
+        <div class="bin-field">
+          <div class="lbl">Tipo Bin</div>
+          <div class="val">${bin.binType}</div>
+        </div>` : ''}
+        ${bin.emptyWeight != null ? `
+        <div class="bin-field">
+          <div class="lbl">Peso Vacío</div>
+          <div class="val">${bin.emptyWeight} kg</div>
+        </div>` : ''}
+        ${bin.binIdentifier ? `
+        <div class="bin-field">
+          <div class="lbl">ID Bin</div>
+          <div class="val">${bin.binIdentifier}</div>
+        </div>` : ''}
+        ${bin.fruitColor ? `
+        <div class="bin-field">
+          <div class="lbl">Color</div>
+          <div class="val">${bin.fruitColor}</div>
+        </div>` : ''}
+        ${bin.fruitQuality ? `
+        <div class="bin-field">
+          <div class="lbl">Calidad</div>
+          <div class="val">${bin.fruitQuality}</div>
+        </div>` : ''}
+        ${bin.caliber ? `
+        <div class="bin-field">
+          <div class="lbl">Calibre</div>
+          <div class="val">${bin.caliber}</div>
+        </div>` : ''}
+        <div class="bin-field">
+          <div class="lbl">Fecha Ingreso</div>
+          <div class="val">${new Date(bin.createdAt).toLocaleDateString('es-AR')}</div>
+        </div>
+      </div>
+
+      <div class="bin-footer">Generado por Seedor · ${new Date().toLocaleString('es-AR')}</div>
+    </div>
+  `;
+  openBinPrintWindow(html, `Bin ${bin.code}`);
 }

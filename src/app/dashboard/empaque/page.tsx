@@ -50,8 +50,8 @@ export default async function EmpaquePage() {
           select: {
             id: true, code: true, binIdentifier: true, fieldName: true, fruitType: true,
             lotName: true, contractor: true, harvestType: true, binType: true,
-            emptyWeight: true, netWeight: true, isTrazable: true, status: true,
-            truckEntryId: true, preselectionId: true, internalLot: true,
+            emptyWeight: true, netWeight: true, isTrazable: true, unidadProductora: true,
+            status: true, truckEntryId: true, preselectionId: true, internalLot: true,
             fruitColor: true, fruitQuality: true, caliber: true,
             chamberId: true, chamberEntryDate: true, chamberExitDate: true, createdAt: true,
           },

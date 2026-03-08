@@ -155,6 +155,7 @@ export default async function FieldPage({ params }: FieldPageProps) {
     name: f.name,
     location: f.location,
     description: f.description,
+    unidadProductora: f.unidadProductora ?? null,
     lots: f.lots.map((l) => ({
       id: l.id,
       fieldId: l.fieldId,

@@ -530,10 +530,9 @@ export async function generatePreselectionOutputBinAction(formData: FormData) {
     });
     resolvedFieldName = upField?.name ?? fieldName;
   } else {
-    // No UP tracking — output bins carry no campo/lote/fruitType
+    // No UP tracking — output bins carry no campo/lote but fruitType is user-provided
     resolvedFieldName = '';
     resolvedLotName = '';
-    resolvedFruitType = '';
   }
 
   const year = new Date().getFullYear();
