@@ -59,27 +59,42 @@ describe('createFieldAction', () => {
     });
 
     it('throws when name is empty', async () => {
-        const fd = makeFormData({ name: '', location: '', description: '' });
+        const fd = makeFormData({ name: '', unidadProductora: 'UP-001', location: '', description: '' });
         await expect(createFieldAction(fd)).rejects.toThrow('El nombre del campo es obligatorio.');
     });
 
     it('throws when name is only whitespace', async () => {
-        const fd = makeFormData({ name: '   ', location: '', description: '' });
+        const fd = makeFormData({ name: '   ', unidadProductora: 'UP-001', location: '', description: '' });
         await expect(createFieldAction(fd)).rejects.toThrow('El nombre del campo es obligatorio.');
     });
 
+    it('throws when unidadProductora is empty', async () => {
+        const fd = makeFormData({ name: 'Campo Ok', unidadProductora: '', location: '', description: '' });
+        await expect(createFieldAction(fd)).rejects.toThrow('La Unidad Productora es obligatoria.');
+    });
+
+    it('throws when unidadProductora is only whitespace', async () => {
+        const fd = makeFormData({ name: 'Campo Ok', unidadProductora: '   ', location: '', description: '' });
+        await expect(createFieldAction(fd)).rejects.toThrow('La Unidad Productora es obligatoria.');
+    });
+
     it('throws when name exceeds 100 characters', async () => {
-        const fd = makeFormData({ name: 'A'.repeat(101), location: '', description: '' });
+        const fd = makeFormData({ name: 'A'.repeat(101), unidadProductora: 'UP-001', location: '', description: '' });
         await expect(createFieldAction(fd)).rejects.toThrow('no puede superar los 100 caracteres');
     });
 
+    it('throws when unidadProductora exceeds 100 characters', async () => {
+        const fd = makeFormData({ name: 'Campo Ok', unidadProductora: 'U'.repeat(101), location: '', description: '' });
+        await expect(createFieldAction(fd)).rejects.toThrow('Unidad Productora no puede superar los 100 caracteres');
+    });
+
     it('throws when location exceeds 500 characters', async () => {
-        const fd = makeFormData({ name: 'Campo Ok', location: 'L'.repeat(501), description: '' });
+        const fd = makeFormData({ name: 'Campo Ok', unidadProductora: 'UP-001', location: 'L'.repeat(501), description: '' });
         await expect(createFieldAction(fd)).rejects.toThrow('ubicación no puede superar los 500 caracteres');
     });
 
     it('throws when description exceeds 500 characters', async () => {
-        const fd = makeFormData({ name: 'Campo Ok', location: '', description: 'D'.repeat(501) });
+        const fd = makeFormData({ name: 'Campo Ok', unidadProductora: 'UP-001', location: '', description: 'D'.repeat(501) });
         await expect(createFieldAction(fd)).rejects.toThrow('descripción no puede superar los 500 caracteres');
     });
 
@@ -91,18 +106,30 @@ describe('createFieldAction', () => {
         });
         mockFieldCreate.mockRejectedValue(p2002);
 
-        const fd = makeFormData({ name: 'Campo Norte', location: '', description: '' });
+        const fd = makeFormData({ name: 'Campo Norte', unidadProductora: 'UP-001', location: '', description: '' });
         await expect(createFieldAction(fd)).rejects.toThrow('Ya existe un campo con ese nombre.');
     });
 
+    it('throws friendly message on duplicate unidadProductora (P2002)', async () => {
+        const p2002 = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+            code: 'P2002',
+            clientVersion: '5.0.0',
+            meta: { target: ['tenantId', 'unidadProductora'] },
+        });
+        mockFieldCreate.mockRejectedValue(p2002);
+
+        const fd = makeFormData({ name: 'Campo Otro', unidadProductora: 'UP-001', location: '', description: '' });
+        await expect(createFieldAction(fd)).rejects.toThrow('Ya existe un campo con esa Unidad Productora.');
+    });
+
     it('succeeds with valid inputs', async () => {
-        const fd = makeFormData({ name: 'Campo Nuevo', location: 'Ruta 40', description: 'Test' });
+        const fd = makeFormData({ name: 'Campo Nuevo', unidadProductora: 'UP-001', location: 'Ruta 40', description: 'Test' });
         await expect(createFieldAction(fd)).resolves.toBeUndefined();
         expect(mockFieldCreate).toHaveBeenCalledOnce();
     });
 
     it('allows max-length name (exactly 100 chars)', async () => {
-        const fd = makeFormData({ name: 'A'.repeat(100), location: '', description: '' });
+        const fd = makeFormData({ name: 'A'.repeat(100), unidadProductora: 'UP-001', location: '', description: '' });
         await expect(createFieldAction(fd)).resolves.toBeUndefined();
     });
 });

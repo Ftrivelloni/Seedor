@@ -28,6 +28,7 @@ export default async function BalanzaPage() {
             emptyWeight: true,
             netWeight: true,
             isTrazable: true,
+            unidadProductora: true,
             status: true,
             truckEntryId: true,
             createdAt: true,
@@ -47,6 +48,7 @@ export default async function BalanzaPage() {
       select: {
         id: true,
         name: true,
+        unidadProductora: true,
         lots: {
           select: {
             id: true,
@@ -96,6 +98,7 @@ export default async function BalanzaPage() {
       emptyWeight: b.emptyWeight,
       netWeight: b.netWeight,
       isTrazable: b.isTrazable,
+      unidadProductora: b.unidadProductora,
       status: b.status,
       truckEntryId: b.truckEntryId,
       preselectionId: null,
@@ -124,6 +127,7 @@ export default async function BalanzaPage() {
     emptyWeight: b.emptyWeight,
     netWeight: b.netWeight,
     isTrazable: b.isTrazable,
+    unidadProductora: b.unidadProductora,
     status: b.status,
     truckEntryId: b.truckEntryId,
     preselectionId: b.preselectionId,
@@ -140,6 +144,7 @@ export default async function BalanzaPage() {
   const fields = fieldsWithLots.map((f) => ({
     id: f.id,
     name: f.name,
+    unidadProductora: f.unidadProductora,
     lots: f.lots.map((l) => ({
       id: l.id,
       name: l.name,

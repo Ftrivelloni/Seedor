@@ -93,6 +93,7 @@ export default async function CampoPage() {
   const serializedFields: SerializedField[] = fields.map((f) => ({
     id: f.id,
     name: f.name,
+    unidadProductora: f.unidadProductora,
     location: f.location,
     description: f.description,
     lots: f.lots.map((l) => ({

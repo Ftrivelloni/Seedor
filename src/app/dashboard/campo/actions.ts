@@ -16,14 +16,21 @@ export async function createFieldAction(formData: FormData) {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
   const name = String(formData.get('name') || '').trim();
+  const unidadProductora = String(formData.get('unidadProductora') || '').trim();
   const location = String(formData.get('location') || '').trim();
   const description = String(formData.get('description') || '').trim();
 
   if (!name) {
     throw new Error('El nombre del campo es obligatorio.');
   }
+  if (!unidadProductora) {
+    throw new Error('La Unidad Productora es obligatoria.');
+  }
   if (name.length > 100) {
     throw new Error('El nombre del campo no puede superar los 100 caracteres.');
+  }
+  if (unidadProductora.length > 100) {
+    throw new Error('La Unidad Productora no puede superar los 100 caracteres.');
   }
   if (location.length > 500) {
     throw new Error('La ubicación no puede superar los 500 caracteres.');
@@ -37,12 +44,18 @@ export async function createFieldAction(formData: FormData) {
       data: {
         tenantId: session.tenantId,
         name,
+        unidadProductora,
         location: location || null,
         description: description || null,
       },
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      const meta = (err as Prisma.PrismaClientKnownRequestError).meta;
+      const target = Array.isArray(meta?.target) ? meta.target : [];
+      if (target.includes('unidadProductora')) {
+        throw new Error('Ya existe un campo con esa Unidad Productora.');
+      }
       throw new Error('Ya existe un campo con ese nombre.');
     }
     throw err;

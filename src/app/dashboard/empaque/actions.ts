@@ -91,6 +91,12 @@ export async function createBinAction(formData: FormData) {
   const seq = lastBin ? parseInt(lastBin.code.split('-')[2]) + 1 : 1;
   const code = `B-${year}-${String(seq).padStart(4, '0')}`;
 
+  // Look up Unidad Productora from the field
+  const field = await prisma.field.findFirst({
+    where: { tenantId: session.tenantId, name: fieldName },
+    select: { unidadProductora: true },
+  });
+
   await prisma.packingBin.create({
     data: {
       tenantId: session.tenantId,
@@ -105,6 +111,7 @@ export async function createBinAction(formData: FormData) {
       emptyWeight,
       netWeight,
       isTrazable,
+      unidadProductora: field?.unidadProductora || null,
       truckEntryId,
       status: 'IN_YARD',
     },
@@ -162,6 +169,14 @@ export async function createMultipleBinsAction(formData: FormData) {
 
   const year = new Date().getFullYear();
 
+  // Look up Unidad Productora codes for all fields used in bins
+  const fieldNames = [...new Set(expandedBins.map((b) => b.fieldName))];
+  const fieldsWithUP = await prisma.field.findMany({
+    where: { tenantId: session.tenantId, name: { in: fieldNames } },
+    select: { name: true, unidadProductora: true },
+  });
+  const upByFieldName = new Map(fieldsWithUP.map((f) => [f.name, f.unidadProductora]));
+
   await prisma.$transaction(async (tx) => {
     const lastBin = await tx.packingBin.findFirst({
       where: { tenantId: session.tenantId, code: { startsWith: `B-${year}-` } },
@@ -185,6 +200,7 @@ export async function createMultipleBinsAction(formData: FormData) {
           emptyWeight: bin.emptyWeight ?? null,
           netWeight: bin.netWeight,
           isTrazable: bin.isTrazable ?? true,
+          unidadProductora: upByFieldName.get(bin.fieldName) || null,
           truckEntryId,
           status: 'IN_YARD',
         };
@@ -231,6 +247,15 @@ export async function updateTruckEntryAction(formData: FormData) {
 export async function createPreselectionAction(formData: FormData) {
   const session = await requireRole(['ADMIN', 'SUPERVISOR']);
 
+  const trackUnidadProductora = formData.get('trackUnidadProductora') === 'true';
+  const unidadProductora = trackUnidadProductora
+    ? String(formData.get('unidadProductora') || '').trim() || null
+    : null;
+
+  if (trackUnidadProductora && !unidadProductora) {
+    throw new Error('Debe seleccionar una Unidad Productora cuando la trazabilidad está activada.');
+  }
+
   const year = new Date().getFullYear();
   const lastPs = await prisma.preselectionSession.findFirst({
     where: { tenantId: session.tenantId, code: { startsWith: `LI-${year}-` } },
@@ -248,6 +273,8 @@ export async function createPreselectionAction(formData: FormData) {
     data: {
       tenantId: session.tenantId,
       code,
+      trackUnidadProductora,
+      unidadProductora,
       outputConfig: {
         create: outputConfig.map((oc) => ({
           outputNumber: oc.outputNumber,
@@ -272,6 +299,20 @@ export async function addBinToPreselectionAction(preselectionId: string, binId: 
   });
   if (!ps) throw new Error('Preselección no encontrada.');
 
+  // If tracking UP, verify the bin belongs to the configured UP
+  if (ps.trackUnidadProductora && ps.unidadProductora) {
+    const bin = await prisma.packingBin.findFirst({
+      where: { id: binId, tenantId: session.tenantId },
+      select: { unidadProductora: true, code: true },
+    });
+    if (!bin) throw new Error('Bin no encontrado.');
+    if (bin.unidadProductora !== ps.unidadProductora) {
+      throw new Error(
+        `Solo se permiten bines de la Unidad Productora "${ps.unidadProductora}". El bin ${bin.code} pertenece a "${bin.unidadProductora || 'sin UP'}".`
+      );
+    }
+  }
+
   await prisma.$transaction([
     prisma.preselectionBin.create({
       data: { preselectionId, binId },
@@ -280,7 +321,12 @@ export async function addBinToPreselectionAction(preselectionId: string, binId: 
       where: { id: binId },
       data: { status: 'IN_PRESELECTION' },
     }),
-  ]);
+  ]).catch((err) => {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new Error('Este bin ya fue agregado a la preselección.');
+    }
+    throw err;
+  });
 
   revalidateEmpaque();
 }
@@ -471,6 +517,25 @@ export async function generatePreselectionOutputBinAction(formData: FormData) {
   });
   if (!ps) throw new Error('Preselección no encontrada.');
 
+  // Enforce campo/lote/fruitType rules based on UP tracking
+  let resolvedFieldName = fieldName;
+  let resolvedLotName = lotName;
+  let resolvedFruitType = fruitType;
+
+  if (ps.trackUnidadProductora && ps.unidadProductora) {
+    // Auto-derive fieldName from the field that owns this UP (cannot be overridden by client)
+    const upField = await prisma.field.findFirst({
+      where: { tenantId: session.tenantId, unidadProductora: ps.unidadProductora },
+      select: { name: true },
+    });
+    resolvedFieldName = upField?.name ?? fieldName;
+  } else {
+    // No UP tracking — output bins carry no campo/lote/fruitType
+    resolvedFieldName = '';
+    resolvedLotName = '';
+    resolvedFruitType = '';
+  }
+
   const year = new Date().getFullYear();
   const lastBin = await prisma.packingBin.findFirst({
     where: { tenantId: session.tenantId, code: { startsWith: `B-${year}-` } },
@@ -483,15 +548,19 @@ export async function generatePreselectionOutputBinAction(formData: FormData) {
   const needsChamber = fruitColor === 'Color 3' || fruitColor === 'Color 4';
   const status = needsChamber ? 'IN_YARD' : 'READY_FOR_PROCESS';
 
+  // Attach Unidad Productora if tracking is enabled
+  const outputUP = ps.trackUnidadProductora ? ps.unidadProductora : null;
+
   await prisma.packingBin.create({
     data: {
       tenantId: session.tenantId,
       code,
-      fieldName,
-      fruitType,
-      lotName,
+      fieldName: resolvedFieldName,
+      fruitType: resolvedFruitType,
+      lotName: resolvedLotName,
       netWeight,
       isTrazable: true,
+      unidadProductora: outputUP,
       status,
       preselectionId,
       internalLot: ps.code,

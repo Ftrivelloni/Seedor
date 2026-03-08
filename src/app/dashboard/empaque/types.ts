@@ -34,6 +34,7 @@ export interface SerializedBin {
   emptyWeight: number | null;
   netWeight: number;
   isTrazable: boolean;
+  unidadProductora: string | null;
   status: string;
   truckEntryId: string | null;
   preselectionId: string | null;
@@ -52,6 +53,8 @@ export interface SerializedPreselection {
   id: string;
   code: string;
   status: string;
+  trackUnidadProductora: boolean;
+  unidadProductora: string | null;
   startTime: string;
   endTime: string | null;
   pausedAt: string | null;

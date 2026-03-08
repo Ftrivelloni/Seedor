@@ -23,6 +23,7 @@ export default async function PreseleccionPage() {
     emptyWeight: true,
     netWeight: true,
     isTrazable: true,
+    unidadProductora: true,
     status: true,
     truckEntryId: true,
     preselectionId: true,
@@ -76,6 +77,7 @@ export default async function PreseleccionPage() {
       select: {
         id: true,
         name: true,
+        unidadProductora: true,
         lots: {
           select: {
             id: true,
@@ -112,6 +114,7 @@ export default async function PreseleccionPage() {
     emptyWeight: number | null;
     netWeight: number;
     isTrazable: boolean;
+    unidadProductora: string | null;
     status: string;
     truckEntryId: string | null;
     preselectionId: string | null;
@@ -138,6 +141,7 @@ export default async function PreseleccionPage() {
     emptyWeight: b.emptyWeight,
     netWeight: b.netWeight,
     isTrazable: b.isTrazable,
+    unidadProductora: b.unidadProductora,
     status: b.status,
     truckEntryId: b.truckEntryId,
     preselectionId: b.preselectionId,
@@ -157,6 +161,8 @@ export default async function PreseleccionPage() {
       id: ps.id,
       code: ps.code,
       status: ps.status,
+      trackUnidadProductora: ps.trackUnidadProductora,
+      unidadProductora: ps.unidadProductora,
       startTime: ps.startTime.toISOString(),
       endTime: ps.endTime?.toISOString() ?? null,
       pausedAt: ps.pausedAt?.toISOString() ?? null,
@@ -201,6 +207,7 @@ export default async function PreseleccionPage() {
   const fields = fieldsWithLots.map((f) => ({
     id: f.id,
     name: f.name,
+    unidadProductora: f.unidadProductora,
     lots: f.lots.map((l) => ({
       id: l.id,
       name: l.name,

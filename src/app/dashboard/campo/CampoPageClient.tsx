@@ -464,7 +464,7 @@ function FieldCard({
             {field.name}
           </Link>
           <p className="text-xs text-gray-500">
-            {field.location || 'Sin ubicación'} · {field.lots.length} lote(s)
+            {field.location || 'Sin ubicación'} · {field.lots.length} lote(s){field.unidadProductora ? ` · UP: ${field.unidadProductora}` : ''}
           </p>
         </div>
         <Link

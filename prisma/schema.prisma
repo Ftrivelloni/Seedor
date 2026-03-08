@@ -122,17 +122,19 @@ model Invitation {
 }
 
 model Field {
-  id          String   @id @default(cuid())
-  tenantId    String
-  name        String
-  location    String?
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  lots        Lot[]
+  id                String   @id @default(cuid())
+  tenantId          String
+  name              String
+  unidadProductora  String?
+  location          String?
+  description       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lots              Lot[]
 
   @@unique([tenantId, name])
+  @@unique([tenantId, unidadProductora])
   @@index([tenantId])
 }
 
@@ -513,6 +515,7 @@ model PackingBin {
   emptyWeight           Float?
   netWeight             Float
   isTrazable            Boolean              @default(true)
+  unidadProductora      String?
   status                BinStatus            @default(IN_YARD)
   truckEntryId          String?
   preselectionId        String?
@@ -540,12 +543,14 @@ model PackingBin {
 }
 
 model PreselectionSession {
-  id                 String                     @id @default(cuid())
-  tenantId           String
-  code               String
-  status             PreselectionStatus         @default(IN_PROGRESS)
-  startTime          DateTime                   @default(now())
-  endTime            DateTime?
+  id                    String                     @id @default(cuid())
+  tenantId              String
+  code                  String
+  status                PreselectionStatus         @default(IN_PROGRESS)
+  trackUnidadProductora Boolean                    @default(false)
+  unidadProductora      String?
+  startTime             DateTime                   @default(now())
+  endTime               DateTime?
   totalDurationHours Float?
   pauseCount         Int                        @default(0)
   totalPauseHours    Float?                     @default(0)

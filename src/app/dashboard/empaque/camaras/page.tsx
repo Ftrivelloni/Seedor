@@ -54,6 +54,7 @@ export default async function CamarasPage() {
     emptyWeight: b.emptyWeight,
     netWeight: b.netWeight,
     isTrazable: b.isTrazable,
+    unidadProductora: b.unidadProductora,
     status: b.status,
     truckEntryId: b.truckEntryId,
     preselectionId: b.preselectionId,

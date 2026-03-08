@@ -134,6 +134,7 @@ export default async function LotPage({ params }: LotPageProps) {
   const serializedField: SerializedField = {
     id: field.id,
     name: field.name,
+    unidadProductora: field.unidadProductora,
     location: field.location,
     description: field.description,
     lots: field.lots.map((l: any) => ({

@@ -17,6 +17,11 @@ import {
   Pencil,
   AlertTriangle,
   TrendingDown,
+  ToggleLeft,
+  ToggleRight,
+  LayoutGrid,
+  Grid3X3,
+  List,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
 import {
@@ -48,6 +53,7 @@ import { preselectionStatusLabels, preselectionStatusColors, binStatusLabels } f
 interface FieldData {
   id: string;
   name: string;
+  unidadProductora: string | null;
   lots: { id: string; name: string; crops: string[] }[];
 }
 
@@ -73,6 +79,8 @@ export function PreseleccionPageClient({
   warehouses,
 }: Props) {
   const [selectedYardBin, setSelectedYardBin] = useState<SerializedBin | null>(null);
+  const [yardBinView, setYardBinView] = useState<'large' | 'medium' | 'list'>('large');
+  const [pendingBinId, setPendingBinId] = useState<string | null>(null);
   const [showAddWorker, setShowAddWorker] = useState(false);
   const [showAddInput, setShowAddInput] = useState(false);
   const [showAddBin, setShowAddBin] = useState(false);
@@ -81,6 +89,11 @@ export function PreseleccionPageClient({
   const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
   const [editingPs, setEditingPs] = useState<SerializedPreselection | null>(null);
   const [elapsed, setElapsed] = useState('');
+
+  // New preselection config state
+  const [showStartConfig, setShowStartConfig] = useState(false);
+  const [newPsTrackUP, setNewPsTrackUP] = useState(false);
+  const [newPsUP, setNewPsUP] = useState('');
 
   // Output bin form state for cascading selects
   const [outputFieldName, setOutputFieldName] = useState('');
@@ -140,6 +153,12 @@ export function PreseleccionPageClient({
   };
 
   const handleStartNew = async () => {
+    setNewPsTrackUP(false);
+    setNewPsUP('');
+    setShowStartConfig(true);
+  };
+
+  const handleConfirmStartNew = async () => {
     try {
       const defaultConfig = [
         { outputNumber: 1, color: 'Color 1', isDiscard: false, label: 'S1 Color 1' },
@@ -151,7 +170,12 @@ export function PreseleccionPageClient({
       ];
       const fd = new FormData();
       fd.set('outputConfig', JSON.stringify(defaultConfig));
+      fd.set('trackUnidadProductora', String(newPsTrackUP));
+      if (newPsTrackUP && newPsUP) {
+        fd.set('unidadProductora', newPsUP);
+      }
       await createPreselectionAction(fd);
+      setShowStartConfig(false);
       toast.success('Nueva preselección iniciada');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Error');
@@ -199,6 +223,11 @@ export function PreseleccionPageClient({
               <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700 border border-orange-200">
                 {activePreselection.code}
               </span>
+              {activePreselection.trackUnidadProductora && activePreselection.unidadProductora && (
+                <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700 border border-blue-200">
+                  UP: {activePreselection.unidadProductora}
+                </span>
+              )}
               {activePreselection.status === 'PAUSED' && (
                 <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-semibold text-yellow-700 border border-yellow-200">
                   PAUSADA
@@ -314,7 +343,11 @@ export function PreseleccionPageClient({
               </button>
               <button
                 onClick={() => {
-                  setOutputFieldName('');
+                  // Pre-lock campo when UP tracking is on
+                  const lockedField = activePreselection?.trackUnidadProductora && activePreselection.unidadProductora
+                    ? (fields.find((f) => f.unidadProductora === activePreselection.unidadProductora)?.name ?? '')
+                    : '';
+                  setOutputFieldName(lockedField);
                   setOutputLotName('');
                   setOutputFruitType('');
                   setShowGenerateBin(true);
@@ -540,52 +573,108 @@ export function PreseleccionPageClient({
             </CardTitle>
             <span className="text-sm text-gray-500">{preselectionYardBins.length} disponibles</span>
           </div>
+          <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1">
+            <button
+              onClick={() => setYardBinView('large')}
+              className={`p-1.5 rounded cursor-pointer ${yardBinView === 'large' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Íconos grandes"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setYardBinView('medium')}
+              className={`p-1.5 rounded cursor-pointer ${yardBinView === 'medium' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Íconos medianos"
+            >
+              <Grid3X3 className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setYardBinView('list')}
+              className={`p-1.5 rounded cursor-pointer ${yardBinView === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Lista"
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
         </CardHeader>
         <CardContent>
           {preselectionYardBins.length === 0 ? (
             <p className="text-sm text-gray-500 text-center py-4">
               No hay bines en playa de preselección
             </p>
+          ) : yardBinView === 'list' ? (
+            <div className="max-h-96 overflow-y-auto divide-y divide-gray-100 rounded-md border">
+              {preselectionYardBins.map((bin) => (
+                <div key={bin.id} className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 text-sm">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="font-mono font-semibold text-gray-900 shrink-0">{bin.code}</span>
+                    <span className="text-gray-500 truncate">{bin.fruitType} · {bin.fieldName} · {bin.lotName}</span>
+                    {bin.unidadProductora && <span className="text-blue-600 text-xs shrink-0">UP: {bin.unidadProductora}</span>}
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 ml-3">
+                    <span className="font-medium text-gray-900">{bin.netWeight} kg</span>
+                    <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">{binStatusLabels[bin.status] || bin.status}</span>
+                    <button onClick={() => setSelectedYardBin(bin)} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700">
+                      <Eye className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {preselectionYardBins.slice(0, 6).map((bin) => (
-                <div key={bin.id} className="rounded-lg border border-gray-200 p-4 hover:border-green-200 transition-colors">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="font-semibold text-gray-900">{bin.code}</p>
-                      <p className="text-xs text-gray-500">{bin.fruitType}</p>
+            <div className={`max-h-[32rem] overflow-y-auto grid gap-3 pr-1 ${
+              yardBinView === 'large'
+                ? 'sm:grid-cols-2 lg:grid-cols-3'
+                : 'sm:grid-cols-3 lg:grid-cols-4'
+            }`}>
+              {preselectionYardBins.map((bin) => (
+                <div key={bin.id} className={`rounded-lg border border-gray-200 hover:border-green-200 transition-colors ${yardBinView === 'large' ? 'p-4' : 'p-3'}`}>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="min-w-0">
+                      <p className={`font-semibold text-gray-900 truncate ${yardBinView === 'large' ? 'text-sm' : 'text-xs'}`}>{bin.code}</p>
+                      <p className="text-xs text-gray-500 truncate">{bin.fruitType}</p>
                     </div>
-                    <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                    <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 shrink-0 ml-1">
                       {binStatusLabels[bin.status] || bin.status}
                     </span>
                   </div>
-                  <div className="space-y-1 text-sm">
+                  <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Peso neto:</span>
                       <span className="font-medium text-gray-900">{bin.netWeight} kg</span>
                     </div>
-                    {bin.fruitColor && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Color:</span>
-                        <span className="text-gray-700">{bin.fruitColor}</span>
-                      </div>
+                    {yardBinView === 'large' && (
+                      <>
+                        {bin.fruitColor && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Color:</span>
+                            <span className="text-gray-700">{bin.fruitColor}</span>
+                          </div>
+                        )}
+                        {bin.fruitQuality && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Calidad:</span>
+                            <span className="text-gray-700">{bin.fruitQuality}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Campo:</span>
+                          <span className="text-gray-700 truncate ml-2 max-w-[60%] text-right">{bin.fieldName}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Lote:</span>
+                          <span className="text-gray-700 truncate ml-2 max-w-[60%] text-right">{bin.lotName}</span>
+                        </div>
+                        {bin.unidadProductora && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">UP:</span>
+                            <span className="text-blue-600 font-medium">{bin.unidadProductora}</span>
+                          </div>
+                        )}
+                      </>
                     )}
-                    {bin.fruitQuality && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Calidad:</span>
-                        <span className="text-gray-700">{bin.fruitQuality}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Campo:</span>
-                      <span className="text-gray-700">{bin.fieldName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Lote:</span>
-                      <span className="text-gray-700">{bin.lotName}</span>
-                    </div>
                   </div>
-                  <div className="mt-4">
+                  <div className="mt-3">
                     <button
                       onClick={() => setSelectedYardBin(bin)}
                       className="w-full inline-flex items-center justify-center gap-1 text-xs text-gray-600 hover:text-gray-900 py-1.5 rounded border border-gray-200 hover:bg-gray-50"
@@ -597,11 +686,6 @@ export function PreseleccionPageClient({
                 </div>
               ))}
             </div>
-          )}
-          {preselectionYardBins.length > 6 && (
-            <p className="text-xs text-gray-400 text-center mt-3">
-              Mostrando 6 de {preselectionYardBins.length} bines
-            </p>
           )}
         </CardContent>
       </Card>
@@ -863,31 +947,52 @@ export function PreseleccionPageClient({
             <DialogTitle>Agregar Bin de Entrada</DialogTitle>
             <DialogDescription>Seleccione un bin de la playa para agregar a la preselección</DialogDescription>
           </DialogHeader>
+          {activePreselection?.trackUnidadProductora && activePreselection.unidadProductora && (
+            <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-sm text-blue-700">
+              <Filter className="h-4 w-4 flex-shrink-0" />
+              Solo bines de UP: <span className="font-semibold">{activePreselection.unidadProductora}</span>
+            </div>
+          )}
           <div className="space-y-2 max-h-60 overflow-y-auto">
-            {availableBins.map((bin) => (
+            {(activePreselection?.trackUnidadProductora
+              ? availableBins.filter((b) => b.unidadProductora === activePreselection.unidadProductora)
+              : availableBins
+            ).map((bin) => (
               <button
                 key={bin.id}
                 onClick={async () => {
-                  if (!activePreselection) return;
+                  if (!activePreselection || pendingBinId) return;
+                  setPendingBinId(bin.id);
                   try {
                     await addBinToPreselectionAction(activePreselection.id, bin.id);
                     toast.success(`Bin ${bin.code} agregado`);
                   } catch (err: unknown) {
                     toast.error(err instanceof Error ? err.message : 'Error');
+                  } finally {
+                    setPendingBinId(null);
                   }
                 }}
-                className="w-full flex items-center justify-between rounded-lg border border-gray-200 p-3 hover:border-green-300 hover:bg-green-50 text-left"
+                disabled={!!pendingBinId}
+                className="w-full flex items-center justify-between rounded-lg border border-gray-200 p-3 hover:border-green-300 hover:bg-green-50 text-left disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div>
                   <p className="font-medium text-sm">{bin.code}</p>
-                  <p className="text-xs text-gray-500">{bin.fruitType} · {bin.fieldName}</p>
+                  <p className="text-xs text-gray-500">
+                    {bin.fruitType} · {bin.fieldName}
+                    {bin.unidadProductora && <span className="text-blue-600"> · UP: {bin.unidadProductora}</span>}
+                  </p>
                 </div>
                 <span className="text-sm font-medium">{bin.netWeight} kg</span>
               </button>
             ))}
-            {availableBins.length === 0 && (
+            {(activePreselection?.trackUnidadProductora
+              ? availableBins.filter((b) => b.unidadProductora === activePreselection.unidadProductora)
+              : availableBins
+            ).length === 0 && (
               <p className="text-center text-sm text-gray-500 py-4">
-                No hay bines disponibles en playa
+                {activePreselection?.trackUnidadProductora
+                  ? `No hay bines disponibles para la UP "${activePreselection.unidadProductora}"`
+                  : 'No hay bines disponibles en playa'}
               </p>
             )}
           </div>
@@ -943,62 +1048,64 @@ export function PreseleccionPageClient({
                 </select>
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Campo *</label>
-              <select
-                name="fieldName"
-                required
-                value={outputFieldName}
-                onChange={(e) => {
-                  setOutputFieldName(e.target.value);
-                  setOutputLotName('');
-                  setOutputFruitType('');
-                }}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">Seleccionar campo</option>
-                {fields.map((f) => (
-                  <option key={f.id} value={f.name}>{f.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Lote *</label>
-                <select
-                  name="lotName"
-                  required
-                  disabled={!outputFieldName}
-                  value={outputLotName}
-                  onChange={(e) => {
-                    setOutputLotName(e.target.value);
-                    setOutputFruitType('');
-                  }}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-400"
-                >
-                  <option value="">{outputFieldName ? 'Seleccionar lote' : 'Elegir campo primero'}</option>
-                  {getLotsForField(outputFieldName).map((l) => (
-                    <option key={l.id} value={l.name}>{l.name}</option>
-                  ))}
-                </select>
+            {activePreselection?.trackUnidadProductora ? (
+              /* UP tracking ON: campo is locked to the UP's field; user picks lote + fruta */
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Campo</label>
+                  <input
+                    name="fieldName"
+                    value={outputFieldName}
+                    readOnly
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                  />
+                  <p className="mt-1 text-xs text-blue-600">Bloqueado por UP: {activePreselection.unidadProductora}</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Lote *</label>
+                    <select
+                      name="lotName"
+                      required
+                      disabled={!outputFieldName}
+                      value={outputLotName}
+                      onChange={(e) => { setOutputLotName(e.target.value); setOutputFruitType(''); }}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-400"
+                    >
+                      <option value="">{outputFieldName ? 'Seleccionar lote' : 'Sin campo asociado'}</option>
+                      {getLotsForField(outputFieldName).map((l) => (
+                        <option key={l.id} value={l.name}>{l.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fruta *</label>
+                    <select
+                      name="fruitType"
+                      required
+                      disabled={!outputLotName}
+                      value={outputFruitType}
+                      onChange={(e) => setOutputFruitType(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-400"
+                    >
+                      <option value="">{outputLotName ? 'Seleccionar fruta' : 'Elegir lote primero'}</option>
+                      {getCropsForLot(outputFieldName, outputLotName).map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* UP tracking OFF: no campo/lote/fruta on output bins */
+              <div className="flex items-center gap-2 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-sm text-gray-500">
+                <Package className="h-4 w-4 flex-shrink-0" />
+                <span>Sin seguimiento de UP — el bin de salida no tendrá campo, lote ni UP asociados.</span>
+                <input type="hidden" name="fieldName" value="" />
+                <input type="hidden" name="lotName" value="" />
+                <input type="hidden" name="fruitType" value="" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fruta *</label>
-                <select
-                  name="fruitType"
-                  required
-                  disabled={!outputLotName}
-                  value={outputFruitType}
-                  onChange={(e) => setOutputFruitType(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-400"
-                >
-                  <option value="">{outputLotName ? 'Seleccionar fruta' : 'Elegir lote primero'}</option>
-                  {getCropsForLot(outputFieldName, outputLotName).map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Peso neto (kg) *</label>
               <input
@@ -1147,6 +1254,89 @@ export function PreseleccionPageClient({
               </div>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ Start Preselection Config ═══ */}
+      <Dialog open={showStartConfig} onOpenChange={setShowStartConfig}>
+        <DialogContent className="w-[95vw] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5 text-green-600" />
+              Configurar Nueva Preselección
+            </DialogTitle>
+            <DialogDescription>
+              Configure las opciones antes de iniciar la preselección
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5">
+            {/* Track Unidad Productora toggle */}
+            <div className="rounded-lg border border-gray-200 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Trazar Unidad Productora</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Solo permitir bines de una unidad productora específica
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewPsTrackUP((prev) => !prev);
+                    if (newPsTrackUP) setNewPsUP('');
+                  }}
+                  className="flex-shrink-0"
+                >
+                  {newPsTrackUP ? (
+                    <ToggleRight className="h-8 w-8 text-green-600" />
+                  ) : (
+                    <ToggleLeft className="h-8 w-8 text-gray-400" />
+                  )}
+                </button>
+              </div>
+              {newPsTrackUP && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Unidad Productora *
+                  </label>
+                  <select
+                    value={newPsUP}
+                    onChange={(e) => setNewPsUP(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Seleccionar unidad productora</option>
+                    {fields.filter((f) => f.unidadProductora).map((f) => (
+                      <option key={f.id} value={f.unidadProductora}>
+                        {f.unidadProductora} ({f.name})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Solo bines de esta UP podrán ingresar, y los bines de salida llevarán este código
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowStartConfig(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmStartNew}
+                disabled={newPsTrackUP && !newPsUP}
+                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus className="h-4 w-4" />
+                Iniciar Preselección
+              </button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

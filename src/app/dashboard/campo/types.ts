@@ -19,6 +19,7 @@ export interface SerializedLot {
 export interface SerializedField {
   id: string;
   name: string;
+  unidadProductora: string | null;
   location: string | null;
   description: string | null;
   lots: SerializedLot[];

@@ -100,6 +100,8 @@ export function FieldDetailClient({ field, taskTypes, cropTypes, allFields, work
             <p className="text-sm text-gray-600">
               {field.location || 'Sin ubicación definida'}
               {field.description ? ` · ${field.description}` : ''}
+              {' · '}
+              {field.unidadProductora && <span className="text-blue-600 font-medium">UP: {field.unidadProductora}</span>}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

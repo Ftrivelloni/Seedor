@@ -75,6 +75,20 @@ export function CreateFieldModal() {
                 />
               </div>
               <div className="space-y-1.5">
+                <label htmlFor="field-unidadProductora" className="block text-sm font-medium text-gray-700">
+                  Unidad Productora <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="field-unidadProductora"
+                  name="unidadProductora"
+                  required
+                  maxLength={100}
+                  placeholder="Ej: UP-001"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                />
+                <p className="text-xs text-gray-400">Código único que identifica esta unidad productora</p>
+              </div>
+              <div className="space-y-1.5">
                 <label htmlFor="field-location" className="block text-sm font-medium text-gray-700">
                   Ubicación
                 </label>
